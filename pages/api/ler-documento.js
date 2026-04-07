@@ -1,6 +1,3 @@
-// pages/api/ler-documento.js
-// Usa Google Gemini API — gratuito até 1500 requisições/dia
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
@@ -12,8 +9,7 @@ export default async function handler(req, res) {
 
   const prompts = {
     aso: `Você está analisando um ASO (Atestado de Saúde Ocupacional) brasileiro.
-Extraia TODOS os campos visíveis e retorne SOMENTE um JSON válido, sem markdown, sem explicação, sem texto antes ou depois.
-Use null para campos não encontrados.
+Retorne SOMENTE um JSON válido, sem markdown, sem texto antes ou depois. Use null para campos não encontrados.
 {
   "funcionario": {
     "nome": "nome completo",
@@ -36,8 +32,8 @@ Use null para campos não encontrados.
   "riscos": ["risco 1"],
   "confianca": {"nome": 90, "cpf": 90, "tipo_aso": 85, "data_exame": 95, "conclusao": 90, "medico_crm": 80}
 }`,
-    ltcat: `Você está analisando um LTCAT (Laudo Técnico das Condições Ambientais do Trabalho) brasileiro.
-Retorne SOMENTE JSON válido, sem markdown, sem explicação.
+    ltcat: `Você está analisando um LTCAT brasileiro.
+Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.
 {
   "dados_gerais": {
     "data_emissao": "DD/MM/AAAA",
@@ -61,7 +57,6 @@ Retorne SOMENTE JSON válido, sem markdown, sem explicação.
   }
 
   try {
-    // Monta partes da requisição para o Gemini
     const parts = [
       ...paginas.map(b64 => ({
         inlineData: { mimeType: 'image/jpeg', data: b64 }
@@ -69,17 +64,18 @@ Retorne SOMENTE JSON válido, sem markdown, sem explicação.
       { text: prompts[tipo] || prompts.aso }
     ]
 
+    // Modelo e endpoint corretos conforme documentação oficial Google AI
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 2000,
-          }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 }
         })
       }
     )
@@ -92,18 +88,14 @@ Retorne SOMENTE JSON válido, sem markdown, sem explicação.
     const data = await response.json()
     const texto = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    // Remove markdown se Gemini incluir
-    const jsonLimpo = texto
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim()
+    const jsonLimpo = texto.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
     let resultado
     try {
       resultado = JSON.parse(jsonLimpo)
     } catch {
       return res.status(500).json({
-        erro: 'Gemini retornou resposta inválida. Tente com um PDF mais legível.',
+        erro: 'Resposta inválida do Gemini. Tente com um PDF mais legível.',
         raw: texto.substring(0, 300)
       })
     }
