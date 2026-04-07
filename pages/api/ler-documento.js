@@ -1,34 +1,28 @@
 // pages/api/ler-documento.js
-// API Route Next.js — recebe imagens base64 do PDF e retorna dados extraídos pelo Claude
+// Usa Google Gemini API — gratuito até 1500 requisições/dia
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
   const { paginas, tipo } = req.body
+  if (!paginas || paginas.length === 0) return res.status(400).json({ erro: 'Nenhuma página enviada' })
 
-  if (!paginas || paginas.length === 0) {
-    return res.status(400).json({ erro: 'Nenhuma página enviada' })
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ erro: 'ANTHROPIC_API_KEY não configurada nas variáveis de ambiente da Vercel' })
-  }
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) return res.status(500).json({ erro: 'GEMINI_API_KEY não configurada na Vercel' })
 
   const prompts = {
     aso: `Você está analisando um ASO (Atestado de Saúde Ocupacional) brasileiro.
-Extraia TODOS os campos visíveis e retorne SOMENTE um JSON válido, sem markdown, sem explicação.
+Extraia TODOS os campos visíveis e retorne SOMENTE um JSON válido, sem markdown, sem explicação, sem texto antes ou depois.
 Use null para campos não encontrados.
-
 {
   "funcionario": {
-    "nome": "nome completo do trabalhador",
-    "cpf": "CPF no formato 000.000.000-00",
+    "nome": "nome completo",
+    "cpf": "000.000.000-00",
     "data_nasc": "DD/MM/AAAA",
-    "data_adm": "DD/MM/AAAA ou null",
+    "data_adm": "DD/MM/AAAA",
     "matricula": "matrícula ou null",
-    "funcao": "função/cargo ou null",
-    "setor": "setor/GHE ou null",
-    "cbo": "código CBO ou null"
+    "funcao": "função ou null",
+    "setor": "setor ou null"
   },
   "aso": {
     "tipo_aso": "admissional|periodico|retorno|mudanca|demissional|monitoracao",
@@ -36,105 +30,69 @@ Use null para campos não encontrados.
     "prox_exame": "DD/MM/AAAA ou null",
     "conclusao": "apto|inapto|apto_restricao",
     "medico_nome": "nome do médico",
-    "medico_crm": "CRM com UF ex: 12345-SP"
+    "medico_crm": "CRM-UF ex: 12345-SP"
   },
-  "exames": [
-    {"nome": "nome do exame", "resultado": "Normal|Alterado|Pendente"}
-  ],
-  "riscos": ["risco 1", "risco 2"],
-  "confianca": {
-    "nome": 95,
-    "cpf": 90,
-    "tipo_aso": 85,
-    "data_exame": 95,
-    "conclusao": 90,
-    "medico_crm": 80
-  }
+  "exames": [{"nome": "nome do exame", "resultado": "Normal|Alterado|Pendente"}],
+  "riscos": ["risco 1"],
+  "confianca": {"nome": 90, "cpf": 90, "tipo_aso": 85, "data_exame": 95, "conclusao": 90, "medico_crm": 80}
 }`,
-
     ltcat: `Você está analisando um LTCAT (Laudo Técnico das Condições Ambientais do Trabalho) brasileiro.
-Extraia TODOS os dados visíveis e retorne SOMENTE um JSON válido, sem markdown, sem explicação.
-Use null para campos não encontrados.
-
+Retorne SOMENTE JSON válido, sem markdown, sem explicação.
 {
   "dados_gerais": {
     "data_emissao": "DD/MM/AAAA",
-    "data_vigencia": "DD/MM/AAAA ou null",
+    "data_vigencia": "DD/MM/AAAA",
     "prox_revisao": "DD/MM/AAAA ou null",
-    "resp_nome": "nome do responsável técnico",
+    "resp_nome": "nome do responsável",
     "resp_conselho": "CREA|CRQ|CRM",
-    "resp_registro": "número do registro"
+    "resp_registro": "número"
   },
-  "ghes": [
-    {
-      "nome": "nome do GHE",
-      "setor": "setor",
-      "qtd_trabalhadores": 0,
-      "aposentadoria_especial": false,
-      "agentes": [
-        {
-          "tipo": "fis|qui|bio|erg",
-          "nome": "nome do agente",
-          "valor": "valor medido",
-          "limite": "limite de tolerância",
-          "supera_lt": false
-        }
-      ],
-      "epc": [{"nome": "nome do EPC", "eficaz": true}],
-      "epi": [{"nome": "nome do EPI", "ca": "número CA", "eficaz": true}]
-    }
-  ],
-  "confianca": {
-    "data_emissao": 90,
-    "resp_nome": 95,
-    "ghes": 80
-  }
+  "ghes": [{
+    "nome": "GHE 01",
+    "setor": "setor",
+    "qtd_trabalhadores": 1,
+    "aposentadoria_especial": false,
+    "agentes": [{"tipo": "fis|qui|bio|erg", "nome": "agente", "valor": "medição", "limite": "LT", "supera_lt": false}],
+    "epc": [{"nome": "EPC", "eficaz": true}],
+    "epi": [{"nome": "EPI", "ca": "CA", "eficaz": true}]
+  }],
+  "confianca": {"data_emissao": 90, "resp_nome": 95, "ghes": 80}
 }`
   }
 
   try {
-    // Monta o conteúdo com todas as páginas do PDF
-    const content = [
+    // Monta partes da requisição para o Gemini
+    const parts = [
       ...paginas.map(b64 => ({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: 'image/jpeg',
-          data: b64,
-        },
+        inlineData: { mimeType: 'image/jpeg', data: b64 }
       })),
-      {
-        type: 'text',
-        text: prompts[tipo] || prompts.aso,
-      },
+      { text: prompts[tipo] || prompts.aso }
     ]
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-6',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content }],
-      }),
-    })
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2000,
+          }
+        })
+      }
+    )
 
     if (!response.ok) {
       const errText = await response.text()
-      return res.status(500).json({ erro: 'Erro na API Claude: ' + errText })
+      return res.status(500).json({ erro: 'Erro na API Gemini: ' + errText })
     }
 
     const data = await response.json()
-    const texto = data.content
-      .filter(b => b.type === 'text')
-      .map(b => b.text)
-      .join('')
+    const texto = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    // Remove markdown se Claude incluir
+    // Remove markdown se Gemini incluir
     const jsonLimpo = texto
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
@@ -145,8 +103,8 @@ Use null para campos não encontrados.
       resultado = JSON.parse(jsonLimpo)
     } catch {
       return res.status(500).json({
-        erro: 'Claude retornou resposta inválida. Tente com um PDF mais legível.',
-        raw: texto.substring(0, 200)
+        erro: 'Gemini retornou resposta inválida. Tente com um PDF mais legível.',
+        raw: texto.substring(0, 300)
       })
     }
 
