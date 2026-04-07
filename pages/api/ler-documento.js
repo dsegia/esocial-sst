@@ -8,51 +8,51 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ erro: 'GEMINI_API_KEY não configurada na Vercel' })
 
   const prompts = {
-    aso: `Você está analisando um ASO (Atestado de Saúde Ocupacional) brasileiro.
-Retorne SOMENTE um JSON válido, sem markdown, sem texto antes ou depois. Use null para campos não encontrados.
+    aso: `Analise este ASO (Atestado de Saúde Ocupacional) brasileiro e extraia os dados.
+IMPORTANTE: Responda APENAS com o JSON abaixo, sem nenhum texto antes ou depois, sem markdown, sem blocos de código.
 {
   "funcionario": {
-    "nome": "nome completo",
-    "cpf": "000.000.000-00",
-    "data_nasc": "DD/MM/AAAA",
-    "data_adm": "DD/MM/AAAA",
+    "nome": "nome completo do trabalhador ou null",
+    "cpf": "CPF formatado 000.000.000-00 ou null",
+    "data_nasc": "DD/MM/AAAA ou null",
+    "data_adm": "DD/MM/AAAA ou null",
     "matricula": "matrícula ou null",
     "funcao": "função ou null",
     "setor": "setor ou null"
   },
   "aso": {
-    "tipo_aso": "admissional|periodico|retorno|mudanca|demissional|monitoracao",
-    "data_exame": "DD/MM/AAAA",
+    "tipo_aso": "admissional ou periodico ou retorno ou mudanca ou demissional ou monitoracao",
+    "data_exame": "DD/MM/AAAA ou null",
     "prox_exame": "DD/MM/AAAA ou null",
-    "conclusao": "apto|inapto|apto_restricao",
-    "medico_nome": "nome do médico",
-    "medico_crm": "CRM-UF ex: 12345-SP"
+    "conclusao": "apto ou inapto ou apto_restricao",
+    "medico_nome": "nome do médico ou null",
+    "medico_crm": "número CRM ou null"
   },
-  "exames": [{"nome": "nome do exame", "resultado": "Normal|Alterado|Pendente"}],
-  "riscos": ["risco 1"],
-  "confianca": {"nome": 90, "cpf": 90, "tipo_aso": 85, "data_exame": 95, "conclusao": 90, "medico_crm": 80}
+  "exames": [{"nome": "nome", "resultado": "Normal ou Alterado ou Pendente"}],
+  "riscos": [],
+  "confianca": {"nome": 85, "cpf": 85, "tipo_aso": 80, "data_exame": 90, "conclusao": 85, "medico_crm": 75}
 }`,
-    ltcat: `Você está analisando um LTCAT brasileiro.
-Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.
+    ltcat: `Analise este LTCAT (Laudo Técnico das Condições Ambientais do Trabalho) brasileiro.
+IMPORTANTE: Responda APENAS com o JSON abaixo, sem nenhum texto antes ou depois, sem markdown.
 {
   "dados_gerais": {
-    "data_emissao": "DD/MM/AAAA",
-    "data_vigencia": "DD/MM/AAAA",
+    "data_emissao": "DD/MM/AAAA ou null",
+    "data_vigencia": "DD/MM/AAAA ou null",
     "prox_revisao": "DD/MM/AAAA ou null",
-    "resp_nome": "nome do responsável",
-    "resp_conselho": "CREA|CRQ|CRM",
-    "resp_registro": "número"
+    "resp_nome": "nome do responsável ou null",
+    "resp_conselho": "CREA ou CRQ ou CRM",
+    "resp_registro": "número ou null"
   },
   "ghes": [{
-    "nome": "GHE 01",
+    "nome": "nome do GHE",
     "setor": "setor",
     "qtd_trabalhadores": 1,
     "aposentadoria_especial": false,
-    "agentes": [{"tipo": "fis|qui|bio|erg", "nome": "agente", "valor": "medição", "limite": "LT", "supera_lt": false}],
+    "agentes": [{"tipo": "fis", "nome": "agente", "valor": "medição", "limite": "LT", "supera_lt": false}],
     "epc": [{"nome": "EPC", "eficaz": true}],
     "epi": [{"nome": "EPI", "ca": "CA", "eficaz": true}]
   }],
-  "confianca": {"data_emissao": 90, "resp_nome": 95, "ghes": 80}
+  "confianca": {"data_emissao": 90, "resp_nome": 90, "ghes": 75}
 }`
   }
 
@@ -64,7 +64,6 @@ Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.
       { text: prompts[tipo] || prompts.aso }
     ]
 
-    // Modelo e endpoint corretos conforme documentação oficial Google AI
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
@@ -75,7 +74,11 @@ Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.
         },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 }
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 2000,
+            responseMimeType: 'application/json',
+          }
         })
       }
     )
@@ -86,18 +89,36 @@ Retorne SOMENTE JSON válido, sem markdown, sem texto antes ou depois.
     }
 
     const data = await response.json()
-    const texto = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    const jsonLimpo = texto.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    // Extrai texto de todos os parts (incluindo thinking)
+    const texto = (data.candidates?.[0]?.content?.parts || [])
+      .filter(p => p.text)
+      .map(p => p.text)
+      .join('')
 
+    // Parser robusto — tenta encontrar JSON dentro do texto
     let resultado
     try {
-      resultado = JSON.parse(jsonLimpo)
+      // Tenta parse direto primeiro
+      resultado = JSON.parse(texto.trim())
     } catch {
-      return res.status(500).json({
-        erro: 'Resposta inválida do Gemini. Tente com um PDF mais legível.',
-        raw: texto.substring(0, 300)
-      })
+      // Busca o primeiro bloco JSON válido no texto
+      const match = texto.match(/\{[\s\S]*\}/)
+      if (match) {
+        try {
+          resultado = JSON.parse(match[0])
+        } catch {
+          return res.status(500).json({
+            erro: 'Não foi possível extrair os dados do documento. O PDF pode estar muito borrado ou com baixa qualidade.',
+            debug: texto.substring(0, 500)
+          })
+        }
+      } else {
+        return res.status(500).json({
+          erro: 'Gemini não retornou dados estruturados. Tente com outro PDF.',
+          debug: texto.substring(0, 500)
+        })
+      }
     }
 
     return res.status(200).json({ sucesso: true, dados: resultado })
