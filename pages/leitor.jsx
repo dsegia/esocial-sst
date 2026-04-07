@@ -358,7 +358,7 @@ export default function Leitor() {
               </div>
               <span style={{ fontSize:11, color:'#6b7280' }}>
                 Campos em <span style={{ color:'#1D9E75', fontWeight:600 }}>verde</span> = alta confiança ·
-                <span style={{ color:'#EF9F27', fontWeight:600' }}> amarelo</span> = verificar ·
+                <span style={{ color:'#EF9F27', fontWeight:600 }}> amarelo</span> = verificar ·
                 <span style={{ color:'#E24B4A', fontWeight:600 }}> vermelho</span> = preencher manualmente
               </span>
             </div>
