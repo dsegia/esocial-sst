@@ -234,6 +234,16 @@ export default function Leitor() {
         }).select().single()
         if (error) throw new Error('Erro ao criar funcionário: ' + error.message)
         funcId = novoFunc.id
+      } else {
+        // Atualizar função/setor do funcionário existente se o ASO trouxer essa info
+        const updates = {}
+        if (d.funcionario?.funcao && !funcMatch?.funcao) updates.funcao = d.funcionario.funcao
+        if (d.funcionario?.setor  && !funcMatch?.setor)  updates.setor  = d.funcionario.setor
+        if (d.funcionario?.data_nasc && !funcMatch?.data_nasc) updates.data_nasc = converterData(d.funcionario.data_nasc)
+        if (d.funcionario?.data_adm  && !funcMatch?.data_adm)  updates.data_adm  = converterData(d.funcionario.data_adm)
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('funcionarios').update(updates).eq('id', funcId)
+        }
       }
 
       // Verificar duplicidade

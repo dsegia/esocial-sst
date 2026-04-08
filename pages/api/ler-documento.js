@@ -108,8 +108,9 @@ REGRAS IMPORTANTES:
 Analise o documento completo e retorne SOMENTE o JSON abaixo. Nenhum texto antes ou depois. Campos não encontrados: null.
 
 REGRAS CRÍTICAS:
-1. "funcoes" de cada GHE: extraia CADA cargo/função listado no campo "FUNÇÕES DO GRUPO", "CARGOS DO GRUPO", "CARGOS", "FUNÇÕES" ou equivalente. São listas longas separadas por vírgula ou ponto — extraia CADA UM como item separado. Exemplo real: "Apontador, Analista de controle, Engenheiro mecânico" → ["Apontador","Analista de controle","Engenheiro mecânico"]. NÃO agrupe, NÃO resuma.
-2. "nome" do GHE: use o identificador como "GHE 01", "GHE 02", "GRUPO 01" etc.
+1. "funcoes" de cada GHE: extraia CADA cargo/função do campo "FUNÇÕES DO GRUPO", "CARGOS DO GRUPO", "CARGOS", "FUNÇÕES" ou tabela similar. São listas separadas por vírgula, ponto-e-vírgula ou quebra de linha. Extraia CADA UM como item separado do array — podem ser dezenas de itens. NUNCA agrupe ou resuma. Se a lista tiver 40 cargos, o array deve ter 40 itens. Exemplo: "Apontador, Analista de controle, Eng. mecânico" → ["Apontador","Analista de controle","Eng. mecânico"].
+2. "nome" do GHE: use o identificador como "GHE 01", "GHE 02", "GRUPO 01", "GRUPO: 02" etc.
+   TABELAS: se o documento tiver tabelas HTML ou estrutura de grid, extraia o conteúdo de todas as células relevantes.
 3. "setor": campo "SETOR" ou "ÁREA" do GHE quando disponível.
 4. "agentes": CADA agente de risco separado. tipo: fis=físico, qui=químico, bio=biológico, erg=ergonômico.
 5. "aposentadoria_especial": true se houver indicação de aposentadoria especial, adicional ou atividade especial.

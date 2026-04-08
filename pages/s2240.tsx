@@ -24,6 +24,7 @@ export default function S2240() {
   // Editar funcionário
   const [editandoFunc, setEditandoFunc] = useState(null)
   const [confirmExcluirTx, setConfirmExcluirTx] = useState(null)
+  const [confirmExcluirFunc, setConfirmExcluirFunc] = useState(null)
   const [formEdit, setFormEdit] = useState({})
   const [salvandoEdit, setSalvandoEdit] = useState(false)
   const [gheSelecionado, setGheSelecionado] = useState('')
@@ -148,6 +149,14 @@ export default function S2240() {
     if (error) { setErro('Erro: ' + error.message) }
     else { setSucesso('Funcionário atualizado!'); setEditandoFunc(null); init() }
     setSalvandoEdit(false)
+  }
+
+  async function excluirFuncionario(funcId) {
+    const { error } = await supabase.from('funcionarios').update({ ativo: false }).eq('id', funcId)
+    if (error) { setErro('Erro: ' + error.message); return }
+    setSucesso('Funcionário removido da lista.')
+    setConfirmExcluirFunc(null)
+    init()
   }
 
   async function excluirTransmissao(txId) {
@@ -374,25 +383,28 @@ export default function S2240() {
                   </td>
                   <td style={s.td}>
                     <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      {/* Vincular / Criar / Transmitir */}
+                      {/* Vincular GHE */}
                       {!ghe && ltcatAtivo && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
                           onClick={() => { setMapeandoFunc(f); setGheSelecionado('') }}>
                           Vincular GHE
                         </button>
                       )}
+                      {/* Criar S-2240 */}
                       {ghe && st.label === 'Não transmitido' && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
                           onClick={() => criarTransmissao(f.id)}>
                           📋 Criar S-2240
                         </button>
                       )}
+                      {/* Transmitir */}
                       {st.pode && tx && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
                           onClick={() => router.push('/transmissao-manual')}>
                           📡 Transmitir
                         </button>
                       )}
+                      {/* Trocar GHE */}
                       {ghe && (
                         <button style={{ ...s.btnAcao, color:'#6b7280', fontSize:10 }}
                           onClick={() => { setMapeandoFunc(f); setGheSelecionado(String(ltcatAtivo.ghes.indexOf(ghe))) }}>
@@ -410,15 +422,13 @@ export default function S2240() {
                           })
                           setEditandoFunc(f)
                         }}>
-                        ✏ Editar funcionário
+                        ✏ Editar
                       </button>
-                      {/* Excluir transmissão */}
-                      {tx && (
-                        <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595', fontSize:11 }}
-                          onClick={() => setConfirmExcluirTx(tx)}>
-                          🗑 Excluir transmissão
-                        </button>
-                      )}
+                      {/* Excluir — sempre visível */}
+                      <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}
+                        onClick={() => tx ? setConfirmExcluirTx(tx) : setConfirmExcluirFunc(f)}>
+                        🗑 Excluir
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -427,6 +437,28 @@ export default function S2240() {
           </tbody>
         </table>
       </div>
+      {/* Modal confirmar remoção de funcionário */}
+      {confirmExcluirFunc && (
+        <div style={s.overlay} onClick={() => setConfirmExcluirFunc(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:14, fontWeight:600, color:'#111', marginBottom:8 }}>🗑 Remover funcionário</div>
+            <div style={{ fontSize:13, color:'#374151', marginBottom:14, lineHeight:1.6 }}>
+              Remover <strong>{confirmExcluirFunc.nome}</strong> da lista?
+              <div style={{ marginTop:8, background:'#FAEEDA', padding:'8px 12px', borderRadius:8, color:'#633806', fontSize:12 }}>
+                O funcionário será desativado mas seus dados e transmissões serão mantidos.
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={{ ...s.btnOutline, color:'#E24B4A', borderColor:'#F09595' }}
+                onClick={() => excluirFuncionario(confirmExcluirFunc.id)}>
+                Confirmar remoção
+              </button>
+              <button style={s.btnOutline} onClick={() => setConfirmExcluirFunc(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal confirmar exclusão de transmissão */}
       {confirmExcluirTx && (
         <div style={s.overlay} onClick={() => setConfirmExcluirTx(null)}>
