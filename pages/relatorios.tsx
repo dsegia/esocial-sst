@@ -22,7 +22,6 @@ export default function Relatorios() {
   const [confirmExcluir, setConfirmExcluir] = useState(null)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
-  const [transmitindo, setTransmitindo] = useState(false)
 
   // Filtros
   const [filtroEvt, setFiltroEvt] = useState('')
@@ -61,12 +60,6 @@ export default function Relatorios() {
     setSucesso('Excluída.')
     setConfirmExcluir(null)
     carregar(empresaId)
-  }
-
-  async function transmitir(tx) {
-    setTransmitindo(true)
-    router.push('/transmissao-manual')
-    setTransmitindo(false)
   }
 
   // Filtros aplicados
@@ -114,9 +107,7 @@ export default function Relatorios() {
           <div style={s.titulo}>Relatórios de Transmissão</div>
           <div style={s.sub}>Histórico completo de todos os eventos SST</div>
         </div>
-        <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
-          📡 Transmitir pendentes
-        </button>
+
       </div>
 
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
@@ -221,18 +212,8 @@ export default function Relatorios() {
                     ) : <span style={{ color:'#d1d5db', fontSize:11 }}>—</span>}
                   </td>
                   <td style={s.td}>
-                    <div style={{ display:'flex', gap:5 }}>
-                      {tx.status === 'pendente' && (
-                        <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
-                          onClick={() => transmitir(tx)}>Enviar</button>
-                      )}
-                      {tx.status === 'rejeitado' && (
-                        <button style={{ ...s.btnAcao, color:'#EF9F27', borderColor:'#FAC775' }}
-                          onClick={() => transmitir(tx)}>Retransmitir</button>
-                      )}
-                      <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}
-                        onClick={() => setConfirmExcluir(tx)}>Excluir</button>
-                    </div>
+                    <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}
+                      onClick={() => setConfirmExcluir(tx)}>Excluir</button>
                   </td>
                 </tr>
               )

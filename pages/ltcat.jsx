@@ -10,6 +10,8 @@ const supabase = createClient(
 )
 
 const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico' }
+
+// noop — funções são mostradas inline via props
 const COR_AGENTE  = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB' }
 const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
 
@@ -25,6 +27,7 @@ export default function LTCAT() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
   const [ltcats, setLtcats] = useState([])
+  const [todosFunc, setTodosFunc] = useState([])
   const [ltcatSel, setLtcatSel] = useState(null)
   const [gheAtivo, setGheAtivo] = useState(0)
   const [carregando, setCarregando] = useState(true)
@@ -45,6 +48,8 @@ export default function LTCAT() {
     const { data } = await supabase.from('ltcats').select('*').eq('empresa_id', user.empresa_id).order('data_emissao', { ascending: false })
     setLtcats(data || [])
     if (data?.length > 0) setLtcatSel(data[0])
+    const { data: funcs } = await supabase.from('funcionarios').select('id,nome,funcao,setor,ghe_id').eq('empresa_id', user.empresa_id).eq('ativo', true)
+    setTodosFunc(funcs || [])
     setCarregando(false)
   }
 
@@ -85,6 +90,15 @@ export default function LTCAT() {
   async function desativar(id) {
     if (!confirm('Arquivar este LTCAT?')) return
     await supabase.from('ltcats').update({ ativo: false }).eq('id', id)
+    init()
+  }
+
+  async function excluirLtcat(id) {
+    if (!confirm('EXCLUIR este LTCAT permanentemente? Esta ação não pode ser desfeita.')) return
+    const { error } = await supabase.from('ltcats').delete().eq('id', id)
+    if (error) { setErro('Erro ao excluir: ' + error.message); return }
+    setSucesso('LTCAT excluído.')
+    setLtcatSel(null)
     init()
   }
 
@@ -278,6 +292,8 @@ export default function LTCAT() {
                         <button style={{ ...s.btnOutline, color:'#E24B4A', borderColor:'#F09595', padding:'6px 14px', fontSize:12 }}
                           onClick={() => desativar(ltcatSel.id)}>Arquivar</button>
                       )}
+                      <button style={{ ...s.btnOutline, color:'#791F1F', borderColor:'#F09595', padding:'6px 14px', fontSize:12 }}
+                        onClick={() => excluirLtcat(ltcatSel.id)}>🗑 Excluir</button>
                     </div>
                   </div>
                 </div>
@@ -333,6 +349,31 @@ export default function LTCAT() {
                             </div>
                           </div>
                         )}
+                        {/* Funções/cargos deste GHE */}
+                        {(() => {
+                          const funcsGHE = todosFunc.filter(f => {
+                            const sg = (ghe.setor||'').toLowerCase()
+                            const sf = (f.setor||'').toLowerCase()
+                            if (f.ghe_id === ltcatSel.ghes.indexOf(ghe)) return true
+                            return sg && sf && (sg.includes(sf) || sf.includes(sg))
+                          })
+                          if (!funcsGHE.length) return null
+                          return (
+                            <div style={{ marginBottom:12 }}>
+                              <div style={s.secLabel}>Funções/cargos neste GHE ({funcsGHE.length})</div>
+                              <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                                {[...new Set(funcsGHE.map(f=>f.funcao).filter(Boolean))].map((fn,i) => (
+                                  <span key={i} style={{ padding:'2px 8px', borderRadius:99, fontSize:11, background:'#E6F1FB', color:'#0C447C' }}>{fn}</span>
+                                ))}
+                                {funcsGHE.filter(f=>!f.funcao).length > 0 && (
+                                  <span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, background:'#f3f4f6', color:'#6b7280' }}>
+                                    {funcsGHE.filter(f=>!f.funcao).length} sem função definida
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()}
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                           <div>
                             <div style={s.secLabel}>EPC</div>

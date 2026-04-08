@@ -19,6 +19,9 @@ export default function S2240() {
   const [filtro, setFiltro] = useState('todos')
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  // Mapear GHE
+  const [mapeandoFunc, setMapeandoFunc] = useState(null)
+  const [gheSelecionado, setGheSelecionado] = useState('')
 
   useEffect(() => { init() }, [])
 
@@ -30,7 +33,7 @@ export default function S2240() {
     setEmpresaId(user.empresa_id)
 
     const [funcsRes, ltcatRes, txRes] = await Promise.all([
-      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor,data_adm,data_nasc').eq('empresa_id', user.empresa_id).eq('ativo', true).order('nome'),
+      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor,data_adm,data_nasc,ghe_id').eq('empresa_id', user.empresa_id).eq('ativo', true).order('nome'),
       supabase.from('ltcats').select('*').eq('empresa_id', user.empresa_id).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).single(),
       supabase.from('transmissoes').select('id,status,evento,funcionario_id,recibo,dt_envio,criado_em,erro_descricao').eq('empresa_id', user.empresa_id).eq('evento', 'S-2240').order('criado_em', { ascending: false }),
     ])
@@ -45,17 +48,19 @@ export default function S2240() {
     return transmissoes.filter(t => t.funcionario_id === funcId)[0] || null
   }
 
-  // GHE do funcionário baseado no setor
   function gheDoFuncionario(func) {
     if (!ltcatAtivo?.ghes) return null
-    for (const ghe of ltcatAtivo.ghes) {
-      const setorGHE  = (ghe.setor||'').toLowerCase()
-      const setorFunc = (func.setor||'').toLowerCase()
-      if (setorGHE && setorFunc && (setorGHE.includes(setorFunc) || setorFunc.includes(setorGHE))) {
-        return ghe
-      }
+    // 1. GHE fixado manualmente (ghe_id salvo no funcionário)
+    if (func.ghe_id !== undefined && func.ghe_id !== null) {
+      return ltcatAtivo.ghes[func.ghe_id] || null
     }
-    // Se só tem um GHE, assume que é dele
+    // 2. Cruzamento por setor
+    for (const ghe of ltcatAtivo.ghes) {
+      const sg = (ghe.setor||'').toLowerCase()
+      const sf = (func.setor||'').toLowerCase()
+      if (sg && sf && (sg.includes(sf) || sf.includes(sg))) return ghe
+    }
+    // 3. Se só tem 1 GHE
     if (ltcatAtivo.ghes.length === 1) return ltcatAtivo.ghes[0]
     return null
   }
@@ -65,43 +70,42 @@ export default function S2240() {
     const ghe = gheDoFuncionario(func)
     const dadosOk = func.data_adm && func.data_nasc && func.matricula_esocial && !func.matricula_esocial.startsWith('PEND-')
 
-    if (!ltcatAtivo) return { label:'Sem LTCAT', cor:'#E24B4A', bg:'#FCEBEB', pode:false, motivo:'Nenhum LTCAT ativo cadastrado' }
-    if (!dadosOk)    return { label:'Dados incompletos', cor:'#EF9F27', bg:'#FAEEDA', pode:false, motivo:'Faltam: admissão, nascimento ou matrícula eSocial' }
+    if (!ltcatAtivo) return { label:'Sem LTCAT', cor:'#E24B4A', bg:'#FCEBEB', pode:false, motivo:'Nenhum LTCAT ativo' }
+    if (!dadosOk)    return { label:'Dados incompletos', cor:'#EF9F27', bg:'#FAEEDA', pode:false, motivo:'Faltam admissão, nascimento ou matrícula eSocial' }
+    if (!ghe)        return { label:'GHE não vinculado', cor:'#EF9F27', bg:'#FAEEDA', pode:false, motivo:'Clique em "Vincular GHE" para associar' }
 
-    if (!tx) return { label:'Não transmitido', cor:'#EF9F27', bg:'#FAEEDA', pode:true, motivo:'S-2240 ainda não enviado para este funcionário' }
+    if (!tx) return { label:'Não transmitido', cor:'#EF9F27', bg:'#FAEEDA', pode:true, motivo:'Clique em "Criar S-2240" para registrar' }
     if (tx.status === 'enviado')   return { label:'Transmitido', cor:'#1D9E75', bg:'#EAF3DE', pode:false, motivo:`Recibo: ${tx.recibo||'—'}` }
     if (tx.status === 'pendente')  return { label:'Pendente', cor:'#EF9F27', bg:'#FAEEDA', pode:true, motivo:'Aguardando transmissão' }
-    if (tx.status === 'rejeitado') return { label:'Rejeitado', cor:'#E24B4A', bg:'#FCEBEB', pode:true, motivo: tx.erro_descricao || 'Verifique o erro e retransmita' }
-
+    if (tx.status === 'rejeitado') return { label:'Rejeitado', cor:'#E24B4A', bg:'#FCEBEB', pode:true, motivo:tx.erro_descricao||'Verifique o erro' }
     return { label:'Em dia', cor:'#1D9E75', bg:'#EAF3DE', pode:false, motivo:'' }
+  }
+
+  async function vincularGHE(func) {
+    if (gheSelecionado === '') { setErro('Selecione um GHE.'); return }
+    const idx = parseInt(gheSelecionado)
+    const { error } = await supabase.from('funcionarios').update({ ghe_id: idx }).eq('id', func.id)
+    if (error) { setErro('Erro ao vincular: ' + error.message); return }
+    setSucesso(`GHE "${ltcatAtivo.ghes[idx]?.nome||'GHE '+(idx+1)}" vinculado a ${func.nome}.`)
+    setMapeandoFunc(null); setGheSelecionado('')
+    init()
   }
 
   async function criarTransmissao(funcId) {
     const { error } = await supabase.from('transmissoes').insert({
-      empresa_id: empresaId,
-      funcionario_id: funcId,
-      evento: 'S-2240',
-      referencia_id: ltcatAtivo.id,
-      referencia_tipo: 'ltcat',
-      status: 'pendente',
-      tentativas: 0,
-      ambiente: 'producao_restrita',
+      empresa_id: empresaId, funcionario_id: funcId,
+      evento: 'S-2240', referencia_id: ltcatAtivo.id, referencia_tipo: 'ltcat',
+      status: 'pendente', tentativas: 0, ambiente: 'producao_restrita',
     })
-    if (error) { setErro('Erro ao criar transmissão: ' + error.message); return }
-    setSucesso('Transmissão S-2240 criada. Acesse Transmissão para enviar.')
+    if (error) { setErro('Erro: ' + error.message); return }
+    setSucesso('Transmissão S-2240 criada.')
     init()
   }
 
   async function criarParaTodos() {
-    const semTx = funcsFiltradas.filter(f => {
-      const st = statusFuncionario(f)
-      return st.label === 'Não transmitido' && !statusFuncionario(f).pode === false
-    }).filter(f => statusFuncionario(f).pode)
-
-    for (const f of semTx) {
-      await criarTransmissao(f.id)
-    }
-    setSucesso(`${semTx.length} transmissão(ões) S-2240 criada(s). Acesse Transmissão para enviar.`)
+    const aptos = funcsFiltradas.filter(f => statusFuncionario(f).label === 'Não transmitido')
+    for (const f of aptos) await criarTransmissao(f.id)
+    setSucesso(`${aptos.length} transmissão(ões) criada(s). Acesse "Ir para transmissão" para enviar.`)
   }
 
   const funcsFiltradas = funcionarios.filter(f => {
@@ -109,12 +113,12 @@ export default function S2240() {
     if (filtro === 'todos') return true
     if (filtro === 'pendente') return st.pode
     if (filtro === 'ok') return st.label === 'Transmitido'
-    if (filtro === 'problema') return ['Sem LTCAT','Dados incompletos','Rejeitado'].includes(st.label)
+    if (filtro === 'problema') return ['Sem LTCAT','Dados incompletos','Rejeitado','GHE não vinculado'].includes(st.label)
     return true
   })
 
   const prontos   = funcionarios.filter(f => statusFuncionario(f).pode)
-  const problemas = funcionarios.filter(f => ['Sem LTCAT','Dados incompletos','Rejeitado'].includes(statusFuncionario(f).label))
+  const problemas = funcionarios.filter(f => ['Sem LTCAT','Dados incompletos','Rejeitado','GHE não vinculado'].includes(statusFuncionario(f).label))
 
   if (carregando) return <div style={s.loading}>Carregando...</div>
 
@@ -125,7 +129,7 @@ export default function S2240() {
       <div style={s.header}>
         <div>
           <div style={s.titulo}>S-2240 — Condições Ambientais do Trabalho</div>
-          <div style={s.sub}>{prontos.length} funcionário(s) com transmissão pendente · {problemas.length} com problema</div>
+          <div style={s.sub}>{prontos.length} pendente(s) · {problemas.length} com problema</div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button style={s.btnOutline} onClick={() => router.push('/ltcat')}>Ver LTCAT</button>
@@ -144,36 +148,27 @@ export default function S2240() {
       {ltcatAtivo ? (
         <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:10, padding:'10px 16px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontSize:13, color:'#085041' }}>
-            ✓ LTCAT ativo: emitido em <strong>{new Date(ltcatAtivo.data_emissao+'T12:00:00').toLocaleDateString('pt-BR')}</strong>
-            · {ltcatAtivo.ghes?.length||0} GHE(s)
-            · Resp: {ltcatAtivo.resp_nome||'—'}
+            ✓ LTCAT ativo · emitido em <strong>{new Date(ltcatAtivo.data_emissao+'T12:00:00').toLocaleDateString('pt-BR')}</strong>
+            · {ltcatAtivo.ghes?.length||0} GHE(s) · Resp: {ltcatAtivo.resp_nome||'—'}
           </div>
-          <button style={{ ...s.btnOutline, padding:'4px 10px', fontSize:12 }} onClick={() => router.push('/ltcat')}>
-            Editar LTCAT →
-          </button>
+          <button style={{ ...s.btnOutline, padding:'4px 10px', fontSize:12 }} onClick={() => router.push('/ltcat')}>Editar LTCAT →</button>
         </div>
       ) : (
         <div style={{ background:'#FCEBEB', border:'1px solid #E24B4A', borderRadius:10, padding:'12px 16px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ fontSize:13, color:'#791F1F' }}>
-            ⚠ Nenhum LTCAT ativo. O S-2240 requer um LTCAT cadastrado para identificar os agentes de risco.
-          </div>
+          <div style={{ fontSize:13, color:'#791F1F' }}>⚠ Nenhum LTCAT ativo. Necessário para o S-2240.</div>
           <button style={s.btnPrimary} onClick={() => router.push('/ltcat')}>Cadastrar LTCAT →</button>
         </div>
       )}
 
       {/* Ação em massa */}
-      {prontos.length > 0 && ltcatAtivo && (
+      {prontos.filter(f=>statusFuncionario(f).label==='Não transmitido').length > 0 && (
         <div style={{ background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'10px 16px', marginBottom:14, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ fontSize:13, color:'#374151' }}>
-            <strong style={{ color:'#EF9F27' }}>{prontos.length}</strong> funcionário(s) precisam ter S-2240 transmitido
+            <strong style={{ color:'#EF9F27' }}>{prontos.filter(f=>statusFuncionario(f).label==='Não transmitido').length}</strong> funcionário(s) prontos para ter S-2240 criado
           </div>
           <div style={{ display:'flex', gap:8 }}>
-            <button style={s.btnOutline} onClick={criarParaTodos}>
-              Criar transmissões para todos
-            </button>
-            <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
-              📡 Ir para transmissão
-            </button>
+            <button style={s.btnOutline} onClick={criarParaTodos}>Criar S-2240 para todos</button>
+            <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>📡 Ir para transmissão</button>
           </div>
         </div>
       )}
@@ -193,6 +188,48 @@ export default function S2240() {
         ))}
       </div>
 
+      {/* Modal vincular GHE */}
+      {mapeandoFunc && (
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={{ fontSize:14, fontWeight:600, color:'#111', marginBottom:6 }}>
+              Vincular GHE — {mapeandoFunc.nome}
+            </div>
+            <div style={{ fontSize:12, color:'#6b7280', marginBottom:14, lineHeight:1.6 }}>
+              Selecione o GHE do LTCAT que corresponde à função/setor deste funcionário.
+              Isso define os agentes de risco e a necessidade de aposentadoria especial.
+            </div>
+            <label style={s.label}>GHE do LTCAT</label>
+            <select style={{ ...s.input, marginBottom:14 }} value={gheSelecionado} onChange={e => setGheSelecionado(e.target.value)}>
+              <option value="">— selecione —</option>
+              {(ltcatAtivo?.ghes||[]).map((g,i) => (
+                <option key={i} value={i}>
+                  {g.nome||`GHE ${i+1}`}
+                  {g.setor ? ` — ${g.setor}` : ''}
+                  {` (${g.agentes?.length||0} agentes)`}
+                </option>
+              ))}
+            </select>
+            {gheSelecionado !== '' && ltcatAtivo?.ghes[parseInt(gheSelecionado)] && (
+              <div style={{ background:'#f9fafb', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#374151' }}>
+                <div style={{ fontWeight:500, marginBottom:4 }}>{ltcatAtivo.ghes[parseInt(gheSelecionado)].nome}</div>
+                <div style={{ color:'#6b7280' }}>
+                  Agentes: {(ltcatAtivo.ghes[parseInt(gheSelecionado)].agentes||[]).slice(0,3).map(a=>a.nome).join(', ')}
+                  {(ltcatAtivo.ghes[parseInt(gheSelecionado)].agentes||[]).length > 3 && ` +${ltcatAtivo.ghes[parseInt(gheSelecionado)].agentes.length-3}`}
+                </div>
+                {ltcatAtivo.ghes[parseInt(gheSelecionado)].aposentadoria_especial && (
+                  <div style={{ color:'#791F1F', marginTop:4, fontWeight:500 }}>⚠ Aposentadoria especial</div>
+                )}
+              </div>
+            )}
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={s.btnPrimary} onClick={() => vincularGHE(mapeandoFunc)} disabled={gheSelecionado===''}>Vincular GHE</button>
+              <button style={s.btnOutline} onClick={() => { setMapeandoFunc(null); setGheSelecionado('') }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabela */}
       <div style={{ background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
@@ -205,9 +242,7 @@ export default function S2240() {
           </thead>
           <tbody>
             {funcsFiltradas.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#9ca3af', fontSize:13 }}>
-                Nenhum funcionário neste filtro.
-              </td></tr>
+              <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#9ca3af', fontSize:13 }}>Nenhum resultado.</td></tr>
             ) : funcsFiltradas.map(f => {
               const tx  = ultimaTx(f.id)
               const st  = statusFuncionario(f)
@@ -227,16 +262,12 @@ export default function S2240() {
                   <td style={s.td}>
                     {ghe ? (
                       <div>
-                        <div style={{ fontSize:12, fontWeight:500 }}>{ghe.nome||'—'}</div>
-                        <div style={{ fontSize:11, color:'#6b7280' }}>{ghe.qtd_trabalhadores} trabalhador(es)</div>
-                        {ghe.aposentadoria_especial && (
-                          <span style={{ fontSize:10, color:'#791F1F', fontWeight:600 }}>⚠ Aposent. especial</span>
-                        )}
+                        <div style={{ fontSize:12, fontWeight:500, color:'#111' }}>{ghe.nome||'—'}</div>
+                        <div style={{ fontSize:11, color:'#6b7280' }}>{ghe.setor||'—'} · {ghe.qtd_trabalhadores||'?'} trab.</div>
+                        {ghe.aposentadoria_especial && <span style={{ fontSize:10, color:'#791F1F', fontWeight:600 }}>⚠ Aposent. especial</span>}
                       </div>
                     ) : (
-                      <span style={{ fontSize:11, color:'#9ca3af' }}>
-                        {ltcatAtivo ? 'Setor não mapeado no LTCAT' : '—'}
-                      </span>
+                      <span style={{ fontSize:11, color:'#EF9F27' }}>Não vinculado</span>
                     )}
                   </td>
                   <td style={s.td}>
@@ -247,44 +278,37 @@ export default function S2240() {
                           const TXT = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
                           return (
                             <span key={i} style={{ padding:'1px 6px', borderRadius:99, fontSize:10, fontWeight:500, background:COR[ag.tipo]||'#f3f4f6', color:TXT[ag.tipo]||'#374151' }}>
-                              {ag.nome?.substring(0,18)}{ag.nome?.length>18?'...':''}
+                              {ag.nome?.substring(0,20)}{ag.nome?.length>20?'...':''}
                             </span>
                           )
                         })}
                         {ghe.agentes.length > 3 && <span style={{ fontSize:10, color:'#9ca3af' }}>+{ghe.agentes.length-3}</span>}
                       </div>
-                    ) : (
-                      <span style={{ fontSize:11, color:'#9ca3af' }}>
-                        {ghe ? 'Sem agentes no GHE' : '—'}
-                      </span>
-                    )}
+                    ) : <span style={{ fontSize:11, color:'#9ca3af' }}>—</span>}
                   </td>
                   <td style={s.td}>
                     {tx ? (
                       <div>
                         <div style={{ fontSize:11 }}>{new Date(tx.criado_em).toLocaleDateString('pt-BR')}</div>
-                        <div style={{ fontSize:10, color:'#9ca3af', fontFamily:'monospace' }}>
-                          {tx.recibo ? tx.recibo.substring(0,12)+'...' : '—'}
-                        </div>
-                        {tx.erro_descricao && (
-                          <div style={{ fontSize:10, color:'#E24B4A', marginTop:2 }} title={tx.erro_descricao}>
-                            {tx.erro_descricao.substring(0,30)}...
-                          </div>
-                        )}
+                        <div style={{ fontSize:10, color:'#9ca3af', fontFamily:'monospace' }}>{tx.recibo ? tx.recibo.substring(0,12)+'...' : '—'}</div>
                       </div>
                     ) : <span style={{ color:'#9ca3af', fontSize:12 }}>—</span>}
                   </td>
                   <td style={s.td}>
-                    <div>
-                      <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:st.bg, color:st.cor }}>
-                        {st.label}
-                      </span>
-                      {st.motivo && <div style={{ fontSize:10, color:'#9ca3af', marginTop:3, maxWidth:160 }}>{st.motivo}</div>}
-                    </div>
+                    <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:st.bg, color:st.cor }}>
+                      {st.label}
+                    </span>
+                    {st.motivo && <div style={{ fontSize:10, color:'#9ca3af', marginTop:3, maxWidth:160 }}>{st.motivo}</div>}
                   </td>
                   <td style={s.td}>
                     <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-                      {st.label === 'Não transmitido' && ltcatAtivo && (
+                      {!ghe && ltcatAtivo && (
+                        <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
+                          onClick={() => { setMapeandoFunc(f); setGheSelecionado('') }}>
+                          Vincular GHE
+                        </button>
+                      )}
+                      {ghe && st.label === 'Não transmitido' && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
                           onClick={() => criarTransmissao(f.id)}>
                           Criar S-2240
@@ -299,13 +323,13 @@ export default function S2240() {
                       {st.label === 'Dados incompletos' && (
                         <button style={{ ...s.btnAcao, color:'#EF9F27', borderColor:'#FAC775' }}
                           onClick={() => router.push('/funcionarios')}>
-                          Completar dados
+                          Completar
                         </button>
                       )}
-                      {!ghe && ltcatAtivo && (
-                        <button style={{ ...s.btnAcao, color:'#633806', borderColor:'#FAC775' }}
-                          onClick={() => router.push('/ltcat')}>
-                          Mapear GHE
+                      {ghe && (
+                        <button style={{ ...s.btnAcao, color:'#6b7280' }}
+                          onClick={() => { setMapeandoFunc(f); setGheSelecionado(String(ltcatAtivo.ghes.indexOf(ghe))) }}>
+                          Trocar GHE
                         </button>
                       )}
                     </div>
@@ -327,9 +351,13 @@ const s = {
   sub:        { fontSize:12, color:'#6b7280', marginTop:2 },
   th:         { padding:'10px 12px', textAlign:'left', fontSize:11, fontWeight:600, color:'#6b7280', borderBottom:'0.5px solid #e5e7eb', textTransform:'uppercase', letterSpacing:'.04em', whiteSpace:'nowrap' },
   td:         { padding:'10px 12px', verticalAlign:'top', color:'#374151' },
+  label:      { display:'block', fontSize:12, fontWeight:500, color:'#374151', marginBottom:4 },
+  input:      { width:'100%', padding:'8px 10px', fontSize:13, border:'1px solid #d1d5db', borderRadius:8, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' },
   btnAcao:    { padding:'3px 10px', fontSize:11, background:'transparent', border:'0.5px solid #d1d5db', borderRadius:6, cursor:'pointer', color:'#374151', whiteSpace:'nowrap' },
   btnPrimary: { padding:'8px 16px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' },
   btnOutline: { padding:'8px 14px', background:'transparent', border:'1px solid #d1d5db', borderRadius:8, fontSize:13, cursor:'pointer', color:'#374151' },
   erroBox:    { background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   sucessoBox: { background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
+  overlay:    { position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
+  modal:      { background:'#fff', borderRadius:12, padding:'1.5rem', width:480, boxShadow:'0 20px 60px rgba(0,0,0,0.15)' },
 }
