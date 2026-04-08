@@ -79,6 +79,117 @@ function codigoAgente(nome) {
   return '09.01.001'
 }
 
+// ── Leitor Claude (primário para LTCAT) ─────────────────
+async function lerComClaude(req, res, texto_pdf, paginas, anthropicKey) {
+  const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
+
+  const prompt = `Você é especialista em LTCAT brasileiro. Analise o documento e retorne SOMENTE JSON válido.
+
+FORMATOS ACEITOS (o documento pode usar qualquer um):
+- "GHE 01 / GHE 02" ou "GRUPO 1 / GRUPO 2" ou "CÓD. GHE/GF: 1"
+- "FUNÇÕES DO GRUPO" ou "FUNÇÃO" (coluna com cargos listados individualmente)
+- "NOMENCLATURA GHE/GF: ADMINISTRAÇÃO" = nome do GHE
+- "RISCO: [eSocial] código XX.XX.XXX" ou "Código eSocial: 09.01.001"
+
+EXTRAIA:
+1. dados_gerais: data_emissao (DD/MM/AAAA→AAAA-MM-DD), resp_nome, resp_conselho (CREA/CRM), resp_registro, data_vigencia, prox_revisao
+2. Para cada GHE/Grupo:
+   - nome: identificador ("GHE 01", "ADMINISTRAÇÃO", "GHE/GF 1")
+   - setor: campo AMBIENTES ou SETOR
+   - funcoes: TODOS os cargos/funções listados na coluna FUNÇÃO ou campo FUNÇÕES DO GRUPO — cada um como item separado
+   - agentes: cada risco (tipo: fis/qui/bio/erg, nome, codigo_t24 se informado, supera_lt)
+   - epc: equipamentos de proteção coletiva
+   - epi: equipamentos de proteção individual com CA
+   - aposentadoria_especial: true se indicado
+
+JSON ESPERADO:
+{
+  "dados_gerais": {
+    "data_emissao": null,
+    "data_vigencia": null,
+    "prox_revisao": null,
+    "resp_nome": null,
+    "resp_conselho": "CREA",
+    "resp_registro": null
+  },
+  "ghes": [
+    {
+      "nome": "GHE 01",
+      "setor": null,
+      "qtd_trabalhadores": 1,
+      "aposentadoria_especial": false,
+      "funcoes": ["Cargo 1", "Cargo 2"],
+      "agentes": [{"tipo": "fis", "nome": "Ruído contínuo", "valor": null, "limite": null, "supera_lt": false, "codigo_t24": "01.01.001"}],
+      "epc": [{"nome": "EPC", "eficaz": true}],
+      "epi": [{"nome": "EPI", "ca": null, "eficaz": true}]
+    }
+  ],
+  "confianca": {"data_emissao": 90, "resp_nome": 90, "ghes": 90}
+}`
+
+  function extrairJSON(str) {
+    const ini = str.indexOf('{'); if (ini===-1) return null
+    let d=0
+    for (let i=ini;i<str.length;i++) { if(str[i]==='{')d++; if(str[i]==='}'){d--;if(d===0)return str.substring(ini,i+1)} }
+    return null
+  }
+
+  function parseRobusto(texto) {
+    const limpo = texto.replace(/\`\`\`json\n?/g,'').replace(/\`\`\`\n?/g,'').trim()
+    for (const fn of [
+      ()=>JSON.parse(limpo),
+      ()=>JSON.parse(extrairJSON(limpo)),
+      ()=>JSON.parse(extrairJSON(texto)),
+    ]) { try { const r=fn(); if(r) return r } catch {} }
+    return null
+  }
+
+  try {
+    let content = []
+    if (paginas?.length > 0) {
+      paginas.forEach(b64 => {
+        content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 } })
+      })
+    }
+    const textoEnviar = usandoTexto
+      ? `${prompt}\n\nTEXTO COMPLETO DO DOCUMENTO:\n${texto_pdf.substring(0,20000)}`
+      : prompt
+    content.push({ type:'text', text: textoEnviar })
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version':'2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        messages: [{ role:'user', content }]
+      })
+    })
+
+    if (!response.ok) throw new Error(await response.text())
+    const data = await response.json()
+    const texto = data.content?.[0]?.text || ''
+    const resultado = parseRobusto(texto)
+    if (resultado) {
+      return res.status(200).json({
+        sucesso: true,
+        dados: enriquecer(resultado, 'ltcat'),
+        modo: usandoTexto ? 'texto' : 'imagem',
+        modelo: 'claude-ltcat'
+      })
+    }
+    throw new Error('JSON inválido na resposta do Claude')
+  } catch (err) {
+    // Fallback para Gemini
+    return res.status(500).json({ erro: 'Erro ao ler LTCAT: ' + err.message })
+  }
+}
+
+// ────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
@@ -87,6 +198,12 @@ export default async function handler(req, res) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY
 
   if (!geminiKey && !anthropicKey) return res.status(500).json({ erro: 'Nenhuma API key configurada' })
+
+  // LTCAT: usa Claude como primário (muito melhor para documentos estruturados)
+  // ASO: usa Gemini como primário (mais rápido, gratuito)
+  if (tipo === 'ltcat' && anthropicKey) {
+    return await lerComClaude(req, res, texto_pdf, paginas, anthropicKey)
+  }
 
   const prompt_aso = `Você é um extrator de dados de ASO brasileiro. Analise o documento e retorne SOMENTE o JSON abaixo preenchido. Não escreva nada antes ou depois do JSON. Campos não encontrados devem ser null.
 
@@ -196,7 +313,19 @@ REGRAS CRÍTICAS:
 
     let parts = []
     if (usandoTexto) {
-      parts = [{ text: `${promptBase}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0,12000)}` }]
+      // Pré-processar: extrair seções de FUNÇÕES DO GRUPO do texto bruto
+      let textoProcessado = texto_pdf
+      if (tipo === 'ltcat') {
+        // Encontrar padrões "FUNÇÕES DO GRUPO: ..." e formatar para facilitar extração
+        textoProcessado = texto_pdf
+          .replace(/FUNÇÕES DO GRUPO:/gi, '\n\n===FUNÇÕES DO GRUPO===\n')
+          .replace(/CARGOS DO GRUPO:/gi, '\n\n===FUNÇÕES DO GRUPO===\n')
+          .replace(/CARGOS:/gi, '\n\n===FUNÇÕES DO GRUPO===\n')
+          .replace(/FUNÇÃO DO GRUPO:/gi, '\n\n===FUNÇÕES DO GRUPO===\n')
+          .replace(/DESCRIÇÃO DAS ATIVIDADES/gi, '\n\n===FIM FUNÇÕES===\n')
+          .replace(/HORARIO E JORNADA/gi, '\n\n===FIM FUNÇÕES===\n')
+      }
+      parts = [{ text: `${promptBase}\n\nTEXTO DO DOCUMENTO:\n${textoProcessado.substring(0,15000)}` }]
     } else if (paginas?.length > 0) {
       parts = [
         ...paginas.map(b64 => ({ inlineData: { mimeType:'image/jpeg', data:b64 } })),
