@@ -69,14 +69,9 @@ export default function LTCAT() {
           <div style={s.titulo}>LTCAT</div>
           <div style={s.sub}>Laudo Técnico das Condições Ambientais do Trabalho · S-2240</div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=ltcat')}>
-            + Importar PDF
-          </button>
-          <button style={s.btnPrimary} onClick={() => router.push('/s2240')}>
-            + Novo LTCAT manual
-          </button>
-        </div>
+        <button style={s.btnPrimary} onClick={() => router.push('/leitor')}>
+          + Importar PDF / XML
+        </button>
       </div>
 
       {ltcats.length === 0 ? (
@@ -87,10 +82,9 @@ export default function LTCAT() {
           </svg>
           <div style={{ fontSize:14, fontWeight:500, color:'#374151', marginTop:12 }}>Nenhum LTCAT cadastrado</div>
           <div style={{ fontSize:12, color:'#9ca3af', marginTop:4 }}>Importe um PDF ou cadastre manualmente</div>
-          <div style={{ display:'flex', gap:8, marginTop:16 }}>
-            <button style={s.btnPrimary} onClick={() => router.push('/leitor?tipo=ltcat')}>Importar PDF</button>
-            <button style={s.btnOutline} onClick={() => router.push('/s2240')}>Cadastrar manual</button>
-          </div>
+          <button style={s.btnPrimary} onClick={() => router.push('/leitor')} style={{ marginTop:16 }}>
+            + Importar PDF / XML
+          </button>
         </div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap:14 }}>
