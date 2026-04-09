@@ -25,7 +25,6 @@ export default function Historico() {
   const [modoSelecao, setModoSelecao] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
-  const [transmitindo, setTransmitindo] = useState(false)
   const [temCertificado, setTemCertificado] = useState(false)
 
   useEffect(() => { init() }, [])
@@ -80,29 +79,14 @@ export default function Historico() {
     carregar(empresaId, filtroEvt, filtroSt)
   }
 
-  // Simula transmissão (real exige certificado A1 + XMLDSig)
-  async function transmitir(ids) {
+  function transmitir(ids: string[]) {
     if (!temCertificado) {
       if (!confirm('Certificado digital não configurado. Deseja ir para as configurações?')) return
       router.push('/configuracoes')
       return
     }
-    setTransmitindo(true); setErro(''); setSucesso('')
-    try {
-      // Aqui futuramente: assinar XML + enviar webservice Gov.br
-      // Por ora: marca como "enviado" localmente para demonstração
-      const { error } = await supabase.from('transmissoes')
-        .update({ status:'enviado', dt_envio: new Date().toISOString() })
-        .in('id', ids)
-      if (error) throw error
-      setSucesso(`${ids.length} transmissão(ões) marcada(s) como enviada(s).`)
-      setSelecionados([])
-      setModoSelecao(false)
-      carregar(empresaId, filtroEvt, filtroSt)
-    } catch (err) {
-      setErro('Erro na transmissão: ' + err.message)
-    }
-    setTransmitindo(false)
+    // Redireciona para a página de transmissão manual com o fluxo real (XMLDSig + SOAP Gov.br)
+    router.push('/transmissao-manual')
   }
 
   const pendentes = lista.filter(t => t.status === 'pendente')
@@ -173,9 +157,8 @@ export default function Historico() {
             {modoSelecao && selecionados.length > 0 ? (
               <>
                 <button style={s.btnPrimary}
-                  onClick={() => transmitir(selecionados)}
-                  disabled={transmitindo}>
-                  {transmitindo ? 'Transmitindo...' : `Transmitir ${selecionados.length} selecionado(s)`}
+                  onClick={() => transmitir(selecionados)}>
+                  {`Transmitir ${selecionados.length} selecionado(s)`}
                 </button>
                 <button style={{ ...s.btnOutline, color:'#E24B4A', borderColor:'#F09595' }}
                   onClick={() => { if(confirm(`Excluir ${selecionados.length} transmissão(ões)?`)) excluirSelecionados() }}>
@@ -184,9 +167,8 @@ export default function Historico() {
               </>
             ) : (
               <button style={s.btnPrimary}
-                onClick={() => transmitir(pendentes.map(t=>t.id))}
-                disabled={transmitindo}>
-                {transmitindo ? 'Transmitindo...' : `Transmitir todos (${pendentes.length})`}
+                onClick={() => transmitir(pendentes.map(t=>t.id))}>
+                {`Transmitir todos (${pendentes.length})`}
               </button>
             )}
           </div>
@@ -275,7 +257,7 @@ export default function Historico() {
                     <div style={{ display:'flex', gap:5 }}>
                       {isPendente && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
-                          onClick={() => transmitir([tx.id])} disabled={transmitindo}>
+                          onClick={() => transmitir([tx.id])}>
                           Enviar
                         </button>
                       )}

@@ -15,6 +15,8 @@ const TIPOS_CAT = [
   { v: 'doenca', l: 'Doença ocupacional', desc: 'Doença causada ou agravada pelo trabalho' },
 ]
 
+const TIPO_LBL = { tipico: 'Acidente típico', trajeto: 'Acidente de trajeto', doenca: 'Doença ocupacional' }
+
 export default function S2210() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
@@ -25,6 +27,8 @@ export default function S2210() {
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
   const [tipoCat, setTipoCat] = useState('')
+  const [cats, setCats] = useState([])
+  const [abaAtiva, setAbaAtiva] = useState<'lista'|'novo'>('lista')
   const [form, setForm] = useState({
     funcionario_id: '',
     dt_acidente: '',
@@ -53,7 +57,18 @@ export default function S2210() {
     setEmpresaId(user.empresa_id)
     const { data: funcs } = await supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor').eq('empresa_id', user.empresa_id).eq('ativo', true).order('nome')
     setFuncionarios(funcs || [])
+    await carregarCats(user.empresa_id)
     setCarregando(false)
+  }
+
+  async function carregarCats(eId: string) {
+    const { data } = await supabase
+      .from('cats')
+      .select('id, tipo_cat, dt_acidente, cid, natureza_lesao, houve_morte, criado_em, funcionarios(nome, matricula_esocial), transmissoes(status, recibo)')
+      .eq('empresa_id', eId)
+      .order('dt_acidente', { ascending: false })
+      .limit(50)
+    setCats(data || [])
   }
 
   function selecionarFunc(id) {
@@ -102,6 +117,8 @@ export default function S2210() {
     setForm({ funcionario_id:'', dt_acidente:'', hora_acidente:'', cid:'', natureza_lesao:'', parte_corpo:'', agente_causador:'', descricao:'', houve_morte:false, dias_afastamento:'', med_unidade:'', med_data:'', med_hora:'', med_medico:'', med_crm:'' })
     setFuncSel(null); setTipoCat('')
     setSalvando(false)
+    setAbaAtiva('lista')
+    carregarCats(empresaId)
   }
 
   const inp = { width:'100%', padding:'8px 10px', fontSize:13, border:'1px solid #d1d5db', borderRadius:8, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' }
@@ -109,6 +126,8 @@ export default function S2210() {
   const card = { background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, padding:'1.25rem', marginBottom:'1rem' }
 
   if (carregando) return <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', fontFamily:'sans-serif', fontSize:14, color:'#6b7280' }}>Carregando...</div>
+
+  const ST_COR: Record<string,[string,string]> = { enviado:['#EAF3DE','#27500A'], pendente:['#FAEEDA','#633806'], rejeitado:['#FCEBEB','#791F1F'] }
 
   return (
     <Layout pagina="s2210">
@@ -119,11 +138,93 @@ export default function S2210() {
           <div style={{ fontSize:20, fontWeight:700, color:'#111' }}>S-2210 — CAT</div>
           <div style={{ fontSize:12, color:'#6b7280', marginTop:2 }}>Comunicação de Acidente de Trabalho</div>
         </div>
-        <span style={{ background:'#FCEBEB', color:'#791F1F', padding:'4px 12px', borderRadius:99, fontSize:12, fontWeight:600 }}>S-2210</span>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <span style={{ background:'#FCEBEB', color:'#791F1F', padding:'4px 12px', borderRadius:99, fontSize:12, fontWeight:600 }}>S-2210</span>
+          <button onClick={() => setAbaAtiva('novo')} style={{ padding:'7px 14px', background:'#E24B4A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' }}>+ Nova CAT</button>
+        </div>
+      </div>
+
+      {/* Abas */}
+      <div style={{ display:'flex', gap:2, marginBottom:16, borderBottom:'1px solid #e5e7eb' }}>
+        {(['lista','novo'] as const).map(aba => (
+          <button key={aba} onClick={() => setAbaAtiva(aba)}
+            style={{ padding:'8px 16px', fontSize:13, fontWeight:500, border:'none', background:'none', cursor:'pointer',
+              color: abaAtiva===aba ? '#E24B4A' : '#6b7280',
+              borderBottom: abaAtiva===aba ? '2px solid #E24B4A' : '2px solid transparent',
+              marginBottom:-1 }}>
+            {aba === 'lista' ? `Registros (${cats.length})` : 'Nova CAT'}
+          </button>
+        ))}
       </div>
 
       {sucesso && <div style={{ background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:14 }}>{sucesso} <a href="/historico" style={{ color:'#085041', fontWeight:500 }}>Ver histórico →</a></div>}
       {erro && <div style={{ background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:14 }}>{erro}</div>}
+
+      {/* Lista de CATs */}
+      {abaAtiva === 'lista' && (
+        <div style={{ background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, overflow:'hidden' }}>
+          {cats.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'3rem', color:'#9ca3af', fontSize:13 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
+              Nenhuma CAT registrada ainda.
+              <div style={{ marginTop:12 }}>
+                <button onClick={() => setAbaAtiva('novo')} style={{ padding:'8px 16px', background:'#E24B4A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' }}>Registrar primeira CAT</button>
+              </div>
+            </div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'#f9fafb' }}>
+                  {['Funcionário','Tipo','Data acidente','CID','Óbito','Status','Ações'].map(h => (
+                    <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:11, fontWeight:600, color:'#6b7280', borderBottom:'0.5px solid #e5e7eb', textTransform:'uppercase', letterSpacing:'.04em', whiteSpace:'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cats.map((c: any) => {
+                  const tx = Array.isArray(c.transmissoes) ? c.transmissoes[0] : c.transmissoes
+                  const [stBg, stCor] = ST_COR[tx?.status] || ['#f3f4f6','#6b7280']
+                  return (
+                    <tr key={c.id} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                      <td style={{ padding:'10px 12px' }}>
+                        <div style={{ fontWeight:500, color:'#111' }}>{c.funcionarios?.nome || '—'}</div>
+                        <div style={{ fontSize:11, color:'#9ca3af' }}>{c.funcionarios?.matricula_esocial || ''}</div>
+                      </td>
+                      <td style={{ padding:'10px 12px' }}>
+                        <span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:600, background:'#FCEBEB', color:'#791F1F' }}>
+                          {TIPO_LBL[c.tipo_cat as keyof typeof TIPO_LBL] || c.tipo_cat}
+                        </span>
+                      </td>
+                      <td style={{ padding:'10px 12px', fontSize:12, color:'#374151' }}>
+                        {c.dt_acidente ? new Date(c.dt_acidente+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                      </td>
+                      <td style={{ padding:'10px 12px', fontSize:12, fontFamily:'monospace', color:'#374151' }}>{c.cid || '—'}</td>
+                      <td style={{ padding:'10px 12px', textAlign:'center' }}>
+                        {c.houve_morte ? <span style={{ color:'#E24B4A', fontWeight:700, fontSize:12 }}>Sim</span> : <span style={{ color:'#9ca3af', fontSize:12 }}>Não</span>}
+                      </td>
+                      <td style={{ padding:'10px 12px' }}>
+                        {tx ? (
+                          <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:stBg, color:stCor }}>
+                            {tx.status === 'enviado' ? 'Enviado' : tx.status === 'pendente' ? 'Pendente' : 'Rejeitado'}
+                          </span>
+                        ) : <span style={{ color:'#9ca3af', fontSize:12 }}>—</span>}
+                      </td>
+                      <td style={{ padding:'10px 12px' }}>
+                        <button onClick={() => router.push('/historico')}
+                          style={{ padding:'3px 10px', fontSize:11, background:'transparent', border:'0.5px solid #B5D4F4', borderRadius:6, cursor:'pointer', color:'#185FA5' }}>
+                          Ver no histórico
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {abaAtiva === 'novo' && (
 
       <form onSubmit={salvar}>
 
@@ -229,11 +330,12 @@ export default function S2210() {
           <button type="submit" disabled={salvando || !tipoCat} style={{ padding:'10px 20px', background:'#E24B4A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer', opacity:(salvando||!tipoCat)?0.5:1 }}>
             {salvando ? 'Salvando...' : 'Salvar CAT'}
           </button>
-          <button type="button" onClick={() => router.push('/historico')} style={{ padding:'10px 20px', background:'transparent', border:'1px solid #d1d5db', borderRadius:8, fontSize:13, color:'#374151', cursor:'pointer' }}>
-            Ver histórico
+          <button type="button" onClick={() => setAbaAtiva('lista')} style={{ padding:'10px 20px', background:'transparent', border:'1px solid #d1d5db', borderRadius:8, fontSize:13, color:'#374151', cursor:'pointer' }}>
+            Cancelar
           </button>
         </div>
       </form>
+      )}
     </Layout>
   )
 }
