@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
+import { getEmpresaId, isMultiEmpresa, limparEmpresa } from '../lib/empresa'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -29,23 +30,40 @@ export default function Layout({ children, pagina }) {
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [nomeUser, setNomeUser] = useState('')
   const [semCert, setSemCert] = useState(false)
+  const [multiEmpresa, setMultiEmpresa] = useState(false)
 
   useEffect(() => {
+    setMultiEmpresa(isMultiEmpresa())
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) return
-      supabase.from('usuarios').select('nome, empresa_id, empresas(razao_social, cert_digital_validade)')
-        .eq('id', session.user.id).single()
-        .then(({ data }) => {
-          if (data) {
-            setNomeUser(data.nome)
-            setNomeEmpresa(data.empresas?.razao_social || '')
-            setSemCert(!data.empresas?.cert_digital_validade)
-          }
+      supabase.from('usuarios').select('nome, empresa_id').eq('id', session.user.id).single()
+        .then(({ data: usuario }) => {
+          if (!usuario) return
+          setNomeUser(usuario.nome)
+          // Usa empresa selecionada (multi-empresa) ou a empresa padrão do usuário
+          const empresaId = getEmpresaId() || usuario.empresa_id
+          supabase.from('empresas').select('razao_social, cert_digital_validade')
+            .eq('id', empresaId).single()
+            .then(({ data: empresa }) => {
+              if (empresa) {
+                setNomeEmpresa(empresa.razao_social || '')
+                setSemCert(!empresa.cert_digital_validade)
+              }
+            })
         })
     })
   }, [])
 
-  async function sair() { await supabase.auth.signOut(); router.push('/') }
+  async function sair() {
+    limparEmpresa()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  function trocarEmpresa() {
+    limparEmpresa()
+    router.push('/')
+  }
 
   return (
     <div style={{ display:'flex', minHeight:'100vh', background:'#f4f6f9', fontFamily:'-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -98,7 +116,12 @@ export default function Layout({ children, pagina }) {
 
         <div style={{ padding:'1rem 1.25rem 0', borderTop:'0.5px solid #e5e7eb', marginTop:'1rem' }}>
           <div style={{ fontSize:12, fontWeight:500, color:'#374151', marginBottom:1 }}>{nomeUser}</div>
-          <div style={{ fontSize:11, color:'#6b7280', marginBottom:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{nomeEmpresa}</div>
+          <div style={{ fontSize:11, color:'#6b7280', marginBottom:8, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={nomeEmpresa}>{nomeEmpresa}</div>
+          {multiEmpresa && (
+            <button onClick={trocarEmpresa} style={{ width:'100%', padding:'6px', background:'#E6F1FB', border:'none', borderRadius:7, fontSize:11, color:'#185FA5', cursor:'pointer', marginBottom:6, fontWeight:500 }}>
+              ⇄ Trocar empresa
+            </button>
+          )}
           <button onClick={sair} style={{ width:'100%', padding:'7px', background:'transparent', border:'0.5px solid #d1d5db', borderRadius:8, fontSize:12, color:'#6b7280', cursor:'pointer' }}>
             Sair
           </button>
