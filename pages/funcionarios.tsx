@@ -12,30 +12,6 @@ const supabase = createClient(
 const formVazio = () => ({ nome:'', cpf:'', data_nasc:'', data_adm:'', matricula_esocial:'', funcao:'', setor:'', vinculo:'CLT', turno:'Diurno' })
 
 // Colunas do modelo de planilha
-const COLUNAS = ['nome','cpf','data_nasc','data_adm','matricula_esocial','funcao','setor','vinculo','turno']
-const COLUNAS_LABEL = ['Nome Completo *','CPF *','Data Nascimento (DD/MM/AAAA)','Data Admissão (DD/MM/AAAA)','Matrícula eSocial','Função/Cargo','Setor/GHE','Vínculo (CLT/PJ/Estatutário)','Turno (Diurno/Noturno/Misto)']
-
-function gerarModeloCSV() {
-  const header = COLUNAS_LABEL.join(';')
-  const exemplo = 'João Silva Santos;123.456.789-00;15/03/1990;01/06/2020;12345;Operador de Produção;Produção;CLT;Diurno'
-  const blob = new Blob(['\uFEFF' + header + '\n' + exemplo], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a'); a.href = url
-  a.download = 'modelo_funcionarios_esocial.csv'; a.click()
-  URL.revokeObjectURL(url)
-}
-
-function parsarData(s) {
-  if (!s) return null
-  // DD/MM/AAAA → AAAA-MM-DD
-  if (s.includes('/')) {
-    const [d,m,a] = s.split('/')
-    if (a && m && d) return `${a.trim()}-${m.trim().padStart(2,'0')}-${d.trim().padStart(2,'0')}`
-  }
-  // AAAA-MM-DD já OK
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-  return null
-}
 
 function gerarModeloCSV() {
   const header = 'Nome Completo *;CPF *;Data Nascimento (DD/MM/AAAA);Data Admissão (DD/MM/AAAA);Matrícula eSocial;Função/Cargo;Setor/GHE;Vínculo (CLT/PJ/Estatutário);Turno (Diurno/Noturno/Misto)'
