@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
+import { buscarCBO, type CBO } from '../lib/cbo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-const formVazio = () => ({ nome:'', cpf:'', data_nasc:'', data_adm:'', matricula_esocial:'', funcao:'', setor:'', vinculo:'CLT', turno:'Diurno' })
+const formVazio = () => ({ nome:'', cpf:'', data_nasc:'', data_adm:'', matricula_esocial:'', funcao:'', cod_cbo:'', setor:'', vinculo:'CLT', turno:'Diurno' })
 
 // Colunas do modelo de planilha
 
@@ -51,8 +52,20 @@ export default function Funcionarios() {
   const [errosImport, setErrosImport] = useState([])
   const [mostrarImport, setMostrarImport] = useState(false)
   const [salvandoImport, setSalvandoImport] = useState(false)
+  const [cboSugestoes, setCboSugestoes] = useState<CBO[]>([])
+  const [cboAberto, setCboAberto] = useState(false)
+  const cboRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { init() }, [])
+
+  // Fecha dropdown CBO ao clicar fora
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (cboRef.current && !cboRef.current.contains(e.target as Node)) setCboAberto(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -85,7 +98,7 @@ export default function Funcionarios() {
       nome: f.nome || '', cpf: f.cpf || '',
       data_nasc: f.data_nasc || '', data_adm: f.data_adm || '',
       matricula_esocial: (f.matricula_esocial?.startsWith('PEND-') || f.matricula_esocial?.startsWith('AUTO-')) ? '' : (f.matricula_esocial || ''),
-      funcao: f.funcao || '', setor: f.setor || '',
+      funcao: f.funcao || '', cod_cbo: f.cod_cbo || '', setor: f.setor || '',
       vinculo: f.vinculo || 'CLT', turno: f.turno || 'Diurno',
     })
     setErro(''); setSucesso('')
@@ -122,6 +135,7 @@ export default function Funcionarios() {
       data_adm: form.data_adm || null,
       matricula_esocial: form.matricula_esocial.trim() || ('PEND-' + Date.now()),
       funcao: form.funcao.trim() || null,
+      cod_cbo: form.cod_cbo.trim() || null,
       setor: form.setor.trim() || null,
       vinculo: form.vinculo,
       turno: form.turno,
@@ -299,9 +313,41 @@ export default function Funcionarios() {
               </div>
             </div>
             <div style={s.row2}>
-              <div style={s.field}>
-                <label style={s.label}>Função / Cargo</label>
-                <input style={s.input} value={form.funcao} onChange={e => setForm({...form, funcao:e.target.value})} />
+              <div style={s.field} ref={cboRef}>
+                <label style={s.label}>Função / Cargo <span style={s.opcLabel}>(CBO)</span></label>
+                <div style={{ position:'relative' }}>
+                  <input style={s.input} placeholder="Digite para buscar ou escreva livremente..."
+                    value={form.funcao}
+                    onChange={e => {
+                      const v = e.target.value
+                      setForm({...form, funcao: v, cod_cbo: ''})
+                      const sugs = buscarCBO(v)
+                      setCboSugestoes(sugs)
+                      setCboAberto(sugs.length > 0)
+                    }}
+                    onFocus={() => { if (cboSugestoes.length > 0) setCboAberto(true) }}
+                  />
+                  {form.cod_cbo && (
+                    <span style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', fontSize:10, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'1px 6px', borderRadius:99, pointerEvents:'none' }}>
+                      {form.cod_cbo}
+                    </span>
+                  )}
+                  {cboAberto && cboSugestoes.length > 0 && (
+                    <div style={{ position:'absolute', top:'calc(100% + 2px)', left:0, right:0, background:'#fff', border:'1px solid #d1d5db', borderRadius:8, boxShadow:'0 4px 16px rgba(0,0,0,0.1)', zIndex:200, overflow:'hidden' }}>
+                      {cboSugestoes.map(c => (
+                        <button key={c.codigo} type="button"
+                          onClick={() => { setForm({...form, funcao: c.nome, cod_cbo: c.codigo}); setCboAberto(false) }}
+                          style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', border:'none', background:'transparent', cursor:'pointer', textAlign:'left', fontSize:12 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f5f9ff')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <span style={{ color:'#111' }}>{c.nome}</span>
+                          <span style={{ fontSize:10, color:'#9ca3af', fontFamily:'monospace', flexShrink:0, marginLeft:8 }}>{c.codigo}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={s.field}>
                 <label style={s.label}>Setor / GHE</label>
