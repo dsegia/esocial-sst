@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
+import { pdfPCMSO } from '../lib/gerarPDF'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,6 +31,8 @@ const EXAMES_COMUNS = [
 export default function PCMSO() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
+  const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [cnpjEmpresa, setCnpjEmpresa] = useState('')
   const [funcionarios, setFuncionarios] = useState([])
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
   const [asos, setAsos] = useState([])
@@ -56,6 +59,8 @@ export default function PCMSO() {
     const { data:user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/'); return }
     setEmpresaId(user.empresa_id)
+    supabase.from('empresas').select('razao_social,cnpj').eq('id', user.empresa_id).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
     const [funcsRes, ltcatRes, asosRes, progRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', user.empresa_id).eq('ativo',true).order('nome'),
@@ -184,6 +189,11 @@ export default function PCMSO() {
           <div style={s.sub}>Programa de Controle Médico de Saúde Ocupacional · NR-7</div>
         </div>
         <div style={{ display:'flex', gap:6 }}>
+          <button style={s.btnOutline} onClick={() => {
+            const medico = ltcatAtivo?.resp_nome || ''
+            const crm    = ltcatAtivo?.resp_registro || ''
+            pdfPCMSO(nomeEmpresa, cnpjEmpresa, medico, crm, programa)
+          }}>📄 Exportar PDF</button>
           <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=pcmso')}>↑ Importar PDF / XML</button>
           <button style={s.btnPrimary} onClick={() => {
             setEditandoFunc(null)

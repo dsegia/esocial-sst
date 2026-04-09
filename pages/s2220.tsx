@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
+import { pdfConformidadeASO } from '../lib/gerarPDF'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -12,6 +13,8 @@ const supabase = createClient(
 export default function S2220() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
+  const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [cnpjEmpresa, setCnpjEmpresa] = useState('')
   const [funcionarios, setFuncionarios] = useState([])
   const [asos, setAsos] = useState([])
   const [transmissoes, setTransmissoes] = useState([])
@@ -32,6 +35,8 @@ export default function S2220() {
       .select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/'); return }
     setEmpresaId(user.empresa_id)
+    supabase.from('empresas').select('razao_social,cnpj').eq('id', user.empresa_id).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
     const [funcsRes, asosRes, txRes] = await Promise.all([
       supabase.from('funcionarios')
@@ -135,6 +140,12 @@ export default function S2220() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
+          <button style={s.btnOutline} onClick={() => {
+            const funcsComAso = funcionarios.map(f => ({ ...f, ultimoAso: ultimoAso(f.id) }))
+            pdfConformidadeASO(nomeEmpresa, cnpjEmpresa, funcsComAso)
+          }}>
+            📄 Exportar PDF
+          </button>
           <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=aso')}>
             ↑ Importar ASO (PDF/XML)
           </button>

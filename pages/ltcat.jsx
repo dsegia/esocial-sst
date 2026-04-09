@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
+import { pdfFichaEPI } from '../lib/gerarPDF'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,6 +27,8 @@ const epcVazio    = () => ({ nome:'', eficaz:true })
 export default function LTCAT() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
+  const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [cnpjEmpresa, setCnpjEmpresa] = useState('')
   const [ltcats, setLtcats] = useState([])
   const [todosFunc, setTodosFunc] = useState([])
   const [ltcatSel, setLtcatSel] = useState(null)
@@ -45,6 +48,8 @@ export default function LTCAT() {
     const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/'); return }
     setEmpresaId(user.empresa_id)
+    supabase.from('empresas').select('razao_social,cnpj').eq('id', user.empresa_id).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
     const { data } = await supabase.from('ltcats').select('*').eq('empresa_id', user.empresa_id).order('data_emissao', { ascending: false })
     setLtcats(data || [])
     if (data?.length > 0) setLtcatSel(data[0])
@@ -305,14 +310,28 @@ export default function LTCAT() {
                       <div style={s.cardTit}>Grupos Homogêneos de Exposição (GHEs)</div>
                       <div style={{ fontSize:12, color:'#6b7280' }}>{ltcatSel.ghes.length} grupo(s)</div>
                     </div>
-                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:14 }}>
-                      {ltcatSel.ghes.map((g,i) => (
-                        <button key={i} onClick={() => setGheAtivo(i)} style={{
-                          padding:'5px 12px', fontSize:11, fontWeight:500, borderRadius:99, cursor:'pointer',
-                          border: i===gheAtivo?'1.5px solid #185FA5':'1px solid #d1d5db',
-                          background: i===gheAtivo?'#185FA5':'#fff', color: i===gheAtivo?'#fff':'#374151',
-                        }}>{g.nome||`GHE ${i+1}`}</button>
-                      ))}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {ltcatSel.ghes.map((g,i) => (
+                          <button key={i} onClick={() => setGheAtivo(i)} style={{
+                            padding:'5px 12px', fontSize:11, fontWeight:500, borderRadius:99, cursor:'pointer',
+                            border: i===gheAtivo?'1.5px solid #185FA5':'1px solid #d1d5db',
+                            background: i===gheAtivo?'#185FA5':'#fff', color: i===gheAtivo?'#fff':'#374151',
+                          }}>{g.nome||`GHE ${i+1}`}</button>
+                        ))}
+                      </div>
+                      {ghe && (ghe.epi||[]).length > 0 && (
+                        <button onClick={() => {
+                          const funcsDoGhe = todosFunc.filter(f =>
+                            (f.setor||'').toLowerCase().includes((ghe.setor||'').toLowerCase()) ||
+                            (ghe.funcoes||[]).some(fn => (f.funcao||'').toLowerCase().includes(fn.toLowerCase()))
+                          )
+                          const funcPlaceholder = { nome: `Trabalhadores do ${ghe.nome||'GHE'}`, cpf:'', matricula_esocial:'', funcao: ghe.setor||'', setor: ghe.setor||'', data_adm:'' }
+                          pdfFichaEPI(nomeEmpresa, cnpjEmpresa, funcPlaceholder, [ghe])
+                        }} style={{ padding:'5px 12px', fontSize:11, background:'transparent', border:'0.5px solid #d1d5db', borderRadius:8, cursor:'pointer', color:'#374151', flexShrink:0 }}>
+                          📄 Ficha EPI deste GHE
+                        </button>
+                      )}
                     </div>
                     {ghe && (
                       <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, padding:14 }}>
