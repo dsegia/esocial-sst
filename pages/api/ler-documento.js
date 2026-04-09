@@ -79,8 +79,8 @@ function codigoAgente(nome) {
   return '09.01.001'
 }
 
-// ── Leitor Claude (primário para LTCAT) ─────────────────
-async function lerComClaude(req, res, texto_pdf, paginas, anthropicKey) {
+// ── Leitor Claude (primário para LTCAT) — retorna dados ou null ────
+async function lerComClaude(texto_pdf, paginas, anthropicKey) {
   const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
 
   const prompt = `Você é especialista em LTCAT brasileiro. Analise o documento e retorne SOMENTE JSON válido.
@@ -175,17 +175,12 @@ JSON ESPERADO:
     const texto = data.content?.[0]?.text || ''
     const resultado = parseRobusto(texto)
     if (resultado) {
-      return res.status(200).json({
-        sucesso: true,
-        dados: enriquecer(resultado, 'ltcat'),
-        modo: usandoTexto ? 'texto' : 'imagem',
-        modelo: 'claude-ltcat'
-      })
+      return { dados: enriquecer(resultado, 'ltcat'), modo: usandoTexto ? 'texto' : 'imagem', modelo: 'claude-ltcat' }
     }
     throw new Error('JSON inválido na resposta do Claude')
   } catch (err) {
-    // Fallback para Gemini
-    return res.status(500).json({ erro: 'Erro ao ler LTCAT: ' + err.message })
+    console.log('Claude falhou (' + err.message.substring(0,80) + '), usando Gemini como fallback')
+    return null
   }
 }
 
@@ -199,10 +194,14 @@ export default async function handler(req, res) {
 
   if (!geminiKey && !anthropicKey) return res.status(500).json({ erro: 'Nenhuma API key configurada' })
 
-  // LTCAT: usa Claude como primário (muito melhor para documentos estruturados)
-  // ASO: usa Gemini como primário (mais rápido, gratuito)
+  // LTCAT: tenta Claude (melhor) → Gemini fallback
+  // ASO: Gemini primário → Claude fallback
   if (tipo === 'ltcat' && anthropicKey) {
-    return await lerComClaude(req, res, texto_pdf, paginas, anthropicKey)
+    const claudeResult = await lerComClaude(texto_pdf, paginas, anthropicKey)
+    if (claudeResult) {
+      return res.status(200).json({ sucesso: true, ...claudeResult })
+    }
+    console.log('Gemini como fallback para LTCAT')
   }
 
   const prompt_aso = `Você é um extrator de dados de ASO brasileiro. Analise o documento e retorne SOMENTE o JSON abaixo preenchido. Não escreva nada antes ou depois do JSON. Campos não encontrados devem ser null.
