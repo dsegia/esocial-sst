@@ -202,7 +202,7 @@ export default function LTCAT() {
         </div>
         {!modoEdicao && (
           <div style={{ display:'flex', gap:8 }}>
-            <button style={s.btnOutline} onClick={() => router.push('/leitor')}>↑ Importar PDF / XML</button>
+            <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=ltcat')}>↑ Importar PDF / XML</button>
             <button style={s.btnPrimary} onClick={() => router.push('/s2240')}>+ Novo manual</button>
           </div>
         )}
@@ -220,7 +220,7 @@ export default function LTCAT() {
           <div style={{ fontSize:14, fontWeight:500, color:'#374151', marginTop:12 }}>Nenhum LTCAT cadastrado</div>
           <div style={{ fontSize:12, color:'#9ca3af', marginTop:4 }}>Importe um PDF ou cadastre manualmente</div>
           <div style={{ display:'flex', gap:8, marginTop:16 }}>
-            <button style={s.btnOutline} onClick={() => router.push('/leitor')}>↑ Importar PDF / XML</button>
+            <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=ltcat')}>↑ Importar PDF / XML</button>
             <button style={s.btnPrimary} onClick={() => router.push('/s2240')}>+ Novo manual</button>
           </div>
         </div>

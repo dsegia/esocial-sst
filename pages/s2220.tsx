@@ -135,7 +135,7 @@ export default function S2220() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button style={s.btnOutline} onClick={() => router.push('/leitor')}>
+          <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=aso')}>
             ↑ Importar ASO (PDF/XML)
           </button>
           {prontos.length > 0 && (
@@ -294,7 +294,7 @@ export default function S2220() {
                           Transmitir
                         </button>
                       )}
-                      <button style={s.btnAcao} onClick={() => router.push('/leitor')}>
+                      <button style={s.btnAcao} onClick={() => router.push('/leitor?tipo=aso')}>
                         {aso ? 'Novo ASO' : 'Importar ASO'}
                       </button>
                       <button style={{ ...s.btnAcao, color:'#374151' }}

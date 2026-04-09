@@ -18,7 +18,9 @@ export default function Leitor() {
   const [erro, setErro] = useState('')
   const [dados, setDados] = useState(null)
   const [dadosEditados, setDadosEditados] = useState(null)
-  const [tipoDetectado, setTipoDetectado] = useState('') // 'aso' ou 'ltcat'
+  const [tipoDetectado, setTipoDetectado] = useState('')
+  // Tipo fixo definido pela página que chama o leitor (?tipo=aso|ltcat|pcmso)
+  const tipoFixo = router.query.tipo || 'aso' // 'aso' ou 'ltcat'
   const [modoLeitura, setModoLeitura] = useState('')
   const [empresaId, setEmpresaId] = useState('')
   const [funcionarios, setFuncionarios] = useState([])
@@ -79,13 +81,9 @@ export default function Leitor() {
     return imgs
   }
 
-  // Detectar tipo do documento pelo texto
-  function detectarTipo(texto) {
-    const t = texto.toLowerCase()
-    if (t.includes('laudo técnico') || t.includes('ltcat') || t.includes('condições ambientais') ||
-        t.includes('ghe') || t.includes('grupo homogêneo') || t.includes('agentes nocivos') ||
-        t.includes('crea') || t.includes('engenheiro de segurança')) return 'ltcat'
-    return 'aso' // padrão é ASO
+  // Tipo fixo vindo da URL — sem detecção automática
+  function detectarTipo(_texto) {
+    return tipoFixo // já definido pelo parâmetro da URL
   }
 
   async function lerXML(file) {
@@ -145,7 +143,8 @@ export default function Leitor() {
 
       // Detectar tipo pelo conteúdo
       const tipo = detectarTipo(texto)
-      setProgresso(`Documento detectado: ${tipo === 'ltcat' ? 'LTCAT' : 'ASO'}. Extraindo dados com IA...`)
+      const tipoLabel = tipo === 'ltcat' ? 'LTCAT' : tipo === 'pcmso' ? 'PCMSO' : 'ASO'
+      setProgresso(`Documento detectado: ${tipoLabel}. Extraindo dados com IA...`)
 
       let payload
       if (temTexto) {
@@ -200,6 +199,12 @@ export default function Leitor() {
     setEtapa('salvando')
     try {
       const d = dadosEditados
+
+      // ── PCMSO: por enquanto redireciona para página PCMSO ──
+      if (tipoDetectado === 'pcmso') {
+        setEtapa('sucesso')
+        return
+      }
 
       // ── LTCAT: salva diretamente na empresa, SEM funcionário ──
       if (tipoDetectado === 'ltcat') {
@@ -296,9 +301,9 @@ export default function Leitor() {
 
   function corConf(v) { return !v || v < 70 ? '#E24B4A' : v < 90 ? '#EF9F27' : '#1D9E75' }
 
-  const tipoLabel = tipoDetectado === 'ltcat' ? 'LTCAT (S-2240)' : 'ASO (S-2220)'
-  const tipoColor = tipoDetectado === 'ltcat' ? '#854F0B' : '#185FA5'
-  const tipoBg    = tipoDetectado === 'ltcat' ? '#FAEEDA' : '#E6F1FB'
+  const tipoLabel = tipoDetectado === 'ltcat' ? 'LTCAT (S-2240)' : tipoDetectado === 'pcmso' ? 'PCMSO (NR-7)' : 'ASO (S-2220)'
+  const tipoColor = tipoDetectado === 'ltcat' ? '#854F0B' : tipoDetectado === 'pcmso' ? '#27500A' : '#185FA5'
+  const tipoBg    = tipoDetectado === 'ltcat' ? '#FAEEDA' : tipoDetectado === 'pcmso' ? '#EAF3DE' : '#E6F1FB'
 
   return (
     <Layout pagina="leitor">
@@ -307,7 +312,11 @@ export default function Leitor() {
       <div style={s.header}>
         <div>
           <div style={s.titulo}>Leitor inteligente de documentos</div>
-          <div style={s.sub}>PDF ou XML → extração automática → confirmar → salvar</div>
+          <div style={s.sub}>
+            {tipoFixo === 'aso'   && 'ASO — PDF ou XML → extrair → confirmar → salvar'}
+            {tipoFixo === 'ltcat' && 'LTCAT — PDF → extrair GHEs e agentes → confirmar → salvar'}
+            {tipoFixo === 'pcmso' && 'PCMSO — PDF → extrair programas e exames → confirmar → salvar'}
+          </div>
         </div>
         {tipoDetectado && (
           <span style={{ padding:'4px 14px', borderRadius:99, fontSize:12, fontWeight:600, background:tipoBg, color:tipoColor }}>
@@ -344,7 +353,7 @@ export default function Leitor() {
               </div>
             )}
           </div>
-          <input ref={inputRef} type="file" accept=".pdf,.xml" style={{ display:'none' }}
+          <input ref={inputRef} type="file" {tipoFixo === "aso" ? ".pdf,.xml" : ".pdf"} style={{ display:'none' }}
             onChange={e => setArquivo(e.target.files[0])} />
 
           {arquivo && (
@@ -528,14 +537,14 @@ export default function Leitor() {
           </div>
           <div style={{ fontSize:15, fontWeight:600, color:'#085041', marginBottom:6 }}>Salvo com sucesso!</div>
           <div style={{ fontSize:13, color:'#374151', marginBottom:20 }}>
-            {tipoDetectado === 'ltcat' ? 'LTCAT salvo.' : 'ASO salvo e transmissão registrada como pendente.'}
+            {tipoDetectado === 'ltcat' ? 'LTCAT salvo.' : tipoDetectado === 'pcmso' ? 'PCMSO identificado. Use a página PCMSO para cadastrar os programas.' : 'ASO salvo e transmissão registrada como pendente.'}
           </div>
           <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
             <button style={s.btnPrimary} onClick={() => { setEtapa('upload'); setDados(null); setArquivo(null); setFuncMatch(null); setTipoDetectado('') }}>
               Ler outro documento
             </button>
-            <button style={s.btnOutline} onClick={() => router.push(tipoDetectado==='ltcat'?'/ltcat':'/historico')}>
-              {tipoDetectado === 'ltcat' ? 'Ver LTCAT →' : 'Ver histórico →'}
+            <button style={s.btnOutline} onClick={() => router.push(tipoDetectado==='ltcat'?'/ltcat':tipoDetectado==='pcmso'?'/pcmso':'/relatorios')}>
+              {tipoDetectado === 'ltcat' ? 'Ver LTCAT →' : tipoDetectado === 'pcmso' ? 'Ver PCMSO →' : 'Ver relatórios →'}
             </button>
           </div>
         </div>

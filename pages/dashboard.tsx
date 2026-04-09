@@ -153,7 +153,7 @@ export default function Dashboard() {
       tipo: 'info', icon: '🩺',
       titulo: `${semAso.length} funcionário(s) sem ASO`,
       desc: semAso.slice(0,2).map(x => x.nome.split(' ')[0]).join(', ') + (semAso.length > 2 ? ` +${semAso.length-2}` : ''),
-      acao: 'Importar ASO', rota: '/leitor',
+      acao: 'Importar ASO', rota: '/leitor?tipo=aso',
     })
 
     setAlertas(alertasLista)
@@ -207,7 +207,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button style={s.btnOutline} onClick={() => router.push('/leitor')}>↑ Importar documento</button>
+          <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=aso')}>↑ Importar documento</button>
           <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
             📡 Transmitir ({kpis?.txPendentes || 0})
           </button>
@@ -336,7 +336,7 @@ export default function Dashboard() {
             <div style={{ ...s.cardTit, marginBottom:10 }}>⚡ Ações rápidas</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               {[
-                { l:'↑ Importar ASO / LTCAT', rota:'/leitor',              cor:'#185FA5', bg:'#E6F1FB' },
+                { l:'↑ Importar ASO / LTCAT', rota:'/leitor?tipo=aso',              cor:'#185FA5', bg:'#E6F1FB' },
                 { l:'📡 Transmitir eventos',  rota:'/transmissao-manual',  cor:'#1D9E75', bg:'#EAF3DE' },
                 { l:'👥 Funcionários',         rota:'/funcionarios',         cor:'#374151', bg:'#f3f4f6' },
                 { l:'🩺 S-2220 Saúde',         rota:'/s2220',                cor:'#0C447C', bg:'#E6F1FB' },
