@@ -137,6 +137,15 @@ export default function Leitor() {
     return `${d}/${m}/${y}`
   }
 
+  // Lê o PDF como base64 puro (para Claude PDF nativo)
+  async function pdfParaBase64(file) {
+    const buffer = await file.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    let bin = ''
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    return btoa(bin)
+  }
+
   async function processarArquivo() {
     if (!arquivo) return
     setErro(''); setEtapa('lendo')
@@ -149,18 +158,22 @@ export default function Leitor() {
         return
       }
 
-      // PDF — extrair texto
+      // PDF — extrair texto para detecção de tipo
       setProgresso('Analisando PDF...')
       const texto = await extrairTextoPDF(arquivo)
       const temTexto = texto.replace(/\s/g,'').length > 100
 
-      // Detectar tipo pelo conteúdo
       const tipo = detectarTipo(texto)
       const tipoLabel = tipo === 'ltcat' ? 'LTCAT' : tipo === 'pcmso' ? 'PCMSO' : 'ASO'
-      setProgresso(`Documento detectado: ${tipoLabel}. Extraindo dados com IA...`)
+      setProgresso(`${tipoLabel} identificado. Enviando para IA...`)
 
       let payload
-      if (temTexto) {
+      if (tipo === 'ltcat' || tipo === 'pcmso') {
+        // LTCAT/PCMSO: envia PDF bruto para Claude (leitura nativa — mais precisa)
+        setProgresso(`Preparando PDF para leitura nativa com Claude...`)
+        const pdf_base64 = await pdfParaBase64(arquivo)
+        payload = { pdf_base64, texto_pdf: texto, paginas: [], tipo }
+      } else if (temTexto) {
         payload = { texto_pdf: texto, paginas: [], tipo }
       } else {
         setProgresso('PDF escaneado. Convertendo em imagens...')

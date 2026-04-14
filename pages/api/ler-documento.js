@@ -79,53 +79,47 @@ function codigoAgente(nome) {
   return '09.01.001'
 }
 
-// ── Leitor Claude (primário para LTCAT) — retorna dados ou null ────
-async function lerComClaude(texto_pdf, paginas, anthropicKey) {
-  const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
+// ── Prompts ──────────────────────────────────────────────
+const PROMPT_LTCAT = `Você é especialista em LTCAT brasileiro. Analise o documento completo e retorne SOMENTE JSON válido.
 
-  const prompt = `Você é especialista em LTCAT brasileiro. Analise o documento e retorne SOMENTE JSON válido.
+REGRAS:
+- "funcoes": extraia CADA cargo/função individualmente como item separado do array (podem ser dezenas)
+- "agentes": cada risco separado; tipo: fis=físico, qui=químico, bio=biológico, erg=ergonômico
+- "aposentadoria_especial": true se houver indicação de atividade/adicional especial
+- Datas no formato AAAA-MM-DD
 
-FORMATOS ACEITOS (o documento pode usar qualquer um):
-- "GHE 01 / GHE 02" ou "GRUPO 1 / GRUPO 2" ou "CÓD. GHE/GF: 1"
-- "FUNÇÕES DO GRUPO" ou "FUNÇÃO" (coluna com cargos listados individualmente)
-- "NOMENCLATURA GHE/GF: ADMINISTRAÇÃO" = nome do GHE
-- "RISCO: [eSocial] código XX.XX.XXX" ou "Código eSocial: 09.01.001"
+{
+  "dados_gerais": {"data_emissao":null,"data_vigencia":null,"prox_revisao":null,"resp_nome":null,"resp_conselho":"CREA","resp_registro":null},
+  "ghes": [{
+    "nome":"GHE 01","setor":null,"qtd_trabalhadores":1,"aposentadoria_especial":false,
+    "funcoes":["Cargo 1","Cargo 2"],
+    "agentes":[{"tipo":"fis","nome":"Ruído contínuo","valor":null,"limite":null,"supera_lt":false,"codigo_t24":"01.01.001"}],
+    "epc":[{"nome":"nome","eficaz":true}],
+    "epi":[{"nome":"nome","ca":"12345","eficaz":true}]
+  }],
+  "confianca":{"data_emissao":90,"resp_nome":90,"ghes":90}
+}`
+
+const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento completo e retorne SOMENTE JSON válido.
 
 EXTRAIA:
-1. dados_gerais: data_emissao (DD/MM/AAAA→AAAA-MM-DD), resp_nome, resp_conselho (CREA/CRM), resp_registro, data_vigencia, prox_revisao
-2. Para cada GHE/Grupo:
-   - nome: identificador ("GHE 01", "ADMINISTRAÇÃO", "GHE/GF 1")
-   - setor: campo AMBIENTES ou SETOR
-   - funcoes: TODOS os cargos/funções listados na coluna FUNÇÃO ou campo FUNÇÕES DO GRUPO — cada um como item separado
-   - agentes: cada risco (tipo: fis/qui/bio/erg, nome, codigo_t24 se informado, supera_lt)
-   - epc: equipamentos de proteção coletiva
-   - epi: equipamentos de proteção individual com CA
-   - aposentadoria_especial: true se indicado
+1. dados_gerais: médico responsável, CRM, data de elaboração, vigência
+2. Para cada função/cargo, os exames obrigatórios com periodicidade
 
-JSON ESPERADO:
 {
-  "dados_gerais": {
-    "data_emissao": null,
-    "data_vigencia": null,
-    "prox_revisao": null,
-    "resp_nome": null,
-    "resp_conselho": "CREA",
-    "resp_registro": null
-  },
-  "ghes": [
-    {
-      "nome": "GHE 01",
-      "setor": null,
-      "qtd_trabalhadores": 1,
-      "aposentadoria_especial": false,
-      "funcoes": ["Cargo 1", "Cargo 2"],
-      "agentes": [{"tipo": "fis", "nome": "Ruído contínuo", "valor": null, "limite": null, "supera_lt": false, "codigo_t24": "01.01.001"}],
-      "epc": [{"nome": "EPC", "eficaz": true}],
-      "epi": [{"nome": "EPI", "ca": null, "eficaz": true}]
-    }
-  ],
-  "confianca": {"data_emissao": 90, "resp_nome": 90, "ghes": 90}
+  "dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},
+  "programas":[{
+    "funcao":"Nome da função",
+    "setor":null,
+    "riscos":["Risco 1","Risco 2"],
+    "exames":[{"nome":"Audiometria","periodicidade":"Anual","obrigatorio":true}]
+  }],
+  "confianca":{"medico":90,"programas":85}
 }`
+
+// ── Leitor Claude com PDF nativo (primário para LTCAT/PCMSO) ─
+async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) {
+  const prompt = tipo === 'pcmso' ? PROMPT_PCMSO : PROMPT_LTCAT
 
   function extrairJSON(str) {
     const ini = str.indexOf('{'); if (ini===-1) return null
@@ -146,27 +140,39 @@ JSON ESPERADO:
 
   try {
     let content = []
-    if (paginas?.length > 0) {
+
+    if (pdf_base64) {
+      // ── Modo preferencial: PDF nativo (Anthropic document support) ──
+      content = [
+        {
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 }
+        },
+        { type: 'text', text: prompt }
+      ]
+    } else if (paginas?.length > 0) {
+      // Fallback: imagens JPEG
       paginas.forEach(b64 => {
         content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64 } })
       })
+      content.push({ type:'text', text: prompt })
+    } else {
+      // Fallback: texto extraído
+      content = [{ type:'text', text: `${prompt}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0,25000)}` }]
     }
-    const textoEnviar = usandoTexto
-      ? `${prompt}\n\nTEXTO COMPLETO DO DOCUMENTO:\n${texto_pdf.substring(0,20000)}`
-      : prompt
-    content.push({ type:'text', text: textoEnviar })
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
         'x-api-key': anthropicKey,
-        'anthropic-version':'2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25', // habilita suporte nativo a PDF
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
-        messages: [{ role:'user', content }]
+        model: 'claude-sonnet-4-6', // Sonnet para melhor precisão em documentos complexos
+        max_tokens: 8000,
+        messages: [{ role: 'user', content }]
       })
     })
 
@@ -175,11 +181,12 @@ JSON ESPERADO:
     const texto = data.content?.[0]?.text || ''
     const resultado = parseRobusto(texto)
     if (resultado) {
-      return { dados: enriquecer(resultado, 'ltcat'), modo: usandoTexto ? 'texto' : 'imagem', modelo: 'claude-ltcat' }
+      const modo = pdf_base64 ? 'pdf-nativo' : paginas?.length > 0 ? 'imagem' : 'texto'
+      return { dados: enriquecer(resultado, tipo), modo, modelo: 'claude-sonnet' }
     }
     throw new Error('JSON inválido na resposta do Claude')
   } catch (err) {
-    console.log('Claude falhou (' + err.message.substring(0,80) + '), usando Gemini como fallback')
+    console.log('Claude falhou (' + err.message.substring(0,100) + '), usando Gemini como fallback')
     return null
   }
 }
@@ -188,20 +195,20 @@ JSON ESPERADO:
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
-  const { paginas, texto_pdf, tipo } = req.body
+  const { paginas, texto_pdf, pdf_base64, tipo } = req.body
   const geminiKey    = process.env.GEMINI_API_KEY
   const anthropicKey = process.env.ANTHROPIC_API_KEY
 
   if (!geminiKey && !anthropicKey) return res.status(500).json({ erro: 'Nenhuma API key configurada' })
 
-  // LTCAT: tenta Claude (melhor) → Gemini fallback
+  // LTCAT e PCMSO: Claude com PDF nativo (preferencial) → Gemini fallback
   // ASO: Gemini primário → Claude fallback
-  if (tipo === 'ltcat' && anthropicKey) {
-    const claudeResult = await lerComClaude(texto_pdf, paginas, anthropicKey)
+  if ((tipo === 'ltcat' || tipo === 'pcmso') && anthropicKey) {
+    const claudeResult = await lerComClaude(pdf_base64 || null, texto_pdf, paginas, tipo, anthropicKey)
     if (claudeResult) {
       return res.status(200).json({ sucesso: true, ...claudeResult })
     }
-    console.log('Gemini como fallback para LTCAT')
+    console.log(`Gemini como fallback para ${tipo.toUpperCase()}`)
   }
 
   const prompt_aso = `Você é um extrator de dados de ASO brasileiro. Analise o documento e retorne SOMENTE o JSON abaixo preenchido. Não escreva nada antes ou depois do JSON. Campos não encontrados devem ser null.
