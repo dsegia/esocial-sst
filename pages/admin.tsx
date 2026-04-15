@@ -13,6 +13,7 @@ type Empresa = {
   razao_social: string
   cnpj: string
   plano: string
+  bloqueado?: boolean
   trial_restante: number | null
   trans_mes: number
   trans_pendente: number
@@ -43,6 +44,8 @@ type Totais = {
   funcionarios: number
 }
 
+const PLANOS = ['trial', 'starter', 'professional', 'business', 'cancelado']
+
 export default function Admin() {
   const router = useRouter()
   const [carregando, setCarregando] = useState(true)
@@ -53,6 +56,21 @@ export default function Admin() {
   const [busca, setBusca] = useState('')
   const [ordenar, setOrdenar] = useState<'trans_mes' | 'razao_social' | 'created_at' | 'trans_erro'>('trans_mes')
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null)
+  const [aba, setAba] = useState<'dashboard' | 'clientes'>('dashboard')
+
+  // Modal novo cliente
+  const [modalConvite, setModalConvite] = useState(false)
+  const [conviteForm, setConviteForm] = useState({ email: '', razao_social: '', cnpj: '', plano: 'trial' })
+  const [conviteStatus, setConviteStatus] = useState<'idle' | 'enviando' | 'ok' | 'erro'>('idle')
+  const [conviteErro, setConviteErro] = useState('')
+
+  // Edição de plano inline
+  const [editandoPlano, setEditandoPlano] = useState<string | null>(null)
+  const [novoPlano, setNovoPlano] = useState('')
+  const [salvandoPlano, setSalvandoPlano] = useState(false)
+
+  // Bloqueio inline
+  const [bloqueandoId, setBloqueandoId] = useState<string | null>(null)
 
   useEffect(() => { carregar() }, [])
 
@@ -82,6 +100,71 @@ export default function Admin() {
     }
   }
 
+  async function enviarConvite(e: React.FormEvent) {
+    e.preventDefault()
+    setConviteStatus('enviando')
+    setConviteErro('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/invite-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify(conviteForm),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao enviar convite')
+      setConviteStatus('ok')
+      setTimeout(() => {
+        setModalConvite(false)
+        setConviteStatus('idle')
+        setConviteForm({ email: '', razao_social: '', cnpj: '', plano: 'trial' })
+        carregar()
+      }, 2000)
+    } catch (err: any) {
+      setConviteStatus('erro')
+      setConviteErro(err.message)
+    }
+  }
+
+  async function alterarPlano(empresaId: string, plano: string) {
+    setSalvandoPlano(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/update-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ empresa_id: empresaId, plano }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao atualizar')
+      setEditandoPlano(null)
+      carregar()
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setSalvandoPlano(false)
+    }
+  }
+
+  async function alterarBloqueio(empresaId: string, bloqueado: boolean) {
+    setBloqueandoId(empresaId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/update-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ empresa_id: empresaId, bloqueado }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao atualizar')
+      carregar()
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setBloqueandoId(null)
+    }
+  }
+
   function fmtData(iso: string) {
     if (!iso) return '—'
     const d = new Date(iso)
@@ -108,6 +191,11 @@ export default function Admin() {
     return '#9ca3af'
   }
 
+  function labelPlano(plano: string, trialRestante?: number | null) {
+    if (plano === 'trial') return `Trial${trialRestante !== null && trialRestante !== undefined ? ` (${trialRestante}d)` : ''}`
+    return plano.charAt(0).toUpperCase() + plano.slice(1)
+  }
+
   const empresasFiltradas = empresas
     .filter(e => {
       if (!busca.trim()) return true
@@ -123,6 +211,17 @@ export default function Admin() {
       if (ordenar === 'created_at')   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       return b.trans_mes - a.trans_mes
     })
+
+  const clientesFiltrados = empresas
+    .filter(e => {
+      if (!busca.trim()) return true
+      const t = busca.toLowerCase()
+      return e.razao_social.toLowerCase().includes(t)
+        || (e.cnpj || '').replace(/\D/g, '').includes(busca.replace(/\D/g, ''))
+        || e.responsavel?.email?.toLowerCase().includes(t)
+        || e.responsavel?.nome?.toLowerCase().includes(t)
+    })
+    .sort((a, b) => a.razao_social.localeCompare(b.razao_social))
 
   if (carregando) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'sans-serif', fontSize: 14, color: '#6b7280' }}>
@@ -168,128 +267,332 @@ export default function Admin() {
             </button>
           </div>
         </div>
+
+        {/* Abas */}
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', gap: 0 }}>
+          {([['dashboard', 'Visão Geral'], ['clientes', 'Clientes']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => { setAba(id); setBusca('') }}
+              style={{
+                padding: '10px 18px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: aba === id ? '2px solid #185FA5' : '2px solid transparent',
+                color: aba === id ? '#fff' : '#6b7280',
+                fontSize: 13,
+                fontWeight: aba === id ? 600 : 400,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                marginBottom: -1,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '1.5rem 2rem' }}>
 
-        {/* Cards de totais */}
-        {totais && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
-            {[
-              { label: 'Empresas ativas', valor: totais.empresas, cor: '#185FA5', bg: '#E6F1FB', icon: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z' },
-              { label: 'Envios este mês', valor: totais.trans_mes, cor: '#27500A', bg: '#EAF3DE', icon: 'M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z' },
-              { label: 'Pendentes', valor: totais.pendente, cor: '#633806', bg: '#FAEEDA', icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 6v6l4 2' },
-              { label: 'Com erro', valor: totais.erros, cor: '#791F1F', bg: '#FCEBEB', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
-              { label: 'Funcionários', valor: totais.funcionarios, cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
-            ].map(c => (
-              <div key={c.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>{c.label}</span>
-                  <div style={{ width: 28, height: 28, background: c.bg, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={c.cor} strokeWidth="2">
-                      <path d={c.icon}/>
-                    </svg>
+        {/* ===== ABA: VISÃO GERAL ===== */}
+        {aba === 'dashboard' && (
+          <>
+            {/* Cards de totais */}
+            {totais && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: 'Empresas ativas', valor: totais.empresas, cor: '#185FA5', bg: '#E6F1FB', icon: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z' },
+                  { label: 'Envios este mês', valor: totais.trans_mes, cor: '#27500A', bg: '#EAF3DE', icon: 'M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z' },
+                  { label: 'Pendentes', valor: totais.pendente, cor: '#633806', bg: '#FAEEDA', icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 6v6l4 2' },
+                  { label: 'Com erro', valor: totais.erros, cor: '#791F1F', bg: '#FCEBEB', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
+                  { label: 'Funcionários', valor: totais.funcionarios, cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
+                ].map(c => (
+                  <div key={c.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>{c.label}</span>
+                      <div style={{ width: 28, height: 28, background: c.bg, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={c.cor} strokeWidth="2">
+                          <path d={c.icon}/>
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>{c.valor.toLocaleString('pt-BR')}</div>
                   </div>
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>{c.valor.toLocaleString('pt-BR')}</div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
+
+              {/* Tabela de empresas */}
+              <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 2 }}>
+                      Empresas ({empresasFiltradas.length})
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar empresa, CNPJ ou responsável..."
+                    value={busca}
+                    onChange={e => setBusca(e.target.value)}
+                    style={{ padding: '7px 10px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 7, width: 240, fontFamily: 'inherit' }}
+                  />
+                  <select
+                    value={ordenar}
+                    onChange={e => setOrdenar(e.target.value as any)}
+                    style={{ padding: '7px 10px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 7, fontFamily: 'inherit' }}
+                  >
+                    <option value="trans_mes">↓ Mais envios</option>
+                    <option value="trans_erro">↓ Com erros</option>
+                    <option value="razao_social">A–Z Nome</option>
+                    <option value="created_at">↓ Mais recentes</option>
+                  </select>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb', borderBottom: '0.5px solid #e5e7eb' }}>
+                        {['Empresa', 'Responsável', 'Plano', 'Envios/mês', 'Variação', 'Pendente', 'Erro', 'Funcionários', 'Desde'].map(h => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {empresasFiltradas.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Nenhuma empresa encontrada</td>
+                        </tr>
+                      ) : empresasFiltradas.map((emp, idx) => {
+                        const { bg, cor } = corPlano(emp.plano)
+                        return (
+                          <tr key={emp.id} style={{ borderBottom: '0.5px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                            <td style={{ padding: '10px 12px', maxWidth: 200 }}>
+                              <div style={{ fontWeight: 600, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.razao_social}</div>
+                              <div style={{ color: '#9ca3af', fontSize: 11, marginTop: 1 }}>{emp.cnpj}</div>
+                            </td>
+                            <td style={{ padding: '10px 12px', maxWidth: 160 }}>
+                              {emp.responsavel ? (
+                                <>
+                                  <div style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.responsavel.nome}</div>
+                                  <div style={{ color: '#9ca3af', fontSize: 11 }}>{emp.responsavel.email}</div>
+                                </>
+                              ) : <span style={{ color: '#9ca3af' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              <span style={{ padding: '2px 8px', background: bg, color: cor, borderRadius: 99, fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>
+                                {labelPlano(emp.plano, emp.trial_restante)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111' }}>
+                              {emp.trans_mes.toLocaleString('pt-BR')}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              {emp.variacao_pct === null ? (
+                                <span style={{ color: '#9ca3af' }}>—</span>
+                              ) : (
+                                <span style={{ color: emp.variacao_pct >= 0 ? '#27a048' : '#dc2626', fontWeight: 500 }}>
+                                  {emp.variacao_pct >= 0 ? '▲' : '▼'} {Math.abs(emp.variacao_pct)}%
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              {emp.trans_pendente > 0
+                                ? <span style={{ color: '#EF9F27', fontWeight: 600 }}>{emp.trans_pendente}</span>
+                                : <span style={{ color: '#9ca3af' }}>0</span>}
+                            </td>
+                            <td style={{ padding: '10px 12px' }}>
+                              {emp.trans_erro > 0
+                                ? <span style={{ color: '#dc2626', fontWeight: 600 }}>{emp.trans_erro}</span>
+                                : <span style={{ color: '#9ca3af' }}>0</span>}
+                            </td>
+                            <td style={{ padding: '10px 12px', color: '#374151' }}>
+                              {emp.funcionarios.toLocaleString('pt-BR')}
+                            </td>
+                            <td style={{ padding: '10px 12px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                              {fmtDataCurta(emp.created_at)}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Feed de transmissões recentes */}
+              <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+                <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f3f4f6' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>Últimas transmissões</div>
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Todas as empresas</div>
+                </div>
+                <div style={{ maxHeight: 600, overflowY: 'auto' }}>
+                  {recentes.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Nenhuma transmissão</div>
+                  ) : recentes.map(t => (
+                    <div key={t.id} style={{ padding: '10px 14px', borderBottom: '0.5px solid #f3f4f6', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: corStatus(t.status), flexShrink: 0, marginTop: 4 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{t.evento}</span>
+                          <span style={{ fontSize: 10, color: '#9ca3af' }}>·</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: corStatus(t.status) }}>{t.status}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {t.empresa_nome}
+                        </div>
+                        {t.erro && (
+                          <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {t.erro}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{fmtData(t.created_at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
-
-          {/* Tabela de empresas */}
+        {/* ===== ABA: CLIENTES ===== */}
+        {aba === 'clientes' && (
           <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+
+            {/* Cabeçalho da aba */}
             <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 2 }}>
-                  Empresas ({empresasFiltradas.length})
-                </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>Clientes ({clientesFiltrados.length})</div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Gerencie planos, convites e acessos</div>
               </div>
               <input
                 type="text"
-                placeholder="Buscar empresa, CNPJ ou responsável..."
+                placeholder="Buscar cliente, CNPJ ou e-mail..."
                 value={busca}
                 onChange={e => setBusca(e.target.value)}
                 style={{ padding: '7px 10px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 7, width: 240, fontFamily: 'inherit' }}
               />
-              <select
-                value={ordenar}
-                onChange={e => setOrdenar(e.target.value as any)}
-                style={{ padding: '7px 10px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 7, fontFamily: 'inherit' }}
+              <button
+                onClick={() => { setModalConvite(true); setConviteStatus('idle'); setConviteErro('') }}
+                style={{ padding: '8px 14px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <option value="trans_mes">↓ Mais envios</option>
-                <option value="trans_erro">↓ Com erros</option>
-                <option value="razao_social">A–Z Nome</option>
-                <option value="created_at">↓ Mais recentes</option>
-              </select>
+                + Novo Cliente
+              </button>
             </div>
 
+            {/* Tabela de clientes */}
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f9fafb', borderBottom: '0.5px solid #e5e7eb' }}>
-                    {['Empresa', 'Responsável', 'Plano', 'Envios/mês', 'Variação', 'Pendente', 'Erro', 'Funcionários', 'Desde'].map(h => (
+                    {['Empresa', 'CNPJ', 'Responsável', 'Plano', 'Status', 'Envios/mês', 'Cadastro', 'Ações'].map(h => (
                       <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {empresasFiltradas.length === 0 ? (
+                  {clientesFiltrados.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>Nenhuma empresa encontrada</td>
+                      <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
+                        {busca ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado. Clique em "+ Novo Cliente" para começar.'}
+                      </td>
                     </tr>
-                  ) : empresasFiltradas.map((emp, idx) => {
+                  ) : clientesFiltrados.map((emp, idx) => {
                     const { bg, cor } = corPlano(emp.plano)
+                    const editando = editandoPlano === emp.id
                     return (
-                      <tr key={emp.id} style={{ borderBottom: '0.5px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <tr key={emp.id} style={{ borderBottom: '0.5px solid #f3f4f6', background: idx % 2 === 0 ? '#fff' : '#fafafa', opacity: emp.bloqueado ? 0.6 : 1 }}>
                         <td style={{ padding: '10px 12px', maxWidth: 200 }}>
                           <div style={{ fontWeight: 600, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.razao_social}</div>
-                          <div style={{ color: '#9ca3af', fontSize: 11, marginTop: 1 }}>{emp.cnpj}</div>
                         </td>
-                        <td style={{ padding: '10px 12px', maxWidth: 160 }}>
+                        <td style={{ padding: '10px 12px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                          {emp.cnpj || '—'}
+                        </td>
+                        <td style={{ padding: '10px 12px', maxWidth: 180 }}>
                           {emp.responsavel ? (
                             <>
-                              <div style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.responsavel.nome}</div>
+                              <div style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.responsavel.nome || '—'}</div>
                               <div style={{ color: '#9ca3af', fontSize: 11 }}>{emp.responsavel.email}</div>
                             </>
-                          ) : <span style={{ color: '#9ca3af' }}>—</span>}
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{ padding: '2px 8px', background: bg, color: cor, borderRadius: 99, fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>
-                            {emp.plano === 'trial'
-                              ? `Trial ${emp.trial_restante !== null ? emp.trial_restante + 'd' : ''}`
-                              : emp.plano.charAt(0).toUpperCase() + emp.plano.slice(1)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111' }}>
-                          {emp.trans_mes.toLocaleString('pt-BR')}
-                        </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          {emp.variacao_pct === null ? (
-                            <span style={{ color: '#9ca3af' }}>—</span>
                           ) : (
-                            <span style={{ color: emp.variacao_pct >= 0 ? '#27a048' : '#dc2626', fontWeight: 500 }}>
-                              {emp.variacao_pct >= 0 ? '▲' : '▼'} {Math.abs(emp.variacao_pct)}%
+                            <span style={{ color: '#9ca3af', fontSize: 11, fontStyle: 'italic' }}>Aguardando ativação</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          {editando ? (
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                              <select
+                                value={novoPlano}
+                                onChange={e => setNovoPlano(e.target.value)}
+                                style={{ fontSize: 11, border: '1px solid #d1d5db', borderRadius: 6, padding: '3px 6px', fontFamily: 'inherit' }}
+                              >
+                                {PLANOS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                              </select>
+                              <button
+                                onClick={() => alterarPlano(emp.id, novoPlano)}
+                                disabled={salvandoPlano}
+                                style={{ padding: '3px 8px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}
+                              >
+                                {salvandoPlano ? '...' : 'OK'}
+                              </button>
+                              <button
+                                onClick={() => setEditandoPlano(null)}
+                                style={{ padding: '3px 6px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              onClick={() => { setEditandoPlano(emp.id); setNovoPlano(emp.plano) }}
+                              title="Clique para alterar plano"
+                              style={{ padding: '2px 8px', background: bg, color: cor, borderRadius: 99, fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap', cursor: 'pointer', display: 'inline-block' }}
+                            >
+                              {labelPlano(emp.plano, emp.trial_restante)} ✎
                             </span>
                           )}
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          {emp.trans_pendente > 0
-                            ? <span style={{ color: '#EF9F27', fontWeight: 600 }}>{emp.trans_pendente}</span>
-                            : <span style={{ color: '#9ca3af' }}>0</span>}
+                          {emp.bloqueado ? (
+                            <span style={{ padding: '2px 8px', background: '#FCEBEB', color: '#791F1F', borderRadius: 99, fontSize: 11, fontWeight: 600 }}>Bloqueado</span>
+                          ) : emp.plano === 'cancelado' ? (
+                            <span style={{ padding: '2px 8px', background: '#f3f4f6', color: '#6b7280', borderRadius: 99, fontSize: 11, fontWeight: 600 }}>Cancelado</span>
+                          ) : emp.plano === 'trial' && emp.trial_restante !== null && emp.trial_restante <= 0 ? (
+                            <span style={{ padding: '2px 8px', background: '#FAEEDA', color: '#633806', borderRadius: 99, fontSize: 11, fontWeight: 600 }}>Trial expirado</span>
+                          ) : (
+                            <span style={{ padding: '2px 8px', background: '#EAF3DE', color: '#27500A', borderRadius: 99, fontSize: 11, fontWeight: 600 }}>Ativo</span>
+                          )}
                         </td>
-                        <td style={{ padding: '10px 12px' }}>
-                          {emp.trans_erro > 0
-                            ? <span style={{ color: '#dc2626', fontWeight: 600 }}>{emp.trans_erro}</span>
-                            : <span style={{ color: '#9ca3af' }}>0</span>}
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#374151' }}>
-                          {emp.funcionarios.toLocaleString('pt-BR')}
+                        <td style={{ padding: '10px 12px', color: '#374151', fontWeight: 600 }}>
+                          {emp.trans_mes.toLocaleString('pt-BR')}
                         </td>
                         <td style={{ padding: '10px 12px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
                           {fmtDataCurta(emp.created_at)}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <button
+                            onClick={() => alterarBloqueio(emp.id, !emp.bloqueado)}
+                            disabled={bloqueandoId === emp.id}
+                            title={emp.bloqueado ? 'Desbloquear acesso' : 'Bloquear acesso'}
+                            style={{
+                              padding: '4px 10px',
+                              background: emp.bloqueado ? '#EAF3DE' : '#FCEBEB',
+                              color: emp.bloqueado ? '#27500A' : '#791F1F',
+                              border: 'none',
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {bloqueandoId === emp.id ? '...' : emp.bloqueado ? '✓ Desbloquear' : '⊘ Bloquear'}
+                          </button>
                         </td>
                       </tr>
                     )
@@ -298,45 +601,110 @@ export default function Admin() {
               </table>
             </div>
           </div>
-
-          {/* Feed de transmissões recentes */}
-          <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid #f3f4f6' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>Últimas transmissões</div>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Todas as empresas</div>
-            </div>
-            <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-              {recentes.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Nenhuma transmissão</div>
-              ) : recentes.map(t => (
-                <div key={t.id} style={{ padding: '10px 14px', borderBottom: '0.5px solid #f3f4f6', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: corStatus(t.status), flexShrink: 0, marginTop: 4 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{t.evento}</span>
-                      <span style={{ fontSize: 10, color: '#9ca3af' }}>·</span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: corStatus(t.status),
-                      }}>{t.status}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {t.empresa_nome}
-                    </div>
-                    {t.erro && (
-                      <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.erro}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{fmtData(t.created_at)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
+        )}
       </div>
+
+      {/* ===== MODAL: NOVO CLIENTE ===== */}
+      {modalConvite && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setModalConvite(false) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 440, padding: '1.75rem', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+
+            {conviteStatus === 'ok' ? (
+              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 6 }}>Convite enviado!</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>O cliente receberá um e-mail para ativar o acesso.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Novo Cliente</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>Um e-mail de convite será enviado automaticamente</div>
+                  </div>
+                  <button onClick={() => setModalConvite(false)} style={{ background: 'none', border: 'none', fontSize: 18, color: '#9ca3af', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+                </div>
+
+                {conviteStatus === 'erro' && conviteErro && (
+                  <div style={{ background: '#FCEBEB', color: '#791F1F', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 14 }}>
+                    {conviteErro}
+                  </div>
+                )}
+
+                <form onSubmit={enviarConvite}>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={lbl}>E-mail *</label>
+                    <input
+                      style={inp}
+                      type="email"
+                      required
+                      value={conviteForm.email}
+                      onChange={e => setConviteForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="contato@empresa.com.br"
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={lbl}>Razão Social *</label>
+                    <input
+                      style={inp}
+                      required
+                      value={conviteForm.razao_social}
+                      onChange={e => setConviteForm(f => ({ ...f, razao_social: e.target.value }))}
+                      placeholder="Nome da empresa"
+                    />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={lbl}>CNPJ</label>
+                    <input
+                      style={inp}
+                      value={conviteForm.cnpj}
+                      onChange={e => setConviteForm(f => ({ ...f, cnpj: e.target.value }))}
+                      placeholder="00.000.000/0000-00 (opcional)"
+                    />
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={lbl}>Plano *</label>
+                    <select
+                      style={{ ...inp, cursor: 'pointer' }}
+                      value={conviteForm.plano}
+                      onChange={e => setConviteForm(f => ({ ...f, plano: e.target.value }))}
+                    >
+                      <option value="trial">Trial (14 dias grátis)</option>
+                      <option value="starter">Starter</option>
+                      <option value="professional">Professional</option>
+                      <option value="business">Business</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setModalConvite(false)}
+                      style={{ flex: 1, padding: '10px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={conviteStatus === 'enviando'}
+                      style={{ flex: 2, padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: conviteStatus === 'enviando' ? 'not-allowed' : 'pointer', opacity: conviteStatus === 'enviando' ? 0.7 : 1 }}
+                    >
+                      {conviteStatus === 'enviando' ? 'Enviando convite...' : 'Enviar Convite'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+const lbl: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4 }
+const inp: React.CSSProperties = { width: '100%', padding: '9px 11px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', color: '#111', boxSizing: 'border-box', fontFamily: 'inherit', outline: 'none' }
