@@ -113,20 +113,23 @@ export default function S2220() {
     setSalvandoEdit(false)
   }
 
-  const funcsFiltradas = funcionarios.filter(f => {
+  // Só mostra funcionários que têm ASO importado e associado
+  const funcsComAso = funcionarios.filter(f => ultimoAso(f.id) !== null)
+
+  const funcsFiltradas = funcsComAso.filter(f => {
     const st = statusFuncionario(f)
     if (filtro === 'todos')    return true
     if (filtro === 'pendente') return st.pode
     if (filtro === 'ok')       return st.label === 'Transmitido'
-    if (filtro === 'problema') return ['Sem ASO','Dados incompletos','Rejeitado','ASO vencido'].includes(st.label)
+    if (filtro === 'problema') return ['Dados incompletos','Rejeitado','ASO vencido'].includes(st.label)
     return true
   })
 
-  const prontos   = funcionarios.filter(f => statusFuncionario(f).pode)
-  const problemas = funcionarios.filter(f =>
-    ['Sem ASO','Dados incompletos','Rejeitado','ASO vencido'].includes(statusFuncionario(f).label)
+  const prontos   = funcsComAso.filter(f => statusFuncionario(f).pode)
+  const problemas = funcsComAso.filter(f =>
+    ['Dados incompletos','Rejeitado','ASO vencido'].includes(statusFuncionario(f).label)
   )
-  const transmitidos = funcionarios.filter(f => statusFuncionario(f).label === 'Transmitido')
+  const transmitidos = funcsComAso.filter(f => statusFuncionario(f).label === 'Transmitido')
 
   if (carregando) return <div style={s.loading}>Carregando...</div>
 
@@ -143,8 +146,8 @@ export default function S2220() {
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button style={s.btnOutline} onClick={() => {
-            const funcsComAso = funcionarios.map(f => ({ ...f, ultimoAso: ultimoAso(f.id) }))
-            pdfConformidadeASO(nomeEmpresa, cnpjEmpresa, funcsComAso)
+            const funcsParaPDF = funcionarios.map(f => ({ ...f, ultimoAso: ultimoAso(f.id) }))
+            pdfConformidadeASO(nomeEmpresa, cnpjEmpresa, funcsParaPDF)
           }}>
             📄 Exportar PDF
           </button>
@@ -177,7 +180,7 @@ export default function S2220() {
       {/* Filtros */}
       <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
         {[
-          { k:'todos',    l:`Todos (${funcionarios.length})` },
+          { k:'todos',    l:`Todos (${funcsComAso.length})` },
           { k:'pendente', l:`Pendentes (${prontos.length})` },
           { k:'ok',       l:`Transmitidos (${transmitidos.length})` },
           { k:'problema', l:`Problemas (${problemas.length})` },

@@ -209,7 +209,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=aso')}>↑ Importar documento</button>
+          <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar documento</button>
           <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
             📡 Transmitir ({kpis?.txPendentes || 0})
           </button>
@@ -249,7 +249,7 @@ export default function Dashboard() {
             sub: `${kpis?.txRejeitadas || 0} rejeitada(s)`,
             cor: (kpis?.txRejeitadas || 0) > 0 ? '#E24B4A' : (kpis?.txPendentes || 0) > 0 ? '#EF9F27' : '#1D9E75',
             bg: (kpis?.txRejeitadas || 0) > 0 ? '#FCEBEB' : (kpis?.txPendentes || 0) > 0 ? '#FAEEDA' : '#EAF3DE',
-            rota: '/transmissao-manual',
+            rota: '/relatorios',
           },
           {
             label:'Enviados total',
@@ -338,7 +338,7 @@ export default function Dashboard() {
             <div style={{ ...s.cardTit, marginBottom:10 }}>⚡ Ações rápidas</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
               {[
-                { l:'↑ Importar ASO / LTCAT', rota:'/leitor?tipo=aso',              cor:'#185FA5', bg:'#E6F1FB' },
+                { l:'↑ Importar documento',   rota:'/importar',                    cor:'#185FA5', bg:'#E6F1FB' },
                 { l:'📡 Transmitir eventos',  rota:'/transmissao-manual',  cor:'#1D9E75', bg:'#EAF3DE' },
                 { l:'👥 Funcionários',         rota:'/funcionarios',         cor:'#374151', bg:'#f3f4f6' },
                 { l:'🩺 S-2220 Saúde',         rota:'/s2220',                cor:'#0C447C', bg:'#E6F1FB' },

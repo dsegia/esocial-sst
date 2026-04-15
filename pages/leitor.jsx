@@ -168,11 +168,22 @@ export default function Leitor() {
       setProgresso(`${tipoLabel} identificado. Enviando para IA...`)
 
       let payload
+      // PDFs de LTCAT/PCMSO: envia via Supabase Storage para contornar limite de 4.5MB do Vercel
       if (tipo === 'ltcat' || tipo === 'pcmso') {
-        // LTCAT/PCMSO: envia PDF bruto para Claude (leitura nativa — mais precisa)
-        setProgresso(`Preparando PDF para leitura nativa com Claude...`)
-        const pdf_base64 = await pdfParaBase64(arquivo)
-        payload = { pdf_base64, texto_pdf: texto, paginas: [], tipo }
+        setProgresso('Enviando PDF para análise com Claude nativo...')
+        const storagePath = `temp/${empresaId}/${Date.now()}_${arquivo.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`
+        const { error: uploadErr } = await supabase.storage
+          .from('documentos-temp')
+          .upload(storagePath, arquivo, { contentType: 'application/pdf', upsert: true })
+        if (uploadErr) throw new Error('Erro no upload: ' + uploadErr.message)
+
+        const { data: signedData, error: signErr } = await supabase.storage
+          .from('documentos-temp')
+          .createSignedUrl(storagePath, 300)
+        if (signErr) throw new Error('Erro ao gerar URL: ' + signErr.message)
+
+        setProgresso('PDF enviado. Analisando com IA...')
+        payload = { pdf_signed_url: signedData.signedUrl, pdf_storage_path: storagePath, texto_pdf: texto, paginas: [], tipo }
       } else if (temTexto) {
         payload = { texto_pdf: texto, paginas: [], tipo }
       } else {
@@ -187,7 +198,9 @@ export default function Leitor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      const json = await resp.json()
+      let json
+      try { json = await resp.json() }
+      catch { throw new Error('O servidor não respondeu corretamente. Tente novamente.') }
       if (!resp.ok || !json.sucesso) throw new Error(json.erro || 'Erro na leitura')
       finalizar(json.dados, tipo, json.modo)
     } catch (err) {
@@ -349,11 +362,19 @@ export default function Leitor() {
 
   return (
     <Layout pagina="leitor">
-      <Head><title>Leitor de Documentos — eSocial SST</title></Head>
+      <Head><title>
+        {tipoLocked
+          ? (tipoFixo === 'aso' ? 'Importar ASO' : tipoFixo === 'ltcat' ? 'Importar LTCAT' : 'Importar PCMSO') + ' — eSocial SST'
+          : 'Leitor de Documentos — eSocial SST'}
+      </title></Head>
 
       <div style={s.header}>
         <div>
-          <div style={s.titulo}>Leitor inteligente de documentos</div>
+          <div style={s.titulo}>
+            {tipoLocked
+              ? (tipoFixo === 'aso' ? 'Importar ASO' : tipoFixo === 'ltcat' ? 'Importar LTCAT' : 'Importar PCMSO')
+              : 'Leitor inteligente de documentos'}
+          </div>
           <div style={s.sub}>
             {tipoFixo === 'aso'   && 'ASO — PDF ou XML → extrair → confirmar → salvar'}
             {tipoFixo === 'ltcat' && 'LTCAT — PDF → extrair GHEs e agentes → confirmar → salvar'}
@@ -610,8 +631,8 @@ export default function Leitor() {
             <button style={s.btnPrimary} onClick={() => { setEtapa('upload'); setDados(null); setArquivo(null); setFuncMatch(null); setTipoDetectado('') }}>
               Ler outro documento
             </button>
-            <button style={s.btnOutline} onClick={() => router.push(tipoDetectado==='ltcat'?'/ltcat':tipoDetectado==='pcmso'?'/pcmso':'/relatorios')}>
-              {tipoDetectado === 'ltcat' ? 'Ver LTCAT →' : tipoDetectado === 'pcmso' ? 'Ver PCMSO →' : 'Ver relatórios →'}
+            <button style={s.btnOutline} onClick={() => router.push(tipoDetectado==='ltcat'?'/ltcat':tipoDetectado==='pcmso'?'/pcmso':'/aso')}>
+              {tipoDetectado === 'ltcat' ? 'Ver LTCAT →' : tipoDetectado === 'pcmso' ? 'Ver PCMSO →' : 'Ver ASOs →'}
             </button>
           </div>
         </div>

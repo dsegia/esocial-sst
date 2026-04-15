@@ -45,19 +45,29 @@ export default function Importar() {
     setResultado(null)
 
     try {
-      setProgresso('Preparando PDF...')
-      const buf = await file.arrayBuffer()
-      const bytes = new Uint8Array(buf)
-      let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-      const pdf_base64 = btoa(bin)
+      setProgresso('Enviando PDF para análise...')
 
-      setProgresso('Identificando tipo do documento...')
+      // Upload direto para Supabase Storage — evita limite de 4.5MB do Vercel
+      const storagePath = `temp/${empresaId || 'anon'}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`
+      const { error: uploadErr } = await supabase.storage
+        .from('documentos-temp')
+        .upload(storagePath, file, { contentType: 'application/pdf', upsert: true })
+      if (uploadErr) throw new Error('Erro no upload: ' + uploadErr.message)
+
+      const { data: signedData, error: signErr } = await supabase.storage
+        .from('documentos-temp')
+        .createSignedUrl(storagePath, 300)
+      if (signErr) throw new Error('Erro ao gerar URL temporária: ' + signErr.message)
+
+      setProgresso('Identificando tipo do documento com IA...')
       const resp = await fetch('/api/ler-documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdf_base64, texto_pdf: '', paginas: [], tipo: 'auto' })
+        body: JSON.stringify({ pdf_signed_url: signedData.signedUrl, texto_pdf: '', paginas: [], tipo: 'auto' })
       })
-      const json = await resp.json()
+      let json
+      try { json = await resp.json() }
+      catch { throw new Error('O servidor não respondeu. Tente novamente.') }
       if (!resp.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
 
       setResultado(json)
@@ -112,7 +122,7 @@ export default function Importar() {
         // Para ASO: redirecionar para o leitor com dados pré-preenchidos via sessionStorage
         sessionStorage.setItem('aso_importado', JSON.stringify({ dados, empresaId }))
         setEstado('pronto')
-        setTimeout(() => router.push('/leitor?tipo=aso&origem=importar'), 1800)
+        setTimeout(() => router.push('/aso'), 1800)
       }
     } catch (err) {
       setErro('Erro ao salvar: ' + err.message)
