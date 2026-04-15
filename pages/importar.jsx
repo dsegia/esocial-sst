@@ -33,6 +33,34 @@ function fmtTamanho(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+const TIPOS_ASO_VALIDOS = ['admissional','periodico','retorno','mudanca','demissional','monitoracao']
+const CONCLUSOES_VALIDAS = ['apto','inapto','apto_restricao']
+
+function normalizarTipoAso(valor) {
+  if (!valor) return 'periodico'
+  const v = valor.toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'')
+  if (v.includes('admiss'))  return 'admissional'
+  if (v.includes('demiss'))  return 'demissional'
+  if (v.includes('retorn'))  return 'retorno'
+  if (v.includes('mudan') || v.includes('funcao') || v.includes('cargo')) return 'mudanca'
+  if (v.includes('monitor')) return 'monitoracao'
+  if (v.includes('period') || v.includes('anual') || v.includes('bienal')) return 'periodico'
+  if (TIPOS_ASO_VALIDOS.includes(v)) return v
+  return 'periodico'
+}
+
+function normalizarConclusao(valor) {
+  if (!valor) return 'apto'
+  const v = valor.toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z_]/g,'')
+  if (v.includes('inapto')) return 'inapto'
+  if (v.includes('restr') || v.includes('restricao') || v === 'apto_restricao') return 'apto_restricao'
+  if (v.includes('apto')) return 'apto'
+  if (CONCLUSOES_VALIDAS.includes(v)) return v
+  return 'apto'
+}
+
 function fmtCPF(v) {
   return v.replace(/\D/g, '').substring(0, 11)
     .replace(/(\d{3})(\d)/, '$1.$2')
@@ -127,10 +155,10 @@ async function salvarAso(dados, funcId, empresaId) {
   const dataExame = converterData(dados.aso?.data_exame) || new Date().toISOString().split('T')[0]
   const { data: aso, error: asoErr } = await supabase.from('asos').insert({
     funcionario_id: funcId, empresa_id: empresaId,
-    tipo_aso: dados.aso?.tipo_aso || 'periodico',
+    tipo_aso: normalizarTipoAso(dados.aso?.tipo_aso),
     data_exame: dataExame,
     prox_exame: converterData(dados.aso?.prox_exame) || null,
-    conclusao: dados.aso?.conclusao || 'apto',
+    conclusao: normalizarConclusao(dados.aso?.conclusao),
     medico_nome: dados.aso?.medico_nome || null,
     medico_crm: dados.aso?.medico_crm || null,
     exames: dados.exames || [],
