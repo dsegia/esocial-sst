@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
@@ -17,10 +17,10 @@ const TIPO_INFO = {
 }
 
 const LIMITE_ARQUIVOS = 10
-const LIMITE_BASE64   = 3 * 1024 * 1024   // 3 MB → envia como base64 nativo
-const LIMITE_TAMANHO  = 50 * 1024 * 1024  // 50 MB → tamanho máximo aceito
+const LIMITE_BASE64   = 3 * 1024 * 1024
+const LIMITE_TAMANHO  = 50 * 1024 * 1024
 
-// ── Utilitários ────────────────────────────────────────
+// ── Utilitários ──────────────────────────────────────────
 function converterData(br) {
   if (!br) return null
   if (typeof br === 'string' && br.includes('-') && !br.includes('/')) return br.substring(0, 10)
@@ -33,7 +33,14 @@ function fmtTamanho(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-// ── Garantir PDF.js carregado ───────────────────────────
+function fmtCPF(v) {
+  return v.replace(/\D/g, '').substring(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4')
+}
+
+// ── PDF.js ────────────────────────────────────────────────
 let pdfJsLoading = null
 async function carregarPdfJs() {
   if (window.pdfjsLib) return window.pdfjsLib
@@ -53,7 +60,7 @@ async function carregarPdfJs() {
   return pdfJsLoading
 }
 
-// ── Processar 1 arquivo: extrai texto/imagens e chama API ──
+// ── Extrai texto e chama API ──────────────────────────────
 async function processarArquivo(file, onProgresso) {
   onProgresso('Carregando PDF...')
   const lib = await carregarPdfJs()
@@ -74,8 +81,7 @@ async function processarArquivo(file, onProgresso) {
     onProgresso('Preparando leitura nativa...')
     const bytes = new Uint8Array(arrayBuf.slice(0))
     let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-    const pdf_base64 = btoa(bin)
-    payload = { pdf_base64, texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
+    payload = { pdf_base64: btoa(bin), texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else if (temTexto) {
     onProgresso(`PDF grande (${fmtTamanho(file.size)}) — usando texto...`)
     payload = { texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
@@ -96,18 +102,49 @@ async function processarArquivo(file, onProgresso) {
 
   onProgresso('Identificando com IA...')
   const resp = await fetch('/api/ler-documento', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
   let json
   try { json = await resp.json() }
   catch { throw new Error('O servidor não respondeu. Tente novamente.') }
   if (!resp.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
-  return json // { tipo_detectado, dados }
+  return json
 }
 
-// ── Salvar documento no Supabase ───────────────────────
+// ── Buscar funcionário por CPF ────────────────────────────
+async function buscarFuncionario(cpf, empresaId) {
+  const cpfBruto = (cpf || '').replace(/\D/g, '')
+  if (cpfBruto.length !== 11) return null
+  const cpfFmt = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+  const { data } = await supabase.from('funcionarios')
+    .select('id, nome, ativo').eq('empresa_id', empresaId).eq('cpf', cpfFmt).single()
+  return data || null
+}
+
+// ── Salvar ASO com funcionário já conhecido ───────────────
+async function salvarAso(dados, funcId, empresaId) {
+  const dataExame = converterData(dados.aso?.data_exame) || new Date().toISOString().split('T')[0]
+  const { data: aso, error: asoErr } = await supabase.from('asos').insert({
+    funcionario_id: funcId, empresa_id: empresaId,
+    tipo_aso: dados.aso?.tipo_aso || 'periodico',
+    data_exame: dataExame,
+    prox_exame: converterData(dados.aso?.prox_exame) || null,
+    conclusao: dados.aso?.conclusao || 'apto',
+    medico_nome: dados.aso?.medico_nome || null,
+    medico_crm: dados.aso?.medico_crm || null,
+    exames: dados.exames || [],
+    riscos: dados.riscos || [],
+  }).select().single()
+  if (asoErr) throw new Error(asoErr.message)
+  await supabase.from('transmissoes').insert({
+    empresa_id: empresaId, funcionario_id: funcId,
+    evento: 'S-2220', referencia_id: aso.id, referencia_tipo: 'aso',
+    status: 'pendente', tentativas: 0, ambiente: 'producao_restrita',
+  })
+}
+
+// ── Salvar LTCAT / PCMSO ──────────────────────────────────
 async function salvarDocumento(tipo, dados, empresaId) {
   if (tipo === 'ltcat') {
     const { error } = await supabase.from('ltcats').insert({
@@ -122,94 +159,40 @@ async function salvarDocumento(tipo, dados, empresaId) {
       ativo: true,
     })
     if (error) throw new Error(error.message)
-    return 'ltcat'
+    return
   }
-
   if (tipo === 'pcmso') {
     for (const prog of (dados.programas || [])) {
       await supabase.from('pcmso_programa').upsert({
-        empresa_id: empresaId,
-        funcao: prog.funcao,
-        setor: prog.setor || null,
+        empresa_id: empresaId, funcao: prog.funcao, setor: prog.setor || null,
         riscos: prog.riscos || [],
         exames: (prog.exames || []).map(e => ({
           nome: typeof e === 'string' ? e : e.nome,
-          periodicidade: e.periodicidade || 'Anual',
-          obrigatorio: true,
+          periodicidade: e.periodicidade || 'Anual', obrigatorio: true,
         })),
         atualizado_em: new Date().toISOString(),
       }, { onConflict: 'empresa_id,funcao' })
     }
-    return 'pcmso'
+    return
   }
-
-  if (tipo === 'aso') {
-    const cpfBruto = dados.funcionario?.cpf?.replace(/\D/g, '') || ''
-    let funcId = null
-
-    if (cpfBruto.length === 11) {
-      const cpfFmt = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-      const { data: funcAtivo } = await supabase.from('funcionarios')
-        .select('id').eq('empresa_id', empresaId).eq('cpf', cpfFmt).eq('ativo', true).single()
-      if (funcAtivo) {
-        funcId = funcAtivo.id
-      } else {
-        const { data: funcInativo } = await supabase.from('funcionarios')
-          .select('id').eq('empresa_id', empresaId).eq('cpf', cpfFmt).single()
-        if (funcInativo) funcId = funcInativo.id
-      }
-    }
-
-    if (!funcId) {
-      const cpfFmt = cpfBruto.length === 11
-        ? cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
-        : (dados.funcionario?.cpf || '000.000.000-00')
-      const { data: novoFunc, error: funcErr } = await supabase.from('funcionarios').insert({
-        empresa_id: empresaId,
-        nome: dados.funcionario?.nome || 'Não identificado',
-        cpf: cpfFmt,
-        data_nasc: converterData(dados.funcionario?.data_nasc),
-        data_adm: converterData(dados.funcionario?.data_adm),
-        matricula_esocial: 'PEND-' + Date.now(),
-        funcao: dados.funcionario?.funcao || null,
-        setor: dados.funcionario?.setor || null,
-        ativo: true,
-      }).select().single()
-      if (funcErr) throw new Error('Erro ao criar funcionário: ' + funcErr.message)
-      funcId = novoFunc.id
-    }
-
-    const dataExame = converterData(dados.aso?.data_exame) || new Date().toISOString().split('T')[0]
-    const { data: aso, error: asoErr } = await supabase.from('asos').insert({
-      funcionario_id: funcId, empresa_id: empresaId,
-      tipo_aso: dados.aso?.tipo_aso || 'periodico',
-      data_exame: dataExame,
-      prox_exame: converterData(dados.aso?.prox_exame) || null,
-      conclusao: dados.aso?.conclusao || 'apto',
-      medico_nome: dados.aso?.medico_nome || null,
-      medico_crm: dados.aso?.medico_crm || null,
-      exames: dados.exames || [],
-      riscos: dados.riscos || [],
-    }).select().single()
-    if (asoErr) throw new Error(asoErr.message)
-
-    await supabase.from('transmissoes').insert({
-      empresa_id: empresaId, funcionario_id: funcId,
-      evento: 'S-2220', referencia_id: aso.id, referencia_tipo: 'aso',
-      status: 'pendente', tentativas: 0, ambiente: 'producao_restrita',
-    })
-    return 'aso'
-  }
-
-  throw new Error('Tipo de documento não reconhecido')
+  throw new Error('Tipo inválido para salvarDocumento')
 }
 
-// ── Componente principal ───────────────────────────────
+function resumoDocumento(tipo, dados) {
+  if (tipo === 'aso')   return `${dados.funcionario?.nome || '—'} · ${dados.aso?.tipo_aso || '—'}`
+  if (tipo === 'ltcat') return `${dados.ghes?.length || 0} GHEs · ${dados.dados_gerais?.resp_nome || '—'}`
+  if (tipo === 'pcmso') return `${dados.programas?.length || 0} programas`
+  return ''
+}
+
+// ════════════════════════════════════════════════════════
+// Componente principal
+// ════════════════════════════════════════════════════════
 export default function Importar() {
   const router = useRouter()
   const fileRef = useRef()
   const [empresaId, setEmpresaId] = useState('')
-  const [fila, setFila] = useState([])         // [{ id, nome, tamanho, file, estado, tipo, info, erro }]
+  const [fila, setFila] = useState([])
   const [processando, setProcessando] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [erroGlobal, setErroGlobal] = useState('')
@@ -235,18 +218,15 @@ export default function Importar() {
     if (validos.length === 0) { setErroGlobal('Selecione arquivos PDF.'); return }
 
     setFila(prev => {
-      const jaExistentes = prev.length
-      const vagos = LIMITE_ARQUIVOS - jaExistentes
+      const vagos = LIMITE_ARQUIVOS - prev.length
       if (vagos <= 0) { setErroGlobal(`Limite de ${LIMITE_ARQUIVOS} arquivos atingido.`); return prev }
-
       const novos = validos.slice(0, vagos).map(f => {
         if (f.size > LIMITE_TAMANHO) {
-          return { id: Math.random().toString(36).slice(2), nome: f.name, tamanho: f.size, file: null, estado: 'erro', tipo: null, info: null, erro: `Arquivo muito grande (${fmtTamanho(f.size)}). Máximo: 50 MB.` }
+          return { id: uid(), nome: f.name, tamanho: f.size, file: null, estado: 'erro', tipo: null, info: null, erro: `Arquivo muito grande (${fmtTamanho(f.size)}). Máximo: 50 MB.` }
         }
-        return { id: Math.random().toString(36).slice(2), nome: f.name, tamanho: f.size, file: f, estado: 'aguardando', tipo: null, info: null, erro: null }
+        return { id: uid(), nome: f.name, tamanho: f.size, file: f, estado: 'aguardando', tipo: null, info: null, erro: null }
       })
-
-      if (validos.length > vagos) setErroGlobal(`Apenas ${vagos} arquivo(s) adicionado(s). Limite é ${LIMITE_ARQUIVOS}.`)
+      if (validos.length > vagos) setErroGlobal(`Apenas ${vagos} adicionado(s). Limite: ${LIMITE_ARQUIVOS}.`)
       return [...prev, ...novos]
     })
   }
@@ -256,6 +236,7 @@ export default function Importar() {
     setFila(prev => prev.filter(it => it.id !== id))
   }
 
+  // ── Processamento em lote ──────────────────────────────
   async function processarFila() {
     if (!empresaId || processando) return
     const pendentes = fila.filter(it => it.estado === 'aguardando' && it.file)
@@ -268,11 +249,51 @@ export default function Importar() {
         const resultado = await processarArquivo(item.file, msg =>
           atualizarItem(item.id, { progresso: msg })
         )
-        atualizarItem(item.id, { progresso: 'Salvando...' })
-        const tipoFinal = await salvarDocumento(resultado.tipo_detectado, resultado.dados, empresaId)
-        const info = TIPO_INFO[tipoFinal]
-        const resumo = resumoDocumento(tipoFinal, resultado.dados)
-        atualizarItem(item.id, { estado: 'salvo', tipo: tipoFinal, info, resumo, progresso: null })
+        const { tipo_detectado, dados } = resultado
+
+        // ── ASO: verifica se funcionário existe ──
+        if (tipo_detectado === 'aso') {
+          atualizarItem(item.id, { progresso: 'Verificando funcionário...' })
+          const func = await buscarFuncionario(dados.funcionario?.cpf, empresaId)
+
+          if (func) {
+            // Funcionário encontrado → salva direto
+            atualizarItem(item.id, { progresso: 'Salvando ASO...' })
+            await salvarAso(dados, func.id, empresaId)
+            atualizarItem(item.id, {
+              estado: 'salvo', tipo: 'aso', info: TIPO_INFO.aso,
+              resumo: `${func.nome} · ${dados.aso?.tipo_aso || 'periódico'}`,
+              progresso: null,
+            })
+          } else {
+            // Funcionário NÃO encontrado → aguarda confirmação do usuário
+            atualizarItem(item.id, {
+              estado: 'confirmar_func',
+              tipo: 'aso', info: TIPO_INFO.aso,
+              dadosResultado: resultado,
+              // Pré-preenche com dados extraídos pela IA
+              formFunc: {
+                nome:      dados.funcionario?.nome     || '',
+                cpf:       dados.funcionario?.cpf      || '',
+                data_nasc: converterData(dados.funcionario?.data_nasc) || '',
+                data_adm:  converterData(dados.funcionario?.data_adm)  || '',
+                funcao:    dados.funcionario?.funcao   || '',
+                setor:     dados.funcionario?.setor    || '',
+              },
+              progresso: null,
+              expandido: true,
+            })
+          }
+
+        } else {
+          // LTCAT / PCMSO → salva direto
+          atualizarItem(item.id, { progresso: 'Salvando...' })
+          await salvarDocumento(tipo_detectado, dados, empresaId)
+          atualizarItem(item.id, {
+            estado: 'salvo', tipo: tipo_detectado, info: TIPO_INFO[tipo_detectado],
+            resumo: resumoDocumento(tipo_detectado, dados), progresso: null,
+          })
+        }
       } catch (err) {
         atualizarItem(item.id, { estado: 'erro', erro: err.message, progresso: null })
       }
@@ -281,20 +302,51 @@ export default function Importar() {
     setProcessando(false)
   }
 
-  function resumoDocumento(tipo, dados) {
-    if (tipo === 'aso')   return `${dados.funcionario?.nome || '—'} · ${dados.aso?.tipo_aso || '—'}`
-    if (tipo === 'ltcat') return `${dados.ghes?.length || 0} GHEs · ${dados.dados_gerais?.resp_nome || '—'}`
-    if (tipo === 'pcmso') return `${dados.programas?.length || 0} programas`
-    return ''
+  // ── Confirmar funcionário novo e salvar ASO ────────────
+  async function confirmarESalvar(itemId) {
+    const item = fila.find(it => it.id === itemId)
+    if (!item) return
+    const f = item.formFunc
+    if (!f.nome.trim() || !f.cpf.trim()) {
+      atualizarItem(itemId, { erroForm: 'Nome e CPF são obrigatórios.' }); return
+    }
+
+    atualizarItem(itemId, { salvandoConfirmacao: true, erroForm: null })
+    try {
+      // Cria o funcionário
+      const cpfFmt = fmtCPF(f.cpf)
+      const { data: novoFunc, error: funcErr } = await supabase.from('funcionarios').insert({
+        empresa_id: empresaId,
+        nome: f.nome.trim(), cpf: cpfFmt,
+        data_nasc: f.data_nasc || null, data_adm: f.data_adm || null,
+        matricula_esocial: 'PEND-' + Date.now(),
+        funcao: f.funcao.trim() || null, setor: f.setor.trim() || null,
+        ativo: true,
+      }).select().single()
+      if (funcErr) throw new Error('Erro ao cadastrar: ' + funcErr.message)
+
+      // Salva o ASO
+      await salvarAso(item.dadosResultado.dados, novoFunc.id, empresaId)
+
+      atualizarItem(itemId, {
+        estado: 'salvo', salvandoConfirmacao: false, expandido: false,
+        resumo: `${novoFunc.nome} · ${item.dadosResultado.dados.aso?.tipo_aso || 'periódico'} · funcionário cadastrado`,
+      })
+    } catch (err) {
+      atualizarItem(itemId, { salvandoConfirmacao: false, erroForm: err.message })
+    }
   }
 
-  const totalAguardando = fila.filter(it => it.estado === 'aguardando').length
-  const totalSalvos     = fila.filter(it => it.estado === 'salvo').length
-  const totalErros      = fila.filter(it => it.estado === 'erro').length
-  const totalFila       = fila.length
-  const podeProsseguir  = totalSalvos > 0
+  function pularItem(itemId) {
+    atualizarItem(itemId, { estado: 'erro', erro: 'Pulado pelo usuário.', expandido: false })
+  }
 
-  // Rotas por tipo
+  const totalAguardando    = fila.filter(it => it.estado === 'aguardando').length
+  const totalSalvos        = fila.filter(it => it.estado === 'salvo').length
+  const totalErros         = fila.filter(it => it.estado === 'erro').length
+  const totalConfirmacao   = fila.filter(it => it.estado === 'confirmar_func').length
+  const totalFila          = fila.length
+
   function navegar() {
     const tipos = [...new Set(fila.filter(it => it.estado === 'salvo').map(it => it.tipo))]
     if (tipos.length === 1) router.push(`/${tipos[0]}`)
@@ -307,11 +359,10 @@ export default function Importar() {
 
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
 
-        {/* Cabeçalho */}
         <div style={{ marginBottom: '1.25rem' }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>Importar Documentos</div>
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-            Selecione até {LIMITE_ARQUIVOS} PDFs — ASO, LTCAT ou PCMSO detectados automaticamente
+            Até {LIMITE_ARQUIVOS} PDFs por vez — ASO, LTCAT ou PCMSO detectados automaticamente
           </div>
         </div>
 
@@ -331,10 +382,10 @@ export default function Importar() {
           >
             <div style={{ fontSize: 36, marginBottom: 10 }}>📂</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-              {totalFila === 0 ? 'Clique ou arraste os PDFs aqui' : `Adicionar mais arquivos (${totalFila}/${LIMITE_ARQUIVOS})`}
+              {totalFila === 0 ? 'Clique ou arraste os PDFs aqui' : `Adicionar mais (${totalFila}/${LIMITE_ARQUIVOS})`}
             </div>
             <div style={{ fontSize: 11, color: '#9ca3af' }}>
-              Até {LIMITE_ARQUIVOS} arquivos · máximo 50 MB cada · PDF apenas
+              Até {LIMITE_ARQUIVOS} arquivos · máx. 50 MB cada · PDF apenas
             </div>
           </div>
         )}
@@ -347,72 +398,87 @@ export default function Importar() {
           </div>
         )}
 
-        {/* Fila de arquivos */}
+        {/* Fila */}
         {fila.length > 0 && (
           <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
             {fila.map((item, idx) => (
-              <div key={item.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px',
-                borderBottom: idx < fila.length - 1 ? '0.5px solid #f3f4f6' : 'none',
-                background: item.estado === 'processando' ? '#F8FBFF' : '#fff',
-              }}>
-                {/* Ícone estado */}
-                <div style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>
-                  {item.estado === 'aguardando'   && <span style={{ color: '#d1d5db' }}>⏳</span>}
-                  {item.estado === 'processando'  && <Spinner />}
-                  {item.estado === 'salvo'        && <span style={{ color: '#27a048' }}>✓</span>}
-                  {item.estado === 'erro'         && <span style={{ color: '#dc2626' }}>✗</span>}
+              <div key={item.id}>
+                {/* Linha principal */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                  borderBottom: item.expandido || idx < fila.length - 1 ? '0.5px solid #f3f4f6' : 'none',
+                  background: item.estado === 'processando' ? '#F8FBFF'
+                    : item.estado === 'confirmar_func' ? '#FFFBF0' : '#fff',
+                }}>
+                  {/* Ícone */}
+                  <div style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>
+                    {item.estado === 'aguardando'     && <span style={{ color: '#d1d5db' }}>⏳</span>}
+                    {item.estado === 'processando'    && <Spinner />}
+                    {item.estado === 'salvo'          && <span style={{ color: '#27a048' }}>✓</span>}
+                    {item.estado === 'erro'           && <span style={{ color: '#dc2626' }}>✗</span>}
+                    {item.estado === 'confirmar_func' && <span style={{ color: '#EF9F27' }}>!</span>}
+                  </div>
+
+                  {/* Nome e subtítulo */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.nome}
+                    </div>
+                    <div style={{ fontSize: 11, marginTop: 1 }}>
+                      {item.estado === 'processando'    && <span style={{ color: '#9ca3af' }}>{item.progresso || 'Processando...'}</span>}
+                      {item.estado === 'aguardando'     && <span style={{ color: '#9ca3af' }}>{fmtTamanho(item.tamanho)}</span>}
+                      {item.estado === 'salvo'          && <span style={{ color: '#6b7280' }}>{item.resumo}</span>}
+                      {item.estado === 'erro'           && <span style={{ color: '#dc2626' }}>{item.erro}</span>}
+                      {item.estado === 'confirmar_func' && <span style={{ color: '#92600A', fontWeight: 500 }}>Funcionário não encontrado — confirme os dados abaixo</span>}
+                    </div>
+                  </div>
+
+                  {/* Badge tipo */}
+                  {item.info && (
+                    <div style={{ flexShrink: 0, padding: '2px 10px', background: item.info.bg, borderRadius: 99, fontSize: 11, fontWeight: 600, color: item.info.cor }}>
+                      {item.info.icone} {item.info.label}
+                    </div>
+                  )}
+
+                  {/* Toggle expandir (confirmar_func) */}
+                  {item.estado === 'confirmar_func' && (
+                    <button onClick={() => atualizarItem(item.id, { expandido: !item.expandido })} style={{
+                      flexShrink: 0, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+                      background: '#FAEEDA', border: '0.5px solid #F0C87A', borderRadius: 6,
+                      cursor: 'pointer', color: '#633806',
+                    }}>
+                      {item.expandido ? 'Fechar ▲' : 'Confirmar ▼'}
+                    </button>
+                  )}
+
+                  {/* Remover */}
+                  {!processando && item.estado !== 'processando' && item.estado !== 'confirmar_func' && (
+                    <button onClick={() => removerItem(item.id)} style={{ flexShrink: 0, background: 'none', border: 'none', fontSize: 16, color: '#d1d5db', cursor: 'pointer', padding: '0 2px' }}>×</button>
+                  )}
                 </div>
 
-                {/* Info arquivo */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.nome}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
-                    {item.estado === 'processando' && (item.progresso || 'Processando...')}
-                    {item.estado === 'aguardando'  && fmtTamanho(item.tamanho)}
-                    {item.estado === 'salvo'       && item.resumo}
-                    {item.estado === 'erro'        && <span style={{ color: '#dc2626' }}>{item.erro}</span>}
-                  </div>
-                </div>
-
-                {/* Badge tipo */}
-                {item.info && (
-                  <div style={{ flexShrink: 0, padding: '2px 10px', background: item.info.bg, borderRadius: 99, fontSize: 11, fontWeight: 600, color: item.info.cor }}>
-                    {item.info.icone} {item.info.label}
-                  </div>
-                )}
-
-                {/* Tamanho */}
-                {item.estado === 'aguardando' && (
-                  <div style={{ flexShrink: 0, fontSize: 11, color: '#9ca3af', minWidth: 52, textAlign: 'right' }}>
-                    {fmtTamanho(item.tamanho)}
-                  </div>
-                )}
-
-                {/* Remover */}
-                {!processando && item.estado !== 'processando' && (
-                  <button onClick={() => removerItem(item.id)} style={{
-                    flexShrink: 0, background: 'none', border: 'none', fontSize: 16,
-                    color: '#d1d5db', cursor: 'pointer', padding: '0 2px', lineHeight: 1,
-                  }}>×</button>
+                {/* Painel de confirmação de funcionário */}
+                {item.estado === 'confirmar_func' && item.expandido && (
+                  <ConfirmarFuncionario
+                    form={item.formFunc}
+                    salvando={item.salvandoConfirmacao}
+                    erroForm={item.erroForm}
+                    onChange={patch => atualizarItem(item.id, { formFunc: { ...item.formFunc, ...patch } })}
+                    onConfirmar={() => confirmarESalvar(item.id)}
+                    onPular={() => pularItem(item.id)}
+                  />
                 )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Sumário + ações */}
+        {/* Ações */}
         {fila.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
 
             {totalAguardando > 0 && !processando && (
-              <button onClick={processarFila} style={{
-                padding: '9px 20px', background: '#185FA5', color: '#fff',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>
+              <button onClick={processarFila} style={{ padding: '9px 20px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Processar {totalAguardando} arquivo{totalAguardando > 1 ? 's' : ''}
               </button>
             )}
@@ -424,34 +490,27 @@ export default function Importar() {
               </div>
             )}
 
-            {podeProsseguir && !processando && (
-              <button onClick={navegar} style={{
-                padding: '9px 18px', background: '#27500A', color: '#fff',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}>
+            {totalSalvos > 0 && !processando && totalConfirmacao === 0 && (
+              <button onClick={navegar} style={{ padding: '9px 18px', background: '#27500A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Ver documentos salvos →
               </button>
             )}
 
             {!processando && (
-              <button onClick={() => { setFila([]); setErroGlobal('') }} style={{
-                padding: '9px 14px', background: 'transparent', border: '1px solid #d1d5db',
-                borderRadius: 8, fontSize: 13, cursor: 'pointer', color: '#374151',
-              }}>
+              <button onClick={() => { setFila([]); setErroGlobal('') }} style={{ padding: '9px 14px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, cursor: 'pointer', color: '#374151' }}>
                 Limpar lista
               </button>
             )}
 
-            {/* Contadores */}
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 12 }}>
-              {totalSalvos  > 0 && <span style={{ color: '#27a048', fontWeight: 600 }}>✓ {totalSalvos} salvo{totalSalvos > 1 ? 's' : ''}</span>}
-              {totalErros   > 0 && <span style={{ color: '#dc2626', fontWeight: 600 }}>✗ {totalErros} erro{totalErros > 1 ? 's' : ''}</span>}
-              {totalAguardando > 0 && !processando && <span style={{ color: '#9ca3af' }}>{totalAguardando} aguardando</span>}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 12, alignItems: 'center' }}>
+              {totalSalvos      > 0 && <span style={{ color: '#27a048', fontWeight: 600 }}>✓ {totalSalvos} salvo{totalSalvos > 1 ? 's' : ''}</span>}
+              {totalConfirmacao > 0 && <span style={{ color: '#EF9F27', fontWeight: 600 }}>! {totalConfirmacao} pendente{totalConfirmacao > 1 ? 's' : ''}</span>}
+              {totalErros       > 0 && <span style={{ color: '#dc2626', fontWeight: 600 }}>✗ {totalErros} erro{totalErros > 1 ? 's' : ''}</span>}
+              {totalAguardando  > 0 && !processando && <span style={{ color: '#9ca3af' }}>{totalAguardando} aguardando</span>}
             </div>
           </div>
         )}
 
-        {/* Estado inicial vazio */}
         {fila.length === 0 && (
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 8 }}>
             {Object.entries(TIPO_INFO).map(([k, v]) => (
@@ -467,14 +526,81 @@ export default function Importar() {
   )
 }
 
+// ── Painel de confirmação de funcionário ──────────────────
+function ConfirmarFuncionario({ form, salvando, erroForm, onChange, onConfirmar, onPular }) {
+  return (
+    <div style={{ background: '#FFFBF0', borderTop: '0.5px solid #F0C87A', padding: '16px 20px' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#92600A', marginBottom: 12 }}>
+        Funcionário não encontrado no cadastro — confirme os dados extraídos pelo sistema:
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <Campo label="Nome completo *">
+          <input style={inp} value={form.nome} onChange={e => onChange({ nome: e.target.value })} />
+        </Campo>
+        <Campo label="CPF *">
+          <input style={inp} value={form.cpf} onChange={e => onChange({ cpf: fmtCPF(e.target.value) })} />
+        </Campo>
+        <Campo label="Data de nascimento">
+          <input style={inp} type="date" value={form.data_nasc} onChange={e => onChange({ data_nasc: e.target.value })} />
+        </Campo>
+        <Campo label="Data de admissão">
+          <input style={inp} type="date" value={form.data_adm} onChange={e => onChange({ data_adm: e.target.value })} />
+        </Campo>
+        <Campo label="Função / Cargo">
+          <input style={inp} value={form.funcao} onChange={e => onChange({ funcao: e.target.value })} />
+        </Campo>
+        <Campo label="Setor / GHE">
+          <input style={inp} value={form.setor} onChange={e => onChange({ setor: e.target.value })} />
+        </Campo>
+      </div>
+
+      {erroForm && (
+        <div style={{ background: '#FCEBEB', color: '#791F1F', border: '0.5px solid #F7C1C1', borderRadius: 8, padding: '8px 12px', fontSize: 12, marginBottom: 10 }}>
+          {erroForm}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onConfirmar} disabled={salvando} style={{
+          padding: '7px 16px', background: '#633806', color: '#fff',
+          border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: salvando ? 'not-allowed' : 'pointer',
+          opacity: salvando ? 0.7 : 1,
+        }}>
+          {salvando ? 'Cadastrando...' : '✓ Cadastrar funcionário e salvar ASO'}
+        </button>
+        <button onClick={onPular} disabled={salvando} style={{
+          padding: '7px 12px', background: 'transparent', border: '1px solid #d1d5db',
+          borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#6b7280',
+        }}>
+          Pular este arquivo
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Campo({ label, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginBottom: 3 }}>{label}</div>
+      {children}
+    </div>
+  )
+}
+
+const inp = {
+  width: '100%', padding: '7px 10px', fontSize: 12, border: '1px solid #d1d5db',
+  borderRadius: 7, background: '#fff', color: '#111', boxSizing: 'border-box',
+  fontFamily: 'inherit', outline: 'none',
+}
+
 function Spinner() {
   return (
-    <span style={{
-      display: 'inline-block', width: 14, height: 14,
-      border: '2px solid #d1d5db', borderTopColor: '#185FA5',
-      borderRadius: '50%', animation: 'spin .7s linear infinite',
-    }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid #d1d5db', borderTopColor: '#185FA5', borderRadius: '50%', animation: 'spin .7s linear infinite' }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </span>
   )
 }
+
+function uid() { return Math.random().toString(36).slice(2) }
