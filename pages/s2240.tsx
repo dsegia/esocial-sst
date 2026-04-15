@@ -65,7 +65,7 @@ export default function S2240() {
   const [salvandoEdit, setSalvandoEdit] = useState(false)
   const [gheSelecionado, setGheSelecionado] = useState('')
   // Exames no modal de edição
-  const [abaModal, setAbaModal] = useState<'dados'|'exames'>('dados')
+  const [abaModal, setAbaModal] = useState<'dados'|'riscos'>('dados')
   const [asoDoFunc, setAsoDoFunc] = useState<any>(null)
   const [formExames, setFormExames] = useState<any[]>([])
   const [novoExameCodigo, setNovoExameCodigo] = useState(EXAMES_ESOCIAL[0].codigo)
@@ -108,13 +108,6 @@ export default function S2240() {
   function abrirEditar(f: any) {
     const aso = ultimoAsoFunc(f.id)
     setAsoDoFunc(aso)
-    const exames = (aso?.exames || []).map((e: any) => ({
-      ...e,
-      codigo: e.codigo || codigoDeExame(e.nome),
-    }))
-    setFormExames(exames)
-    setNovoExameCodigo(EXAMES_ESOCIAL[0].codigo)
-    setNovoExameResultado('Normal')
     setAbaModal('dados')
     setFormEdit({
       nome: f.nome || '', cpf: f.cpf || '',
@@ -452,7 +445,12 @@ export default function S2240() {
                     {(() => {
                       const agentes = ghe?.agentes || []
                       if (!ghe) return <span style={{ fontSize:11, color:'#9ca3af' }}>Vincule um GHE</span>
-                      if (agentes.length === 0) return <span style={{ fontSize:11, color:'#EF9F27' }}>GHE sem agentes cadastrados</span>
+                      if (agentes.length === 0) return (
+                        <span title="Sem exposição a agentes nocivos — eSocial: ausência de agente nocivo (omitir <agNocivo>)"
+                          style={{ padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:'#EAF3DE', color:'#27500A', display:'inline-block' }}>
+                          Sem agentes nocivos
+                        </span>
+                      )
                       const COR: any = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB' }
                       const TXT: any = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
                       const TIPO: any = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico' }
@@ -601,17 +599,21 @@ export default function S2240() {
 
             {/* Abas */}
             <div style={{ display:'flex', borderBottom:'0.5px solid #e5e7eb', marginBottom:16 }}>
-              {(['dados', 'exames'] as const).map(aba => (
-                <button key={aba} onClick={() => { setAbaModal(aba); setSucesso(''); setErro('') }}
-                  style={{ padding:'7px 16px', fontSize:12, fontWeight:600, border:'none', cursor:'pointer',
-                    background:'transparent',
-                    color: abaModal === aba ? '#185FA5' : '#9ca3af',
-                    borderBottom: abaModal === aba ? '2px solid #185FA5' : '2px solid transparent',
-                    marginBottom: -1,
-                  }}>
-                  {aba === 'dados' ? 'Dados do Funcionário' : `Exames do ASO (${formExames.length})`}
-                </button>
-              ))}
+              {(['dados', 'riscos'] as const).map(aba => {
+                const ghe = editandoFunc ? gheDoFuncionario(editandoFunc) : null
+                const qtd = ghe?.agentes?.length || 0
+                return (
+                  <button key={aba} onClick={() => { setAbaModal(aba); setSucesso(''); setErro('') }}
+                    style={{ padding:'7px 16px', fontSize:12, fontWeight:600, border:'none', cursor:'pointer',
+                      background:'transparent',
+                      color: abaModal === aba ? '#185FA5' : '#9ca3af',
+                      borderBottom: abaModal === aba ? '2px solid #185FA5' : '2px solid transparent',
+                      marginBottom: -1,
+                    }}>
+                    {aba === 'dados' ? 'Dados do Funcionário' : `Riscos / GHE (${qtd})`}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Aba dados */}
@@ -643,105 +645,91 @@ export default function S2240() {
               </>
             )}
 
-            {/* Aba exames */}
-            {abaModal === 'exames' && (
-              <>
-                {!asoDoFunc ? (
-                  <div style={{ textAlign:'center', padding:'2rem', color:'#9ca3af', fontSize:12, background:'#f9fafb', borderRadius:8, marginBottom:14 }}>
-                    Este funcionário não tem ASO cadastrado.<br/>
-                    <a href="/leitor?tipo=aso" style={{ color:'#185FA5' }}>Importar ASO</a>
-                  </div>
-                ) : (
-                  <>
-                    {/* Lista de exames */}
-                    <div style={{ marginBottom:14 }}>
-                      {formExames.length === 0 ? (
-                        <div style={{ textAlign:'center', padding:'1.5rem', color:'#9ca3af', fontSize:12, background:'#f9fafb', borderRadius:8 }}>
-                          Nenhum exame no ASO. Adicione abaixo.
-                        </div>
-                      ) : (
-                        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-                          <thead>
-                            <tr style={{ background:'#f9fafb' }}>
-                              <th style={s.th}>Cód. eSocial</th>
-                              <th style={s.th}>Exame</th>
-                              <th style={s.th}>Resultado</th>
-                              <th style={s.th}></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {formExames.map((ex: any, idx: number) => (
-                              <tr key={idx} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
-                                <td style={{ ...s.td, fontFamily:'monospace', fontWeight:600, color:'#185FA5' }}>
-                                  {ex.codigo || codigoDeExame(ex.nome)}
-                                </td>
-                                <td style={s.td}>{ex.nome}</td>
-                                <td style={s.td}>
-                                  <select value={ex.resultado}
-                                    onChange={e => atualizarResultado(idx, e.target.value)}
-                                    style={{ padding:'3px 6px', fontSize:11, border:'0.5px solid #d1d5db', borderRadius:5,
-                                      background: ex.resultado === 'Normal' ? '#EAF3DE' : ex.resultado === 'Alterado' ? '#FCEBEB' : '#FAEEDA',
-                                      color: ex.resultado === 'Normal' ? '#27500A' : ex.resultado === 'Alterado' ? '#791F1F' : '#633806',
-                                      fontWeight:600, cursor:'pointer',
-                                    }}>
-                                    <option value="Normal">Normal</option>
-                                    <option value="Alterado">Alterado</option>
-                                    <option value="Pendente">Pendente</option>
-                                  </select>
-                                </td>
-                                <td style={s.td}>
-                                  <button onClick={() => removerExame(idx)}
-                                    style={{ padding:'3px 8px', fontSize:10, background:'transparent', border:'0.5px solid #F09595', borderRadius:5, cursor:'pointer', color:'#E24B4A' }}>
-                                    Remover
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-
-                    {/* Adicionar */}
-                    <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
-                      <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>Adicionar exame</div>
-                      <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
-                        <div style={{ flex:1 }}>
-                          <label style={s.label}>Exame (Tabela 27)</label>
-                          <select style={s.input} value={novoExameCodigo}
-                            onChange={e => setNovoExameCodigo(e.target.value)}>
-                            {EXAMES_ESOCIAL.map(e => (
-                              <option key={e.codigo} value={e.codigo}>{e.codigo} — {e.nome}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div style={{ width:120 }}>
-                          <label style={s.label}>Resultado</label>
-                          <select style={s.input} value={novoExameResultado}
-                            onChange={e => setNovoExameResultado(e.target.value as any)}>
-                            <option value="Normal">Normal</option>
-                            <option value="Alterado">Alterado</option>
-                            <option value="Pendente">Pendente</option>
-                          </select>
-                        </div>
-                        <button onClick={adicionarExame}
-                          style={{ ...s.btnPrimary, padding:'8px 12px', whiteSpace:'nowrap' }}>
-                          + Adicionar
-                        </button>
+            {/* Aba riscos */}
+            {abaModal === 'riscos' && (() => {
+              const ghe = editandoFunc ? gheDoFuncionario(editandoFunc) : null
+              const agentes: any[] = ghe?.agentes || []
+              const COR: any = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB' }
+              const TXT: any = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
+              const LABEL: any = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico' }
+              return (
+                <>
+                  {/* GHE info */}
+                  {ghe ? (
+                    <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 14px', marginBottom:14 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'#111', marginBottom:2 }}>
+                        GHE: {ghe.nome || '—'}
+                      </div>
+                      <div style={{ fontSize:11, color:'#6b7280' }}>
+                        {ghe.setor && `Setor: ${ghe.setor} · `}{ghe.qtd_trabalhadores || '?'} trabalhadores
+                        {ghe.aposentadoria_especial && <span style={{ color:'#791F1F', fontWeight:600, marginLeft:8 }}>⚠ Aposentadoria especial</span>}
                       </div>
                     </div>
-                  </>
-                )}
-                <div style={{ display:'flex', gap:8 }}>
-                  {asoDoFunc && (
-                    <button style={s.btnPrimary} onClick={salvarExames} disabled={salvandoEdit}>
-                      {salvandoEdit ? 'Salvando...' : 'Salvar exames'}
-                    </button>
+                  ) : (
+                    <div style={{ background:'#FAEEDA', border:'0.5px solid #F5D78A', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:12, color:'#633806' }}>
+                      Este funcionário não tem GHE vinculado. Feche e clique em "Vincular GHE".
+                    </div>
                   )}
-                  <button style={s.btnOutline} onClick={() => setEditandoFunc(null)}>Fechar</button>
-                </div>
-              </>
-            )}
+
+                  {/* Agentes */}
+                  {agentes.length === 0 ? (
+                    <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:8, padding:'14px 16px', marginBottom:14, textAlign:'center' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#27500A', marginBottom:4 }}>
+                        Sem agentes nocivos identificados
+                      </div>
+                      <div style={{ fontSize:11, color:'#3a7d20', lineHeight:1.6 }}>
+                        O S-2240 será transmitido sem <code style={{ background:'#d4edda', padding:'0 4px', borderRadius:3 }}>&lt;agNocivo&gt;</code>,<br/>
+                        indicando ausência de exposição a agentes acima dos limites de tolerância.
+                      </div>
+                      {ghe && (
+                        <button onClick={() => router.push('/ltcat')}
+                          style={{ marginTop:10, padding:'5px 14px', fontSize:11, background:'transparent', border:'1px solid #3a7d20', borderRadius:6, color:'#3a7d20', cursor:'pointer' }}>
+                          Cadastrar agentes no LTCAT →
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, marginBottom:14 }}>
+                      <thead>
+                        <tr style={{ background:'#f9fafb' }}>
+                          <th style={s.th}>Tipo</th>
+                          <th style={s.th}>Agente</th>
+                          <th style={s.th}>Valor medido</th>
+                          <th style={s.th}>Limite</th>
+                          <th style={s.th}>Supera LT?</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agentes.map((ag: any, i: number) => (
+                          <tr key={i} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                            <td style={s.td}>
+                              <span style={{ padding:'1px 7px', borderRadius:99, fontSize:10, fontWeight:600, background: COR[ag.tipo]||'#f3f4f6', color: TXT[ag.tipo]||'#374151' }}>
+                                {LABEL[ag.tipo] || ag.tipo}
+                              </span>
+                            </td>
+                            <td style={{ ...s.td, fontWeight:500 }}>{ag.nome}</td>
+                            <td style={{ ...s.td, fontFamily:'monospace' }}>{ag.valor || '—'}</td>
+                            <td style={{ ...s.td, fontFamily:'monospace' }}>{ag.limite || '—'}</td>
+                            <td style={s.td}>
+                              {ag.supera_lt
+                                ? <span style={{ color:'#E24B4A', fontWeight:600, fontSize:11 }}>Sim ⚠</span>
+                                : <span style={{ color:'#1D9E75', fontSize:11 }}>Não</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                    <button style={s.btnOutline} onClick={() => router.push('/ltcat')}>
+                      Editar agentes no LTCAT →
+                    </button>
+                    <button style={s.btnOutline} onClick={() => setEditandoFunc(null)}>Fechar</button>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
