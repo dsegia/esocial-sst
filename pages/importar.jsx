@@ -16,9 +16,10 @@ const TIPO_INFO = {
   aso:   { label: 'ASO',   cor: '#633806', bg: '#FAEEDA', icone: '📋' },
 }
 
-const LIMITE_ARQUIVOS = 10
-const LIMITE_BASE64   = 3 * 1024 * 1024
-const LIMITE_TAMANHO  = 50 * 1024 * 1024
+const LIMITE_ARQUIVOS  = 50
+const CONCORRENCIA     = 3
+const LIMITE_BASE64    = 3 * 1024 * 1024
+const LIMITE_TAMANHO   = 50 * 1024 * 1024
 
 // ── Utilitários ──────────────────────────────────────────
 function converterData(br) {
@@ -264,67 +265,68 @@ export default function Importar() {
     setFila(prev => prev.filter(it => it.id !== id))
   }
 
-  // ── Processamento em lote ──────────────────────────────
+  // ── Processa um único item ─────────────────────────────
+  async function processarUmItem(item, empId) {
+    atualizarItem(item.id, { estado: 'processando', progresso: 'Iniciando...' })
+    try {
+      const resultado = await processarArquivo(item.file, msg =>
+        atualizarItem(item.id, { progresso: msg })
+      )
+      const { tipo_detectado, dados } = resultado
+
+      if (tipo_detectado === 'aso') {
+        atualizarItem(item.id, { progresso: 'Verificando funcionário...' })
+        const func = await buscarFuncionario(dados.funcionario?.cpf, empId)
+
+        if (func) {
+          atualizarItem(item.id, { progresso: 'Salvando ASO...' })
+          await salvarAso(dados, func.id, empId)
+          atualizarItem(item.id, {
+            estado: 'salvo', tipo: 'aso', info: TIPO_INFO.aso,
+            resumo: `${func.nome} · ${dados.aso?.tipo_aso || 'periódico'}`,
+            progresso: null,
+          })
+        } else {
+          atualizarItem(item.id, {
+            estado: 'confirmar_func',
+            tipo: 'aso', info: TIPO_INFO.aso,
+            dadosResultado: resultado,
+            formFunc: {
+              nome:      dados.funcionario?.nome     || '',
+              cpf:       dados.funcionario?.cpf      || '',
+              data_nasc: converterData(dados.funcionario?.data_nasc) || '',
+              data_adm:  converterData(dados.funcionario?.data_adm)  || '',
+              funcao:    dados.funcionario?.funcao   || '',
+              setor:     dados.funcionario?.setor    || '',
+            },
+            progresso: null,
+            expandido: true,
+          })
+        }
+      } else {
+        atualizarItem(item.id, { progresso: 'Salvando...' })
+        await salvarDocumento(tipo_detectado, dados, empId)
+        atualizarItem(item.id, {
+          estado: 'salvo', tipo: tipo_detectado, info: TIPO_INFO[tipo_detectado],
+          resumo: resumoDocumento(tipo_detectado, dados), progresso: null,
+        })
+      }
+    } catch (err) {
+      atualizarItem(item.id, { estado: 'erro', erro: err.message, progresso: null })
+    }
+  }
+
+  // ── Processamento em lote com concorrência limitada ───
   async function processarFila() {
     if (!empresaId || processando) return
     const pendentes = fila.filter(it => it.estado === 'aguardando' && it.file)
     if (pendentes.length === 0) return
     setProcessando(true)
 
-    for (const item of pendentes) {
-      atualizarItem(item.id, { estado: 'processando', progresso: 'Iniciando...' })
-      try {
-        const resultado = await processarArquivo(item.file, msg =>
-          atualizarItem(item.id, { progresso: msg })
-        )
-        const { tipo_detectado, dados } = resultado
-
-        // ── ASO: verifica se funcionário existe ──
-        if (tipo_detectado === 'aso') {
-          atualizarItem(item.id, { progresso: 'Verificando funcionário...' })
-          const func = await buscarFuncionario(dados.funcionario?.cpf, empresaId)
-
-          if (func) {
-            // Funcionário encontrado → salva direto
-            atualizarItem(item.id, { progresso: 'Salvando ASO...' })
-            await salvarAso(dados, func.id, empresaId)
-            atualizarItem(item.id, {
-              estado: 'salvo', tipo: 'aso', info: TIPO_INFO.aso,
-              resumo: `${func.nome} · ${dados.aso?.tipo_aso || 'periódico'}`,
-              progresso: null,
-            })
-          } else {
-            // Funcionário NÃO encontrado → aguarda confirmação do usuário
-            atualizarItem(item.id, {
-              estado: 'confirmar_func',
-              tipo: 'aso', info: TIPO_INFO.aso,
-              dadosResultado: resultado,
-              // Pré-preenche com dados extraídos pela IA
-              formFunc: {
-                nome:      dados.funcionario?.nome     || '',
-                cpf:       dados.funcionario?.cpf      || '',
-                data_nasc: converterData(dados.funcionario?.data_nasc) || '',
-                data_adm:  converterData(dados.funcionario?.data_adm)  || '',
-                funcao:    dados.funcionario?.funcao   || '',
-                setor:     dados.funcionario?.setor    || '',
-              },
-              progresso: null,
-              expandido: true,
-            })
-          }
-
-        } else {
-          // LTCAT / PCMSO → salva direto
-          atualizarItem(item.id, { progresso: 'Salvando...' })
-          await salvarDocumento(tipo_detectado, dados, empresaId)
-          atualizarItem(item.id, {
-            estado: 'salvo', tipo: tipo_detectado, info: TIPO_INFO[tipo_detectado],
-            resumo: resumoDocumento(tipo_detectado, dados), progresso: null,
-          })
-        }
-      } catch (err) {
-        atualizarItem(item.id, { estado: 'erro', erro: err.message, progresso: null })
-      }
+    // Divide em fatias de CONCORRENCIA (3) e processa cada fatia em paralelo
+    for (let i = 0; i < pendentes.length; i += CONCORRENCIA) {
+      const fatia = pendentes.slice(i, i + CONCORRENCIA)
+      await Promise.all(fatia.map(item => processarUmItem(item, empresaId)))
     }
 
     setProcessando(false)
@@ -390,7 +392,7 @@ export default function Importar() {
         <div style={{ marginBottom: '1.25rem' }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>Importar Documentos</div>
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-            Até {LIMITE_ARQUIVOS} PDFs por vez — ASO, LTCAT ou PCMSO detectados automaticamente
+            Até {LIMITE_ARQUIVOS} PDFs por vez · {CONCORRENCIA} processados em paralelo — ASO, LTCAT ou PCMSO detectados automaticamente
           </div>
         </div>
 
@@ -413,7 +415,7 @@ export default function Importar() {
               {totalFila === 0 ? 'Clique ou arraste os PDFs aqui' : `Adicionar mais (${totalFila}/${LIMITE_ARQUIVOS})`}
             </div>
             <div style={{ fontSize: 11, color: '#9ca3af' }}>
-              Até {LIMITE_ARQUIVOS} arquivos · máx. 50 MB cada · PDF apenas
+              Até {LIMITE_ARQUIVOS} arquivos · máx. 50 MB cada · PDF apenas · {CONCORRENCIA} em paralelo
             </div>
           </div>
         )}
