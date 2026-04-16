@@ -34,10 +34,24 @@ export default async function handler(req, res) {
 
   try {
     // Busca todas as empresas com usuário responsável
-    const { data: empresas } = await sb
+    // Tenta com 'bloqueado'; se a coluna não existir ainda, busca sem ela
+    let empresas = null
+    const { data: emp1, error: errEmp1 } = await sb
       .from('empresas')
       .select('id, razao_social, cnpj, plano, trial_inicio, bloqueado, created_at')
       .order('created_at', { ascending: false })
+
+    if (errEmp1) {
+      // Coluna bloqueado ainda não existe — busca sem ela
+      const { data: emp2, error: errEmp2 } = await sb
+        .from('empresas')
+        .select('id, razao_social, cnpj, plano, trial_inicio, created_at')
+        .order('created_at', { ascending: false })
+      if (errEmp2) throw new Error('Erro ao buscar empresas: ' + errEmp2.message)
+      empresas = (emp2 || []).map(e => ({ ...e, bloqueado: false }))
+    } else {
+      empresas = emp1
+    }
 
     const empresaIds = (empresas || []).map(e => e.id)
 
