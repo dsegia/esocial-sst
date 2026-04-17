@@ -670,8 +670,8 @@ export default function Home() {
               <div className="price-plan">Starter</div>
               <div className="price-amount">R$ 167<span>/mês</span></div>
               <p className="price-desc">Para empresas com até 50 funcionários.</p>
-              <ul className="price-list">
-                {['Até 50 funcionários','ASO, LTCAT e PCMSO ilimitados','Importação por IA (PDF)','Transmissão eSocial S-2210 ao S-2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
+              <ul className="price-list" style={{ textAlign:'left' }}>
+                {['Até 50 funcionários','ASO, LTCAT e PCMSO ilimitados','Importação por IA (PDF)','Transmissão eSocial S-2210/2220/2221/2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
@@ -683,7 +683,7 @@ export default function Home() {
               <div className="price-plan">Professional</div>
               <div className="price-amount">R$ 397<span>/mês</span></div>
               <p className="price-desc">Para escritórios de SST com múltiplas empresas.</p>
-              <ul className="price-list">
+              <ul className="price-list" style={{ textAlign:'left' }}>
                 {['Até 300 funcionários','Tudo do Starter','Multi-empresa (até 5 CNPJs)','Convite de usuários','Relatórios avançados','Suporte por e-mail'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
@@ -694,8 +694,8 @@ export default function Home() {
             <div className="price-card">
               <div className="price-plan">Business</div>
               <div className="price-amount">R$ 697<span>/mês</span></div>
-              <p className="price-desc">Para operações de grande porte e múltiplos CNPJs.</p>
-              <ul className="price-list">
+              <p className="price-desc">Para grandes operações com múltiplos CNPJs.</p>
+              <ul className="price-list" style={{ textAlign:'left' }}>
                 {['Até 1.000 funcionários','Tudo do Professional','Até 10 CNPJs','API de integração','Suporte prioritário','Onboarding dedicado'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
