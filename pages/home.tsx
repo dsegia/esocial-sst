@@ -668,47 +668,39 @@ export default function Home() {
             {/* Starter */}
             <div className="price-card">
               <div className="price-plan">Starter</div>
-              <div className="price-amount">R$ 97<span>/mês</span></div>
-              <p className="price-desc">Para empresas com até 50 funcionários e 1 usuário.</p>
-              <ul className="price-list">
-                {['Todos os eventos SST (S-2210 a S-2240)','Leitura de PDF por IA','Transmissão direta ao gov.br','Alertas de vencimento por e-mail','Histórico de transmissões'].map((item,i) => (
+              <div className="price-amount">R$ 167<span>/mês</span></div>
+              <p className="price-desc">Para empresas com até 50 funcionários.</p>
+              <ul className="price-list" style={{ textAlign:'left' }}>
+                {['Até 50 funcionários','ASO, LTCAT e PCMSO ilimitados','Importação por IA (PDF)','Transmissão eSocial S-2210/2220/2221/2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
               <a href="/cadastro" className="price-btn price-btn-ghost">Começar grátis</a>
             </div>
-            {/* Pro */}
+            {/* Professional */}
             <div className="price-card featured">
               <div className="price-pill">Mais popular</div>
-              <div className="price-plan">Profissional</div>
-              <div className="price-amount">R$ 197<span>/mês</span></div>
+              <div className="price-plan">Professional</div>
+              <div className="price-amount">R$ 397<span>/mês</span></div>
               <p className="price-desc">Para escritórios de SST com múltiplas empresas.</p>
-              <ul className="price-list">
-                {['Tudo do Starter','Multi-empresa ilimitado','Até 5 usuários por empresa','Convite de colaboradores','Suporte prioritário','Exportação de relatórios'].map((item,i) => (
+              <ul className="price-list" style={{ textAlign:'left' }}>
+                {['Até 300 funcionários','Tudo do Starter','Multi-empresa (até 5 CNPJs)','Convite de usuários','Relatórios avançados','Suporte por e-mail'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
               <a href="/cadastro" className="price-btn price-btn-main">Começar grátis</a>
             </div>
-            {/* Contact */}
+            {/* Business */}
             <div className="price-card">
-              <div className="price-plan">Dúvidas ou cotação?</div>
-              <div className="price-amount" style={{ fontSize:26, lineHeight:1.2 }}>Fale<br/>conosco</div>
-              <p className="price-desc">Entre em contato pelo canal que preferir. Respondemos rápido!</p>
-              <ul className="price-list">
-                {[
-                  { href:'tel:+5564992090277', label:'(64) 99209-0277' },
-                  { href:'mailto:dseg.sst@gmail.com', label:'dseg.sst@gmail.com' },
-                  { href:'https://instagram.com/dseg.sst', label:'@dseg.sst' },
-                  { href:'https://web.facebook.com/profile.php?id=61565545266445', label:'Dseg Consultoria' },
-                ].map((c,i) => (
-                  <li key={i}>
-                    <span className="chk">→</span>
-                    <a href={c.href} target={c.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={{ color:'#94a3b8', textDecoration:'none' }}>{c.label}</a>
-                  </li>
+              <div className="price-plan">Business</div>
+              <div className="price-amount">R$ 697<span>/mês</span></div>
+              <p className="price-desc">Para grandes operações com múltiplos CNPJs.</p>
+              <ul className="price-list" style={{ textAlign:'left' }}>
+                {['Até 1.000 funcionários','Tudo do Professional','Até 10 CNPJs','API de integração','Suporte prioritário','Onboarding dedicado'].map((item,i) => (
+                  <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
-              <a href="tel:+5564992090277" className="price-btn price-btn-ghost">Ligar agora</a>
+              <a href="/cadastro" className="price-btn price-btn-ghost">Começar grátis</a>
             </div>
           </div>
           <p style={{ textAlign:'center', marginTop:28, fontSize:12, color:'#334155' }}>
