@@ -38,9 +38,12 @@ export default async function handler(req, res) {
     const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser(token)
     if (authErr || !user) return res.status(401).json({ erro: 'Sessão inválida' })
 
-    // Busca empresa_id — tenta via tabela usuarios, depois via metadata
+    // Busca empresa_id via service role (bypassa RLS)
+    const sbAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
     let empresaId = null
-    const { data: usuarioDb } = await supabaseAnon.from('usuarios')
+    const { data: usuarioDb } = await sbAdmin.from('usuarios')
       .select('empresa_id').eq('id', user.id).single()
     empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
 
@@ -62,7 +65,7 @@ export default async function handler(req, res) {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2024-04-10' })
-    const sb = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    const sb = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
