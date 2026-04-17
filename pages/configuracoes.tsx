@@ -16,6 +16,15 @@ export default function Configuracoes() {
   const [empresaId, setEmpresaId] = useState('')
   const [empresa, setEmpresa] = useState(null)
   const [aba, setAba] = useState('certificado')
+
+  // Usuários
+  const [usuarios, setUsuarios] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [conviteEmail, setConviteEmail] = useState('')
+  const [conviteNome, setConviteNome] = useState('')
+  const [enviandoConvite, setEnviandoConvite] = useState(false)
+  const [conviteMsg, setConviteMsg] = useState('')
+  const [conviteErro, setConviteErro] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
@@ -46,6 +55,7 @@ export default function Configuracoes() {
     if (!user) { router.push('/'); return }
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
+    carregarUsuarios(empId)
     const { data:emp } = await supabase.from('empresas').select('*').eq('id', empId).single()
     if (emp) {
       setEmpresa(emp)
@@ -136,6 +146,39 @@ export default function Configuracoes() {
     setSalvando(false)
   }
 
+  async function carregarUsuarios(empId: string) {
+    setLoadingUsers(true)
+    const { data } = await supabase.from('usuarios').select('id, email, nome, created_at')
+      .eq('empresa_id', empId).order('created_at', { ascending: true })
+    setUsuarios(data || [])
+    setLoadingUsers(false)
+  }
+
+  async function enviarConvite(e: React.FormEvent) {
+    e.preventDefault()
+    if (!conviteEmail || !conviteEmail.includes('@')) { setConviteErro('Informe um e-mail válido.'); return }
+    setEnviandoConvite(true); setConviteErro(''); setConviteMsg('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/empresa/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ email: conviteEmail, nome: conviteNome }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao enviar convite')
+      setConviteMsg(json.mensagem || 'Convite enviado!')
+      setConviteEmail(''); setConviteNome('')
+      carregarUsuarios(empresaId)
+    } catch (err: any) {
+      setConviteErro(err.message)
+    }
+    setEnviandoConvite(false)
+  }
+
   async function salvarEmpresa() {
     setSalvando(true); setErro(''); setSucesso('')
     const { error } = await supabase.from('empresas').update(formEmpresa).eq('id', empresaId)
@@ -168,6 +211,7 @@ export default function Configuracoes() {
           { k:'certificado', l:'🔐 Certificado Digital' },
           { k:'ecac',        l:'📋 Procuração eCAC' },
           { k:'empresa',     l:'🏢 Dados da Empresa' },
+          { k:'usuarios',    l:'👥 Usuários' },
         ].map(ab => (
           <button key={ab.k} onClick={() => setAba(ab.k)} style={{
             padding:'8px 16px', fontSize:13, fontWeight: aba===ab.k?600:400,
@@ -299,6 +343,81 @@ export default function Configuracoes() {
           {empresa?.ecac_cnpj_procurador && (
             <div style={{ marginTop:12, background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#27500A' }}>
               ✅ Procuração configurada para: <strong>{empresa.ecac_nome_procurador || empresa.ecac_cnpj_procurador}</strong>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ABA: Usuários */}
+      {aba === 'usuarios' && (
+        <div style={s.card}>
+          <div style={s.cardTit}>Usuários da Empresa</div>
+          <div style={{ fontSize:12, color:'#6b7280', marginBottom:16 }}>
+            Convide colaboradores para acessar o sistema. Cada usuário terá acesso completo à empresa.
+          </div>
+
+          {/* Formulário de convite */}
+          <form onSubmit={enviarConvite} style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'16px', marginBottom:20 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Convidar novo usuário</div>
+            <div style={s.row2}>
+              <div>
+                <label style={s.label}>E-mail *</label>
+                <input style={s.input} type="email" placeholder="colaborador@empresa.com"
+                  value={conviteEmail} onChange={e => setConviteEmail(e.target.value)} />
+              </div>
+              <div>
+                <label style={s.label}>Nome (opcional)</label>
+                <input style={s.input} placeholder="Nome do colaborador"
+                  value={conviteNome} onChange={e => setConviteNome(e.target.value)} />
+              </div>
+            </div>
+            {conviteErro && (
+              <div style={{ background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'8px 12px', fontSize:12, marginBottom:10 }}>
+                {conviteErro}
+              </div>
+            )}
+            {conviteMsg && (
+              <div style={{ background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'8px 12px', fontSize:12, marginBottom:10 }}>
+                ✅ {conviteMsg}
+              </div>
+            )}
+            <button type="submit" style={s.btnPrimary} disabled={enviandoConvite}>
+              {enviandoConvite ? 'Enviando...' : 'Enviar convite'}
+            </button>
+          </form>
+
+          {/* Lista de usuários */}
+          <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:10 }}>
+            Usuários atuais ({usuarios.length})
+          </div>
+          {loadingUsers ? (
+            <div style={{ fontSize:12, color:'#9ca3af', padding:'12px 0' }}>Carregando...</div>
+          ) : usuarios.length === 0 ? (
+            <div style={{ fontSize:12, color:'#9ca3af', padding:'12px 0' }}>Nenhum usuário cadastrado além de você.</div>
+          ) : (
+            <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, overflow:'hidden' }}>
+              {usuarios.map((u, i) => (
+                <div key={u.id} style={{
+                  display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
+                  borderBottom: i < usuarios.length - 1 ? '0.5px solid #f3f4f6' : 'none',
+                  background:'#fff',
+                }}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', background:'#E6F1FB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <span style={{ fontSize:14, color:'#185FA5', fontWeight:600 }}>
+                      {(u.nome || u.email || '?')[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:'#111' }}>
+                      {u.nome || <span style={{ color:'#9ca3af' }}>Sem nome</span>}
+                    </div>
+                    <div style={{ fontSize:11, color:'#6b7280' }}>{u.email}</div>
+                  </div>
+                  <div style={{ fontSize:11, color:'#9ca3af' }}>
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

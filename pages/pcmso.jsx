@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { pdfPCMSO } from '../lib/gerarPDF'
+import { gerarPdfPcmso } from '../lib/gerar-pdf'
 import { getEmpresaId } from '../lib/empresa'
 
 const supabase = createClient(
@@ -194,7 +195,10 @@ export default function PCMSO() {
           <button style={s.btnOutline} onClick={() => {
             const medico = ltcatAtivo?.resp_nome || ''
             const crm    = ltcatAtivo?.resp_registro || ''
-            pdfPCMSO(nomeEmpresa, cnpjEmpresa, medico, crm, programa)
+            gerarPdfPcmso(
+              { dados_gerais: { medico_nome: medico, medico_crm: crm }, programas: programa },
+              { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
+            )
           }}>📄 Exportar PDF</button>
           <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar PDF</button>
           <button style={s.btnPrimary} onClick={() => {

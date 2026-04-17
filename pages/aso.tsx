@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { getEmpresaId } from '../lib/empresa'
+import { gerarPdfAso } from '../lib/gerar-pdf'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -373,6 +374,10 @@ export default function Aso() {
                         <button onClick={() => abrirEditar(aso)}
                           style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}>
                           ✏ Editar
+                        </button>
+                        <button onClick={() => gerarPdfAso({ funcionario: aso.funcionarios, aso, exames: aso.exames, riscos: aso.riscos })}
+                          style={{ ...s.btnAcao, color:'#27500A', borderColor:'#C0DD97' }}>
+                          ↓ PDF
                         </button>
                         <button onClick={() => excluirAso(aso.id)}
                           style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}>

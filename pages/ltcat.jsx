@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { pdfFichaEPI } from '../lib/gerarPDF'
+import { gerarPdfLtcat } from '../lib/gerar-pdf'
 import { getEmpresaId } from '../lib/empresa'
 
 const supabase = createClient(
@@ -293,6 +294,10 @@ export default function LTCAT() {
                     <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                       <button style={{ ...s.btnPrimary, padding:'6px 14px', fontSize:12 }} onClick={() => abrirEdicao(ltcatSel)}>
                         ✏ Editar LTCAT
+                      </button>
+                      <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
+                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro }, ghes: ltcatSel.ghes }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
+                        ↓ Exportar PDF
                       </button>
                       {ltcatSel.ativo && (
                         <button style={{ ...s.btnOutline, color:'#E24B4A', borderColor:'#F09595', padding:'6px 14px', fontSize:12 }}
