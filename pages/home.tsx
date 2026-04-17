@@ -668,8 +668,8 @@ export default function Home() {
             {/* Starter */}
             <div className="price-card">
               <div className="price-plan">Starter</div>
-              <div className="price-amount">R$ 97<span>/mês</span></div>
-              <p className="price-desc">Para empresas com até 50 funcionários e 1 usuário.</p>
+              <div className="price-amount">R$ 167<span>/mês</span></div>
+              <p className="price-desc">Para empresas com até 50 funcionários.</p>
               <ul className="price-list">
                 {['Todos os eventos SST (S-2210 a S-2240)','Leitura de PDF por IA','Transmissão direta ao gov.br','Alertas de vencimento por e-mail','Histórico de transmissões'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
@@ -677,14 +677,14 @@ export default function Home() {
               </ul>
               <a href="/cadastro" className="price-btn price-btn-ghost">Começar grátis</a>
             </div>
-            {/* Pro */}
+            {/* Professional */}
             <div className="price-card featured">
               <div className="price-pill">Mais popular</div>
-              <div className="price-plan">Profissional</div>
-              <div className="price-amount">R$ 197<span>/mês</span></div>
+              <div className="price-plan">Professional</div>
+              <div className="price-amount">R$ 397<span>/mês</span></div>
               <p className="price-desc">Para escritórios de SST com múltiplas empresas.</p>
               <ul className="price-list">
-                {['Tudo do Starter','Multi-empresa ilimitado','Até 5 usuários por empresa','Convite de colaboradores','Suporte prioritário','Exportação de relatórios'].map((item,i) => (
+                {['Tudo do Starter','Multi-empresa (até 5 CNPJs)','Até 5 usuários por empresa','Convite de colaboradores','Suporte prioritário','Exportação de relatórios'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>

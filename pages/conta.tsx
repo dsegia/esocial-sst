@@ -67,7 +67,7 @@ export default function Conta() {
   )
 
   const planoAtual = status?.plano || 'trial'
-  const planosVisiveis = ['starter', 'pro', 'business', 'enterprise'] as TipoPlano[]
+  const planosVisiveis = ['starter', 'professional', 'business'] as TipoPlano[]
 
   return (
     <Layout pagina="conta">
@@ -129,7 +129,7 @@ export default function Conta() {
         {planosVisiveis.map(p => {
           const info = PLANOS[p]
           const isCurrent = p === planoAtual
-          const isPopular = p === 'pro'
+          const isPopular = p === 'professional'
 
           return (
             <div key={p} style={{
@@ -162,8 +162,9 @@ export default function Conta() {
                 'Leitura de PDF com IA',
                 'Transmissão eSocial',
                 'Alertas de vencimento',
-                p === 'business' || p === 'enterprise' ? 'Múltiplos CNPJs' : null,
-                p === 'enterprise' ? 'Suporte prioritário' : null,
+                p === 'professional' ? 'Multi-empresa (até 5 CNPJs)' : null,
+                p === 'business' ? 'Até 10 CNPJs' : null,
+                p === 'business' ? 'Suporte prioritário' : null,
               ].filter(Boolean).map(feat => (
                 <div key={feat} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#374151', marginBottom: 4 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={info.cor} strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>

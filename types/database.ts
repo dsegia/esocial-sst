@@ -171,7 +171,7 @@ export type Transmissao = Database['public']['Tables']['transmissoes']['Row']
 export type Empresa = Database['public']['Tables']['empresas']['Row']
 
 // Plano / assinatura
-export type TipoPlano = 'trial' | 'starter' | 'pro' | 'business' | 'enterprise' | 'cancelado'
+export type TipoPlano = 'trial' | 'starter' | 'pro' | 'professional' | 'business' | 'enterprise' | 'cancelado'
 export type PlanoStatus = {
   plano: TipoPlano
   plano_expira_em: string | null
@@ -184,10 +184,11 @@ export type PlanoStatus = {
 }
 
 export const PLANOS: Record<string, { label: string; preco: number; max: number; cor: string }> = {
-  trial:      { label: 'Trial',     preco: 0,   max: 50,        cor: '#9ca3af' },
-  starter:    { label: 'Starter',   preco: 97,  max: 50,        cor: '#185FA5' },
-  pro:        { label: 'Pro',       preco: 197, max: 200,       cor: '#7c3aed' },
-  business:   { label: 'Business',  preco: 397, max: 500,       cor: '#0891b2' },
-  enterprise: { label: 'Enterprise',preco: 797, max: 999999,    cor: '#059669' },
-  cancelado:  { label: 'Cancelado', preco: 0,   max: 0,         cor: '#ef4444' },
+  trial:        { label: 'Trial',        preco: 0,   max: 50,     cor: '#9ca3af' },
+  starter:      { label: 'Starter',      preco: 167, max: 50,     cor: '#185FA5' },
+  pro:          { label: 'Professional', preco: 397, max: 300,    cor: '#27500A' },
+  professional: { label: 'Professional', preco: 397, max: 300,    cor: '#27500A' },
+  business:     { label: 'Business',     preco: 697, max: 1000,   cor: '#633806' },
+  enterprise:   { label: 'Enterprise',   preco: 697, max: 999999, cor: '#059669' },
+  cancelado:    { label: 'Cancelado',    preco: 0,   max: 0,      cor: '#ef4444' },
 }
