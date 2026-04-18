@@ -126,15 +126,6 @@ export default function S2220() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button style={s.btnOutline} onClick={() => {
-            const funcsParaPDF = funcionarios.map(f => ({ ...f, ultimoAso: ultimoAso(f.id) }))
-            pdfConformidadeASO(nomeEmpresa, cnpjEmpresa, funcsParaPDF)
-          }}>
-            📄 Exportar PDF
-          </button>
-          <button style={s.btnOutline} onClick={() => router.push('/leitor?tipo=aso')}>
-            ↑ Importar ASO (PDF/XML)
-          </button>
           {prontos.length > 0 && (
             <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
               📡 Transmitir pendentes ({prontos.length})
