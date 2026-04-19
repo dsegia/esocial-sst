@@ -4,23 +4,34 @@
 // Pode ser chamado manualmente ou via cron
 
 import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
+import { requireEmpresaAccess } from '../../lib/auth-middleware'
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
-  // Autenticação básica para evitar chamadas externas
-  const { empresa_id, email_destino, dias_aviso = 30, modo = 'preview' } = req.body
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
+  if (limited) {
+    res.setHeader('Retry-After', String(retryAfter))
+    return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
+  }
 
+  const { empresa_id, email_destino, dias_aviso = 30, modo = 'preview' } = req.body
   if (!empresa_id) return res.status(400).json({ erro: 'empresa_id obrigatório' })
 
+  // Valida que o usuário autenticado tem acesso à empresa solicitada
+  const acesso = await requireEmpresaAccess(req, res, empresa_id, ['admin'])
+  if (!acesso) return
+
+  const sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
   try {
-    // Busca empresa
-    const { data: empresa } = await supabase
+    const { data: empresa } = await sb
       .from('empresas')
       .select('razao_social, cnpj')
       .eq('id', empresa_id)
@@ -28,15 +39,13 @@ export default async function handler(req, res) {
 
     if (!empresa) return res.status(404).json({ erro: 'Empresa não encontrada' })
 
-    // Busca alertas via RPC
-    const { data: alertas } = await supabase
+    const { data: alertas } = await sb
       .rpc('get_alertas_vencimento', { p_empresa_id: empresa_id })
 
     if (!alertas || alertas.length === 0) {
       return res.status(200).json({ sucesso: true, enviados: 0, mensagem: 'Nenhum alerta pendente.' })
     }
 
-    // Filtra apenas os relevantes (vencidos + dentro do prazo de aviso)
     const relevantes = alertas.filter(a =>
       a.tipo_alerta === 'Sem ASO' ||
       a.tipo_alerta === 'ASO vencido' ||
@@ -47,7 +56,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ sucesso: true, enviados: 0, mensagem: 'Nenhum vencimento nos próximos ' + dias_aviso + ' dias.' })
     }
 
-    // Monta o HTML do e-mail
     const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })
     const vencidos  = relevantes.filter(a => a.dias_restantes < 0 || a.tipo_alerta === 'ASO vencido')
     const criticos  = relevantes.filter(a => a.dias_restantes >= 0 && a.dias_restantes <= 15)
@@ -134,7 +142,6 @@ export default async function handler(req, res) {
 </body>
 </html>`
 
-    // Modo preview: retorna o HTML sem enviar
     if (modo === 'preview') {
       return res.status(200).json({
         sucesso: true,
@@ -145,7 +152,6 @@ export default async function handler(req, res) {
       })
     }
 
-    // Modo real: envia via Resend
     if (!process.env.RESEND_API_KEY) {
       return res.status(200).json({
         sucesso: false,
@@ -176,7 +182,8 @@ export default async function handler(req, res) {
     const resendData = await resendResp.json()
 
     if (!resendResp.ok) {
-      return res.status(500).json({ erro: 'Erro ao enviar e-mail: ' + (resendData.message || JSON.stringify(resendData)) })
+      console.error('[notificar-vencimento] Resend error:', resendData)
+      return res.status(500).json({ erro: 'Erro ao enviar e-mail. Tente novamente.' })
     }
 
     return res.status(200).json({
@@ -187,6 +194,7 @@ export default async function handler(req, res) {
     })
 
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro interno: ' + err.message })
+    console.error('[notificar-vencimento]', err)
+    return res.status(500).json({ erro: 'Erro interno do servidor.' })
   }
 }

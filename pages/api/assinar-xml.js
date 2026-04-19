@@ -160,6 +160,7 @@ export default async function handler(req, res) {
     })
 
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro na assinatura: ' + err.message })
+    console.error('[assinar-xml]', err)
+    return res.status(500).json({ erro: 'Erro na assinatura do XML. Verifique o certificado e a senha.' })
   }
 }

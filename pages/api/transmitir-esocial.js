@@ -106,6 +106,7 @@ export default async function handler(req, res) {
     if (err.name === 'TimeoutError') {
       return res.status(504).json({ erro: 'Timeout: webservice do Gov.br não respondeu em 30s. Tente novamente.' })
     }
-    return res.status(500).json({ erro: 'Erro na transmissão: ' + err.message })
+    console.error('[transmitir-esocial]', err)
+    return res.status(500).json({ erro: 'Erro na transmissão. Verifique o certificado e tente novamente.' })
   }
 }

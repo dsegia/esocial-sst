@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET!)
   } catch (err: any) {
     console.error('Webhook signature error:', err.message)
-    return res.status(400).json({ error: 'Webhook inválido: ' + err.message })
+    return res.status(400).json({ error: 'Webhook inválido.' })
   }
 
   const empresaIdDe = (obj: { metadata?: Stripe.Metadata | null }) =>

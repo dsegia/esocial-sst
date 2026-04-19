@@ -19,7 +19,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ sucesso: true, xml })
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao gerar XML: ' + err.message })
+    console.error('[xml-generator]', err)
+    return res.status(500).json({ erro: 'Erro ao gerar XML. Verifique os dados e tente novamente.' })
   }
 }
 

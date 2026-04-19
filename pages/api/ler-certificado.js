@@ -49,6 +49,7 @@ export default async function handler(req, res) {
       }
     })
   } catch (err) {
-    return res.status(500).json({ erro: 'Erro ao processar: ' + err.message })
+    console.error('[ler-certificado]', err)
+    return res.status(500).json({ erro: 'Erro ao processar certificado. Verifique se o arquivo e a senha estão corretos.' })
   }
 }

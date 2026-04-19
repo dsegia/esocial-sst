@@ -30,6 +30,9 @@ export default async function handler(req, res) {
   if (!email || !razao_social || !plano) {
     return res.status(400).json({ erro: 'Email, razão social e plano são obrigatórios' })
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ erro: 'Formato de e-mail inválido' })
+  }
   if (!PLANOS_VALIDOS.includes(plano)) {
     return res.status(400).json({ erro: 'Plano inválido' })
   }
@@ -88,6 +91,7 @@ export default async function handler(req, res) {
       mensagem: `Convite enviado para ${email}`,
     })
   } catch (err) {
-    return res.status(500).json({ erro: err.message })
+    console.error('[admin/invite-client]', err)
+    return res.status(500).json({ erro: 'Erro interno do servidor.' })
   }
 }

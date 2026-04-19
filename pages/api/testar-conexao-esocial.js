@@ -91,7 +91,7 @@ export default async function handler(req, res) {
       latencia_ms: latencia,
       ambiente,
       endpoint,
-      erro: err.message,
+      erro: 'Falha na conexão com o webservice.',
     })
   }
 }

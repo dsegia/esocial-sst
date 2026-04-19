@@ -9,7 +9,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).end()
 
   const secret = req.headers['x-internal-secret']
-  if (secret !== 'esocial-internal') return res.status(200).end()
+  const expectedSecret = process.env.INTERNAL_API_SECRET
+  if (!expectedSecret || secret !== expectedSecret) return res.status(200).end()
 
   try {
     const { servico, modelo, status, duracao_ms, tipo, erro } = req.body

@@ -172,6 +172,7 @@ export default async function handler(req, res) {
       recentes: recentesEnriquecidas,
     })
   } catch (err) {
-    return res.status(500).json({ erro: err.message })
+    console.error('[admin/dashboard]', err)
+    return res.status(500).json({ erro: 'Erro interno do servidor.' })
   }
 }

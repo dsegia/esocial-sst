@@ -84,7 +84,7 @@ function logIA(servico, modelo, status, duracao_ms, tipo, erro) {
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   fetch(`${base}/api/internal/log-ia`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-internal-secret': 'esocial-internal' },
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_API_SECRET || '' },
     body: JSON.stringify({ servico, modelo, status, duracao_ms: Math.round(duracao_ms || 0), tipo, erro: erro?.substring(0, 200) }),
   }).catch(() => {})
 }
@@ -237,7 +237,11 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
       })
     })
 
-    if (!response.ok) throw new Error(await response.text())
+    if (!response.ok) {
+      const errBody = await response.text()
+      console.error('[ler-documento] Anthropic error:', response.status, errBody.substring(0, 200))
+      throw new Error('Falha na API de processamento')
+    }
     const data = await response.json()
     const texto = data.content?.[0]?.text || ''
     const resultado = parseRobusto(texto)
@@ -260,8 +264,17 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
 // ────────────────────────────────────────────────────────
 export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration: 60 }
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  if (limited) {
+    res.setHeader('Retry-After', String(retryAfter))
+    return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
+  }
 
   // Verificar autenticação — impede consumo de créditos de IA por não autenticados
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -502,7 +515,11 @@ REGRAS CRÍTICAS:
         headers:{ 'Content-Type':'application/json', 'x-api-key': anthropicKey, 'anthropic-version':'2023-06-01' },
         body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:4000, messages:[{role:'user',content}] })
       })
-      if (!response.ok) throw new Error(await response.text())
+      if (!response.ok) {
+        const errBody = await response.text()
+        console.error('[ler-documento] Anthropic haiku error:', response.status, errBody.substring(0, 200))
+        throw new Error('Falha na API de processamento')
+      }
       const data = await response.json()
       const resultado = parseRobusto(data.content?.[0]?.text || '')
       if (resultado) {
@@ -511,7 +528,7 @@ REGRAS CRÍTICAS:
       }
     } catch (err) {
       logIA('claude', 'claude-haiku-fallback', 'erro', Date.now() - _t0haiku, tipo, err.message)
-      return res.status(500).json({ erro:'Erro no Anthropic: ' + err.message })
+      return res.status(500).json({ erro: 'Erro ao processar documento. Tente novamente.' })
     }
   }
 
