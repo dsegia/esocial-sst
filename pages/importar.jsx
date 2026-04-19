@@ -228,10 +228,10 @@ export default function Importar() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push('/'); return }
+      if (!session) { router.push('/login'); return }
       supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
         .then(({ data: u }) => {
-          if (!u) { router.push('/'); return }
+          if (!u) { router.push('/login'); return }
           setEmpresaId(getEmpresaId() || u.empresa_id)
         })
     })

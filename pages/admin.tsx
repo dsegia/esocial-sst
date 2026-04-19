@@ -101,7 +101,7 @@ export default function Admin() {
     setErro('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/'); return }
+      if (!session) { router.push('/login'); return }
 
       const resp = await fetch('/api/admin/dashboard', {
         headers: { Authorization: `Bearer ${session.access_token}` },

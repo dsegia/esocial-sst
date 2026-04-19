@@ -74,9 +74,9 @@ export default function Planos() {
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.push('/'); return }
+    if (!session) { router.push('/login'); return }
     const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
-    if (!user) { router.push('/'); return }
+    if (!user) { router.push('/login'); return }
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
     const { data: emp } = await supabase.from('empresas').select('plano, trial_ends_at').eq('id', empId).single()

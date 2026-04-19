@@ -41,11 +41,11 @@ export default function TransmissaoManual() {
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.push('/'); return }
+    if (!session) { router.push('/login'); return }
     const { data: user } = await supabase.from('usuarios')
       .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, plano)')
       .eq('id', session.user.id).single()
-    if (!user) { router.push('/'); return }
+    if (!user) { router.push('/login'); return }
     setEmpresa(user.empresas)
     setEmpresaId(user.empresa_id)
 

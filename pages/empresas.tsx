@@ -43,7 +43,7 @@ export default function Empresas() {
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { router.push('/'); return }
+    if (!session) { router.push('/login'); return }
     setUserId(session.user.id)
     setEmpresaAtualId(getEmpresaId() || '')
     await carregar(session.user.id)
