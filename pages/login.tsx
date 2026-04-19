@@ -97,7 +97,7 @@ export default function Login() {
           <div style={{ ...s.card, maxWidth: 520 }}>
 
             <div style={s.logoWrap}>
-              <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'40px', width:'auto' }} />
+              <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'80px', width:'auto' }} />
               <div style={{ ...s.logoSub, marginLeft:4 }}>Olá, {nomeUser}</div>
             </div>
 
@@ -158,7 +158,7 @@ export default function Login() {
         <div style={s.card}>
 
           <div style={{ ...s.logoWrap, justifyContent:'center' }}>
-            <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'44px', width:'auto' }} />
+            <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'90px', width:'auto' }} />
           </div>
 
           <div style={{ fontSize:14, fontWeight:600, color:'#111', marginBottom:20 }}>Entrar no sistema</div>

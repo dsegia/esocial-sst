@@ -76,7 +76,7 @@ export default function Layout({ children, pagina }) {
 
         {/* Logo */}
         <div style={{ padding:'0 1.25rem .75rem' }}>
-          <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'32px', width:'auto' }} />
+          <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'64px', width:'auto' }} />
         </div>
 
         {/* Empresa atual — clique abre /empresas */}
