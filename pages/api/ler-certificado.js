@@ -1,8 +1,15 @@
 // pages/api/ler-certificado.js
 // Lê metadados do .pfx sem armazenar chave privada
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
+
   const { pfx, senha } = req.body
   if (!pfx || !senha) return res.status(400).json({ erro: 'Arquivo e senha obrigatórios' })
 

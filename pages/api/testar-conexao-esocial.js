@@ -3,6 +3,8 @@
 // Envia SOAP mínimo sem certificado — eSocial responde com erro de autenticação,
 // o que confirma que a conexão está funcionando.
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 const ENDPOINTS = {
   producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
   producao: 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
@@ -12,6 +14,10 @@ export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ erro: 'Método não permitido' })
   }
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   const ambiente = req.query.ambiente || 'producao_restrita'
   const endpoint = ENDPOINTS[ambiente]

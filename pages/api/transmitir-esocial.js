@@ -1,6 +1,8 @@
 // pages/api/transmitir-esocial.js
 // Transmite eventos assinados ao webservice SOAP do eSocial
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 const ENDPOINTS = {
   producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
   producao:          'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
@@ -8,6 +10,10 @@ const ENDPOINTS = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   const { xml_assinado, cnpj_empregador, ambiente = 'producao_restrita', transmissao_id } = req.body
 

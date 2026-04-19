@@ -2,6 +2,8 @@
 // Assina XML com XMLDSig ICP-Brasil usando certificado A1
 // O .pfx e a senha NUNCA são armazenados — usados apenas em memória
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 // Extrai o elemento a ser assinado e propaga namespaces do pai (<eSocial>).
 // O XMLDSig Reference URI="#id" exige que o digest cubra apenas esse elemento
 // com as declarações de namespace propagadas (C14N §2.3).
@@ -53,6 +55,10 @@ function extrairElementoParaDigest(xml, elemId, tagEvento) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   const { xml, pfx, senha, tagAssinatura } = req.body
   // tagAssinatura = elemento que será referenciado na assinatura (ex: 'evtMonit', 'evtExpRisco', 'evtCAT')

@@ -1,8 +1,14 @@
 // pages/api/xml-generator.js
 // Gera XML eSocial S-2220, S-2240 e S-2210 com códigos da Tabela 27
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
+
+  const ip = getClientIP(req)
+  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 20 })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   const { tipo, dados, empresa, ambiente = 'producao_restrita' } = req.body
   if (!tipo || !dados || !empresa) return res.status(400).json({ erro: 'Dados incompletos' })
