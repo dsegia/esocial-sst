@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     if (empErr) throw new Error('Erro ao criar empresa: ' + empErr.message)
 
     // Envia convite via Supabase Auth (magic link)
-    const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://esocial-sst.vercel.app'}/aceitar-convite?empresa_id=${empresa.id}`
+    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://esocial-sst.vercel.app'}/aceitar-convite?empresa_id=${empresa.id}`
 
     const { data: convite, error: convErr } = await sb.auth.admin.inviteUserByEmail(email, {
       redirectTo: redirectUrl,

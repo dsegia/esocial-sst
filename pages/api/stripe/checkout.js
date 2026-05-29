@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     if (!planoInfo) return res.status(400).json({ erro: `Plano inválido: "${plano}"` })
     if (!planoInfo.priceId) return res.status(500).json({ erro: `Price ID não configurado para ${plano}` })
 
-    const stripe = new Stripe(stripeKey, { apiVersion: '2024-04-10' })
+    const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
     const { data: empresa } = await sbAdmin.from('empresas')
       .select('id, razao_social, cnpj, stripe_customer_id').eq('id', empresaId).single()
 

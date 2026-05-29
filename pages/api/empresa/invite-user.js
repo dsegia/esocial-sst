@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   }
 
   // Novo usuário — envia convite
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://esocial-sst.vercel.app'
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://esocial-sst.vercel.app'
   const redirectTo = `${siteUrl}/aceitar-convite?empresa_id=${empresaId}`
 
   const { data: invited, error: invErr } = await sb.auth.admin.inviteUserByEmail(email, {

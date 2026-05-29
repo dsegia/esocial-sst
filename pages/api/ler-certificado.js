@@ -1,6 +1,7 @@
 // pages/api/ler-certificado.js
 // Lê metadados do .pfx sem armazenar chave privada
 
+import forge from 'node-forge'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 
@@ -18,7 +19,6 @@ export default async function handler(req, res) {
   if (!pfx || !senha) return res.status(400).json({ erro: 'Arquivo e senha obrigatórios' })
 
   try {
-    const forge = require('node-forge')
     const pfxBuf = Buffer.from(pfx, 'base64')
     const pfxDer = forge.util.createBuffer(pfxBuf.toString('binary'))
     const pfxAsn1 = forge.asn1.fromDer(pfxDer)
