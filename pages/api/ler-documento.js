@@ -2,6 +2,8 @@
 // Gemini 2.5-flash-lite (1000 req/dia grátis) + Anthropic fallback
 // Exames mapeados para Tabela 27, Riscos para Tabela 24
 
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+
 // ─── TABELA 27 — Procedimentos Diagnósticos ───────────
 const TABELA27 = {
   'avaliacao clinica':'0001','exame clinico':'0001','anamnese':'0001',
@@ -300,8 +302,6 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
 
 // ────────────────────────────────────────────────────────
 export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration: 60 }
-
-import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })

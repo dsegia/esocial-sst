@@ -2,6 +2,7 @@
 // Assina XML com XMLDSig ICP-Brasil usando certificado A1
 // O .pfx e a senha NUNCA são armazenados — usados apenas em memória
 
+import forge from 'node-forge'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 
@@ -72,8 +73,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    const forge = require('node-forge')
-
     // 1. Carregar o certificado .pfx
     const pfxBuf = Buffer.from(pfx, 'base64')
     const pfxDer = forge.util.createBuffer(pfxBuf.toString('binary'))
