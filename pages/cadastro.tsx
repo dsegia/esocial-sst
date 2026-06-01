@@ -36,14 +36,24 @@ export default function Cadastro() {
             .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
+  function validarCNPJ(cnpj: string): boolean {
+    const n = cnpj.replace(/\D/g, '')
+    if (n.length !== 14 || /^(\d)\1+$/.test(n)) return false
+    const calc = (s: string, pesos: number[]) =>
+      pesos.reduce((acc, p, i) => acc + parseInt(s[i]) * p, 0)
+    const d1 = calc(n, [5,4,3,2,9,8,7,6,5,4,3,2]) % 11
+    const d2 = calc(n, [6,5,4,3,2,9,8,7,6,5,4,3,2]) % 11
+    return parseInt(n[12]) === (d1 < 2 ? 0 : 11 - d1) &&
+           parseInt(n[13]) === (d2 < 2 ? 0 : 11 - d2)
+  }
+
   function validar(): string | null {
     if (!form.nome.trim()) return 'Informe seu nome completo.'
     if (!form.email.trim()) return 'Informe seu e-mail.'
     if (form.senha.length < 8) return 'A senha deve ter pelo menos 8 caracteres.'
     if (form.senha !== form.confirmar) return 'As senhas não coincidem.'
     if (!form.razao_social.trim()) return 'Informe a razão social da empresa.'
-    const cnpj = form.cnpj.replace(/\D/g, '')
-    if (cnpj.length !== 14) return 'CNPJ inválido — deve ter 14 dígitos.'
+    if (!validarCNPJ(form.cnpj)) return 'CNPJ inválido — verifique os dígitos.'
     return null
   }
 
@@ -84,8 +94,18 @@ export default function Cadastro() {
       })
 
       if (rpcErr) {
-        // Limpa o usuário criado se a empresa falhou
-        setErro('Erro ao criar empresa: ' + rpcErr.message)
+        // Remove o usuário órfão do Auth para permitir nova tentativa
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.access_token) {
+            await fetch('/api/cleanup-signup', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+          }
+        } catch {}
+        await supabase.auth.signOut()
+        setErro('Erro ao criar empresa: ' + rpcErr.message + '. Tente novamente.')
         setCarregando(false); setInfo(''); return
       }
 

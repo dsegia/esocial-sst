@@ -39,6 +39,10 @@ export default function Dashboard() {
   }
 
   async function carregarDados(empresaId: string) {
+    // Verifica sessão antes de carregar dados
+    const { data: { session: sessaoAtual } } = await supabase.auth.getSession()
+    if (!sessaoAtual) { router.push('/login'); return }
+
     const hoje = new Date()
     const em30 = new Date(hoje); em30.setDate(em30.getDate() + 30)
     const em60 = new Date(hoje); em60.setDate(em60.getDate() + 60)

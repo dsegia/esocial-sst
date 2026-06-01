@@ -21,6 +21,24 @@ export default async function handler(req, res) {
   const tpAmb = ambiente === 'producao' ? '1' : '2'
 
   try {
+    // Validações antes de gerar XML
+    if ((tipo === 'S-2220' || tipo === 'S-2210') && funcionario) {
+      const mat = (funcionario.matricula_esocial || '').trim()
+      if (!mat || mat.startsWith('PEND-')) {
+        return res.status(400).json({ erro: `Funcionário sem matrícula eSocial definida. Acesse Funcionários e preencha a matrícula antes de transmitir.` })
+      }
+      const cpfLimpo = (funcionario.cpf || '').replace(/\D/g, '')
+      if (cpfLimpo.length !== 11) {
+        return res.status(400).json({ erro: `CPF do funcionário inválido ou ausente. Verifique o cadastro.` })
+      }
+    }
+    if (tipo === 'S-2240' && empresa) {
+      const cnpjLimpo = (empresa.cnpj || '').replace(/\D/g, '')
+      if (cnpjLimpo.length !== 14) {
+        return res.status(400).json({ erro: `CNPJ da empresa inválido: ${empresa.cnpj}` })
+      }
+    }
+
     let xml = ''
     if (tipo === 'S-2220') xml = gerarS2220(dados, empresa, tpAmb, funcionario)
     else if (tipo === 'S-2240') xml = gerarS2240(dados, empresa, tpAmb)

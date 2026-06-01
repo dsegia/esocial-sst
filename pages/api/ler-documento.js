@@ -306,23 +306,36 @@ export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration:
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
+  // Rate limit por IP (proteção contra bots)
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
-  if (limited) {
-    res.setHeader('Retry-After', String(retryAfter))
+  const { limited: limitedIp, retryAfter: retryIp } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  if (limitedIp) {
+    res.setHeader('Retry-After', String(retryIp))
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
   }
 
   // Verificar autenticação — impede consumo de créditos de IA por não autenticados
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ erro: 'Autenticação necessária' })
+
+  let userId = null
   try {
     const { createClient } = require('@supabase/supabase-js')
     const sbAuth = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
     const { data: { user }, error } = await sbAuth.auth.getUser(token)
     if (error || !user) return res.status(401).json({ erro: 'Sessão inválida ou expirada' })
+    userId = user.id
   } catch {
     return res.status(401).json({ erro: 'Falha na verificação de autenticação' })
+  }
+
+  // Rate limit por usuário — 20 leituras/hora (protege quotas de IA)
+  if (userId) {
+    const { limited: limitedUser, retryAfter: retryUser } = checkRateLimit(`user:${userId}`, { windowMs: 3_600_000, max: 20 })
+    if (limitedUser) {
+      res.setHeader('Retry-After', String(retryUser))
+      return res.status(429).json({ erro: 'Limite de leituras por hora atingido (20/hora). Tente novamente mais tarde.' })
+    }
   }
 
   const { paginas, texto_pdf, pdf_base64, tipo } = req.body
