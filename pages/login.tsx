@@ -19,7 +19,7 @@ export default function Login() {
   const [erro, setErro] = useState('')
   const [info, setInfo] = useState('')
   const [carregando, setCarregando] = useState(false)
-  const [etapa, setEtapa] = useState<'login' | 'selecionar'>('login')
+  const [etapa, setEtapa] = useState<'login' | 'selecionar' | 'reset'>('login')
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [nomeUser, setNomeUser] = useState('')
 
@@ -77,6 +77,19 @@ export default function Login() {
     } catch (err: any) {
       setInfo(''); setErro('Erro inesperado: ' + err.message); setCarregando(false)
     }
+  }
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault()
+    setErro('')
+    setInfo('Enviando e-mail...')
+    setCarregando(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    })
+    setCarregando(false)
+    if (error) { setInfo(''); setErro('Erro: ' + error.message); return }
+    setInfo('E-mail enviado! Verifique sua caixa de entrada (e o spam).')
   }
 
   function selecionarEmpresa(empresa: Empresa) {
@@ -152,6 +165,42 @@ export default function Login() {
     )
   }
 
+  if (etapa === 'reset') return (
+    <>
+      <Head><title>eSocial SST — Redefinir senha</title></Head>
+      <div style={s.page}>
+        <div style={s.card}>
+          <div style={{ ...s.logoWrap, justifyContent: 'center' }}>
+            <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height: '90px', width: 'auto' }} />
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 6 }}>Redefinir senha</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>
+            Informe seu e-mail e enviaremos um link para criar uma nova senha.
+          </div>
+          <form onSubmit={handleReset}>
+            <div style={s.field}>
+              <label style={s.label}>E-mail</label>
+              <input style={s.input} type="email" placeholder="seu@email.com"
+                value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+            </div>
+            {info && <div style={s.infoBox}>{info}</div>}
+            {erro && <div style={s.erroBox}>{erro}</div>}
+            <button type="submit" disabled={carregando}
+              style={{ ...s.btnPrimary, opacity: carregando ? 0.7 : 1 }}>
+              {carregando ? 'Enviando...' : 'Enviar link de redefinição'}
+            </button>
+          </form>
+          <div style={{ ...s.rodape, marginTop: 12 }}>
+            <button onClick={() => { setErro(''); setInfo(''); setEtapa('login') }}
+              style={{ background: 'none', border: 'none', fontSize: 12, color: '#6b7280', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+              ← Voltar ao login
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <>
       <Head><title>eSocial SST — Entrar</title></Head>
@@ -187,6 +236,13 @@ export default function Login() {
               {carregando ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
+
+          <div style={{ ...s.rodape, marginTop: 8 }}>
+            <button onClick={() => { setErro(''); setInfo(''); setEtapa('reset') }}
+              style={{ background: 'none', border: 'none', fontSize: 12, color: '#6b7280', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+              Esqueci minha senha
+            </button>
+          </div>
 
           <div style={s.rodape}>
             Não tem conta?{' '}
