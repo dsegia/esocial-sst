@@ -57,10 +57,22 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
-  // Resolve empresa_id do usuário autenticado
+  // Resolve empresa_id — prioriza empresa_id enviado no body (seleção do UI)
+  // Fallback para empresa padrão do usuário
+  const { empresa_id: empresaIdBody } = req.body || {}
+
   const { data: usuarioDb } = await sbAdmin
     .from('usuarios').select('empresa_id').eq('id', user.id).single()
-  const empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
+  const empresaIdPadrao = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
+
+  // Se empresaIdBody foi enviado, valida que o usuário tem acesso a ela
+  let empresaId = empresaIdPadrao
+  if (empresaIdBody && empresaIdBody !== empresaIdPadrao) {
+    const { data: vinculo } = await sbAdmin
+      .from('usuario_empresas').select('empresa_id')
+      .eq('usuario_id', user.id).eq('empresa_id', empresaIdBody).single()
+    if (vinculo) empresaId = empresaIdBody
+  }
 
   if (!empresaId) return res.status(403).json({ erro: 'Empresa não encontrada para este usuário' })
 

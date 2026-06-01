@@ -213,6 +213,7 @@ export default function TransmissaoManual() {
           body: JSON.stringify({
             xml_assinado: assinarData.xml_assinado,
             cnpj_empregador: empresa.cnpj,
+            empresa_id: empresaId,
             ambiente,
             transmissao_id: txId,
             pfx: pfxBase64,

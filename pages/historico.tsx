@@ -27,6 +27,8 @@ export default function Historico() {
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
   const [temCertificado, setTemCertificado] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [pagina, setPagina] = useState(0)
 
   useEffect(() => { init() }, [])
 
@@ -44,20 +46,22 @@ export default function Historico() {
       .eq('id', empId).single()
     setTemCertificado(!!empresa?.cert_digital_validade)
 
-    await carregar(empId, '', '')
+    await carregar(empId, '', '', 0)
     setCarregando(false)
   }
 
-  async function carregar(eId: string, evt: string, st: string) {
+  async function carregar(eId: string, evt: string, st: string, pagina = 0) {
+    const por_pagina = 200
     let q = supabase.from('transmissoes')
-      .select('id, evento, status, dt_envio, recibo, tentativas, criado_em, funcionario_id, funcionarios(nome, matricula_esocial)')
+      .select('id, evento, status, dt_envio, recibo, tentativas, criado_em, funcionario_id, funcionarios(nome, matricula_esocial)', { count: 'exact' })
       .eq('empresa_id', eId)
       .order('criado_em', { ascending: false })
-      .limit(100)
+      .range(pagina * por_pagina, (pagina + 1) * por_pagina - 1)
     if (evt) q = q.eq('evento', evt)
     if (st)  q = q.eq('status', st)
-    const { data } = await q
+    const { data, count } = await q
     setLista(data || [])
+    setTotalCount(count || 0)
     setSelecionados([])
   }
 
@@ -81,14 +85,23 @@ export default function Historico() {
     carregar(empresaId, filtroEvt, filtroSt)
   }
 
-  function transmitir(ids: string[]) {
+  function transmitir(_ids: string[]) {
     if (!temCertificado) {
       if (!confirm('Certificado digital não configurado. Deseja ir para as configurações?')) return
       router.push('/configuracoes')
       return
     }
-    // Redireciona para a página de transmissão manual com o fluxo real (XMLDSig + SOAP Gov.br)
     router.push('/transmissao-manual')
+  }
+
+  async function recolocarNaFila(id: string) {
+    setErro(''); setSucesso('')
+    const { error } = await supabase.from('transmissoes')
+      .update({ status: 'pendente', erro_descricao: null, erro_codigo: null })
+      .eq('id', id)
+    if (error) { setErro('Erro: ' + error.message); return }
+    setSucesso('Transmissão recolocada na fila. Acesse Fila de Transmissão para enviar.')
+    carregar(empresaId, filtroEvt, filtroSt, pagina)
   }
 
   const pendentes = lista.filter(t => t.status === 'pendente')
@@ -116,7 +129,7 @@ export default function Historico() {
       <div style={s.header}>
         <div>
           <div style={s.titulo}>Histórico de transmissões</div>
-          <div style={s.sub}>{lista.length} registro(s) · {pendentes.length} pendente(s)</div>
+          <div style={s.sub}>{totalCount} registro(s) · {pendentes.length} pendente(s)</div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           {!temCertificado && (
@@ -180,14 +193,14 @@ export default function Historico() {
       {/* Filtros */}
       <div style={{ display:'flex', gap:6, marginBottom:14, flexWrap:'wrap' }}>
         {['','S-2220','S-2240','S-2210'].map(evt => (
-          <button key={evt} onClick={() => { setFiltroEvt(evt); carregar(empresaId, evt, filtroSt) }}
+          <button key={evt} onClick={() => { setFiltroEvt(evt); setPagina(0); carregar(empresaId, evt, filtroSt, 0) }}
             style={{ ...s.filtroBtn, background: filtroEvt===evt?'#185FA5':'#f3f4f6', color: filtroEvt===evt?'#fff':'#374151' }}>
             {evt || 'Todos'}
           </button>
         ))}
         <div style={{ width:1, background:'#e5e7eb' }}/>
         {['','pendente','enviado','rejeitado'].map(st => (
-          <button key={st} onClick={() => { setFiltroSt(st); carregar(empresaId, filtroEvt, st) }}
+          <button key={st} onClick={() => { setFiltroSt(st); setPagina(0); carregar(empresaId, filtroEvt, st, 0) }}
             style={{ ...s.filtroBtn, background: filtroSt===st?'#374151':'#f3f4f6', color: filtroSt===st?'#fff':'#374151' }}>
             {st ? ST_LBL[st] : 'Todos status'}
           </button>
@@ -256,11 +269,18 @@ export default function Historico() {
                     </span>
                   </td>
                   <td style={s.td}>
-                    <div style={{ display:'flex', gap:5 }}>
+                    <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
                       {isPendente && (
                         <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
                           onClick={() => transmitir([tx.id])}>
                           Enviar
+                        </button>
+                      )}
+                      {tx.status === 'rejeitado' && (
+                        <button style={{ ...s.btnAcao, color:'#EF9F27', borderColor:'#EF9F27' }}
+                          title="Volta para pendente para poder reenviar"
+                          onClick={() => recolocarNaFila(tx.id)}>
+                          ↺ Reenviar
                         </button>
                       )}
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}
@@ -274,6 +294,29 @@ export default function Historico() {
             })}
           </tbody>
         </table>
+
+        {/* Paginação */}
+        {totalCount > 200 && (
+          <div style={{ padding:'12px 16px', borderTop:'0.5px solid #f3f4f6', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#f9fafb' }}>
+            <span style={{ fontSize:12, color:'#6b7280' }}>
+              Mostrando {pagina * 200 + 1}–{Math.min((pagina + 1) * 200, totalCount)} de {totalCount}
+            </span>
+            <div style={{ display:'flex', gap:6 }}>
+              <button
+                disabled={pagina === 0}
+                onClick={() => { const p = pagina - 1; setPagina(p); carregar(empresaId, filtroEvt, filtroSt, p) }}
+                style={{ padding:'5px 12px', fontSize:12, border:'1px solid #d1d5db', borderRadius:6, background: pagina === 0 ? '#f3f4f6' : '#fff', color: pagina === 0 ? '#9ca3af' : '#374151', cursor: pagina === 0 ? 'default' : 'pointer' }}>
+                ← Anterior
+              </button>
+              <button
+                disabled={(pagina + 1) * 200 >= totalCount}
+                onClick={() => { const p = pagina + 1; setPagina(p); carregar(empresaId, filtroEvt, filtroSt, p) }}
+                style={{ padding:'5px 12px', fontSize:12, border:'1px solid #d1d5db', borderRadius:6, background: (pagina + 1) * 200 >= totalCount ? '#f3f4f6' : '#fff', color: (pagina + 1) * 200 >= totalCount ? '#9ca3af' : '#374151', cursor: (pagina + 1) * 200 >= totalCount ? 'default' : 'pointer' }}>
+                Próximo →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal confirmar exclusão */}

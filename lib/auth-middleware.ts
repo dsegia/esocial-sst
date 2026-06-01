@@ -48,6 +48,7 @@ export async function requireEmpresaAccess(
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
 
+  // Verifica acesso via usuario_empresas (multi-empresa)
   const { data: acesso } = await sb
     .from('usuario_empresas')
     .select('perfil')
@@ -55,17 +56,33 @@ export async function requireEmpresaAccess(
     .eq('empresa_id', empresaId)
     .single()
 
-  if (!acesso) {
+  if (acesso) {
+    if (!perfisPermitidos.includes(acesso.perfil)) {
+      res.status(403).json({ erro: 'Permissão insuficiente' })
+      return null
+    }
+    return { user, perfil: acesso.perfil as string }
+  }
+
+  // Fallback: verifica se é a empresa padrão do usuário em usuarios.empresa_id
+  const { data: usuarioDb } = await sb
+    .from('usuarios')
+    .select('empresa_id, perfil')
+    .eq('id', user.id)
+    .single()
+
+  if (!usuarioDb || usuarioDb.empresa_id !== empresaId) {
     res.status(403).json({ erro: 'Acesso não autorizado a esta empresa' })
     return null
   }
 
-  if (!perfisPermitidos.includes(acesso.perfil)) {
+  const perfil = usuarioDb.perfil || 'admin'
+  if (!perfisPermitidos.includes(perfil)) {
     res.status(403).json({ erro: 'Permissão insuficiente' })
     return null
   }
 
-  return { user, perfil: acesso.perfil as string }
+  return { user, perfil: perfil as string }
 }
 
 // Acesso restrito ao admin do sistema (via ADMIN_EMAIL)

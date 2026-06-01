@@ -49,9 +49,10 @@ export default function Alertas() {
     setEnviando(true)
     setEmailStatus(null)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/notificar-vencimento', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ empresa_id: empresaId, email_destino: emailDestino, dias_aviso: diasAviso, modo }),
       })
       const json = await resp.json()
