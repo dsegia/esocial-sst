@@ -1,10 +1,40 @@
 // pages/api/transmitir-esocial.js
 // Transmite eventos assinados ao webservice SOAP do eSocial
 
+import https from 'node:https'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
+
+// Envia SOAP com mTLS (certificado A1 do cliente) se pfx disponível,
+// ou sem mTLS como fallback (Produção Restrita aceita sem mTLS)
+function postSoap(url, headers, body, pfxBuffer, passphrase) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url)
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + (parsed.search || ''),
+      port: 443,
+      method: 'POST',
+      headers,
+      rejectUnauthorized: true,
+    }
+    if (pfxBuffer && passphrase) {
+      options.pfx = pfxBuffer
+      options.passphrase = passphrase
+    }
+    const req = https.request(options, (res) => {
+      let data = ''
+      res.on('data', chunk => { data += chunk })
+      res.on('end', () => resolve({ status: res.statusCode, body: data }))
+    })
+    req.on('error', reject)
+    req.setTimeout(30000, () => req.destroy(Object.assign(new Error('TimeoutError'), { name: 'TimeoutError' })))
+    req.write(body)
+    req.end()
+  })
+}
 
 const ENDPOINTS = {
   producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
@@ -77,7 +107,7 @@ export default async function handler(req, res) {
     })
   }
 
-  const { xml_assinado, cnpj_empregador, ambiente = 'producao_restrita', transmissao_id: _transmissao_id } = req.body
+  const { xml_assinado, cnpj_empregador, ambiente = 'producao_restrita', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body
 
   if (!xml_assinado || !cnpj_empregador) {
     return res.status(400).json({ erro: 'XML assinado e CNPJ são obrigatórios' })
@@ -93,6 +123,7 @@ export default async function handler(req, res) {
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   try {
+    const pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
     const _nrLote = Date.now().toString()
     const dataHoraTransmissao = new Date().toISOString()
 
@@ -126,17 +157,14 @@ export default async function handler(req, res) {
   </soapenv:Body>
 </soapenv:Envelope>`
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml;charset=UTF-8',
-        'SOAPAction': '"enviarLoteEventos"',
-      },
-      body: soapEnvelope,
-      signal: AbortSignal.timeout(30000),
-    })
+    const soapHeaders = {
+      'Content-Type': 'text/xml;charset=UTF-8',
+      'SOAPAction': '"enviarLoteEventos"',
+      'Content-Length': Buffer.byteLength(soapEnvelope, 'utf8'),
+    }
 
-    const resBody = await response.text()
+    const response = await postSoap(endpoint, soapHeaders, soapEnvelope, pfxBuffer, cert_senha)
+    const resBody = response.body
 
     const recibo    = resBody.match(/<nrRec>([^<]+)<\/nrRec>/)?.[1]
     const cdResp    = resBody.match(/<cdResp>([^<]+)<\/cdResp>/)?.[1]
@@ -171,7 +199,7 @@ export default async function handler(req, res) {
     })
 
   } catch (err) {
-    if (err.name === 'TimeoutError') {
+    if (err.name === 'TimeoutError' || err.message === 'TimeoutError') {
       return res.status(504).json({ erro: 'Timeout: webservice do Gov.br não respondeu em 30s. Tente novamente.' })
     }
     console.error('[transmitir-esocial]', err)

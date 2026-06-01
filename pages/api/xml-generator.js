@@ -51,6 +51,13 @@ function id(cnpjEmp) {
   return `ID${cnpjEmp}${ts}`
 }
 
+// Extrai UF do CRM com segurança — suporta "CRM-SP 12345", "12345-SP", "12345/SP"
+function extrairUfCrm(crm) {
+  const s = (crm || '').toUpperCase()
+  const ufMatch = s.match(/\b(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/)
+  return ufMatch ? ufMatch[1] : 'SP'
+}
+
 // Mapa de tipo ASO → código eSocial
 const TIPO_ASO = {
   admissional: '0', periodico: '1', retorno: '2',
@@ -131,7 +138,7 @@ function gerarS2220(aso, empresa, tpAmb, funcionario = {}) {
       <medico>
         <nmMed>${escapeXml(dadosAso.medico_nome)}</nmMed>
         <nrCRM>${(dadosAso.medico_crm || '').replace(/\D/g, '')}</nrCRM>
-        <ufCRM>${(dadosAso.medico_crm || '').split('-').pop()?.trim().replace(/\d/g,'') || 'SP'}</ufCRM>
+        <ufCRM>${extrairUfCrm(dadosAso.medico_crm)}</ufCRM>
       </medico>
       <concl>${CONCLUSAO[dadosAso.conclusao] || '1'}</concl>
       ${dadosAso.prox_exame ? `<obsAtiv>Próximo exame previsto: ${data(dadosAso.prox_exame)}</obsAtiv>` : ''}
@@ -149,6 +156,10 @@ function gerarS2240(ltcat, empresa, tpAmb) {
   const ghes = ltcat.ghes || []
 
   const TIPO_AGENTE = { fis: '01', qui: '02', bio: '03', erg: '04' }
+
+  // iniValid: usa data_vigencia ou data_emissao como fallback, nunca string vazia
+  const iniValidRaw = geral.data_vigencia || geral.data_emissao || new Date().toISOString().substring(0,10)
+  const iniValid = data(iniValidRaw).substring(0, 7) || new Date().toISOString().substring(0,7)
 
   const ghesXML = ghes.map(ghe => {
     const agentesXML = (ghe.agentes || []).map(ag => `
@@ -196,7 +207,7 @@ function gerarS2240(ltcat, empresa, tpAmb) {
       <nrInsc>${cnpjEmp}</nrInsc>
     </ideEmpregador>
     <infoExpRisco>
-      <iniValid>${data(geral.data_vigencia).substring(0,7)}</iniValid>
+      <iniValid>${iniValid}</iniValid>
       ${ghesXML}
       <respReg>
         <ideResponsavel>

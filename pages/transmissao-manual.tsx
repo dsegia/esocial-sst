@@ -206,7 +206,7 @@ export default function TransmissaoManual() {
 
         setEtapa('transmitir')
 
-        // 4. Transmitir ao Gov.br
+        // 4. Transmitir ao Gov.br (com mTLS quando pfx disponível)
         const transmitirResp = await fetch('/api/transmitir-esocial', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },
@@ -215,6 +215,8 @@ export default function TransmissaoManual() {
             cnpj_empregador: empresa.cnpj,
             ambiente,
             transmissao_id: txId,
+            pfx: pfxBase64,
+            cert_senha: certSenha,
           })
         })
         const transmitirData = await transmitirResp.json()
@@ -277,6 +279,34 @@ export default function TransmissaoManual() {
 
   const enviados = resultados.filter(r => r.sucesso).length
   const rejeitados = resultados.filter(r => !r.sucesso).length
+
+  async function consultarResultado(recibo: string, txId: string) {
+    if (!recibo) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/consultar-lote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          nrRec: recibo,
+          cnpj_empregador: empresa?.cnpj,
+          ambiente,
+          pfx: pfxBase64,
+          cert_senha: certSenha,
+          transmissao_id: txId,
+        })
+      })
+      const data = await resp.json()
+      const msg = data.situacao === 'aguardando'
+        ? `⏳ Lote ainda sendo processado pelo Gov.br. Tente novamente em alguns minutos.`
+        : data.situacao === 'processado'
+          ? `✅ Processado: ${data.descResposta || 'OK'}`
+          : `❌ Erro: ${data.descResposta || data.erro}`
+      alert(msg)
+    } catch {
+      alert('Erro ao consultar resultado.')
+    }
+  }
 
   if (carregando) return <div style={s.loading}>Carregando...</div>
 
@@ -445,7 +475,15 @@ export default function TransmissaoManual() {
                     {r.sucesso ? '✅' : '❌'} {r.evento} — {r.funcionario || '—'}
                   </span>
                 </div>
-                {r.recibo && <span style={{ fontSize:11, fontFamily:'monospace', color:'#27500A' }}>Recibo: {r.recibo}</span>}
+                {r.recibo && (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:11, fontFamily:'monospace', color:'#27500A' }}>Recibo: {r.recibo}</span>
+                    <button onClick={() => consultarResultado(r.recibo, r.id)}
+                      style={{ fontSize:10, padding:'2px 8px', background:'#185FA5', color:'#fff', border:'none', borderRadius:5, cursor:'pointer' }}>
+                      Consultar Gov.br
+                    </button>
+                  </div>
+                )}
               </div>
               {r.descricao && <div style={{ fontSize:12, marginTop:4, color: r.sucesso?'#085041':'#791F1F' }}>{r.descricao}</div>}
               {r.ocorrencias?.map((oc: any, j: number) => (
