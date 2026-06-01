@@ -42,6 +42,16 @@ export default function Login() {
         setInfo(''); setErro('Sessão não criada. Tente novamente.'); setCarregando(false); return
       }
 
+      setInfo('Verificando acesso...')
+
+      // Admin vai direto para /admin sem depender da tabela usuarios
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+      if (adminEmail && data.user.email === adminEmail) {
+        setInfo('Bem-vindo, Admin!')
+        router.push('/admin')
+        return
+      }
+
       setInfo('Verificando empresas...')
 
       const { data: usuario, error: uErr } = await supabase
@@ -51,7 +61,7 @@ export default function Login() {
         .single()
 
       if (uErr || !usuario) {
-        setInfo(''); setErro('Usuário sem cadastro no sistema. Rode o SQL de vinculação no Supabase.'); setCarregando(false); return
+        setInfo(''); setErro('Usuário sem cadastro no sistema. Entre em contato com o suporte.'); setCarregando(false); return
       }
 
       setNomeUser(usuario.nome)
