@@ -383,7 +383,7 @@ export default function Admin() {
                 Atualizado às {atualizadoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            <button onClick={carregar} style={{ padding: '6px 12px', background: '#1f2937', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', fontSize: 12, cursor: 'pointer' }}>
+            <button onClick={() => carregar()} style={{ padding: '6px 12px', background: '#1f2937', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', fontSize: 12, cursor: 'pointer' }}>
               ↻ Atualizar
             </button>
             <button onClick={() => router.push('/dashboard')} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#9ca3af', fontSize: 12, cursor: 'pointer' }}>
