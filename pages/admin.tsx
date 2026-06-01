@@ -78,6 +78,11 @@ export default function Admin() {
   // Bloqueio inline
   const [bloqueandoId, setBloqueandoId] = useState<string | null>(null)
 
+  // Excluir e resetar senha
+  const [confirmandoExcluir, setConfirmandoExcluir] = useState<string | null>(null)
+  const [excluindoId, setExcluindoId] = useState<string | null>(null)
+  const [resetandoId, setResetandoId] = useState<string | null>(null)
+
   // Aba Sistema
   const [sistema, setSistema] = useState<any>(null)
   const [carregandoSistema, setCarregandoSistema] = useState(false)
@@ -244,6 +249,46 @@ export default function Admin() {
       alert(err.message)
     } finally {
       setBloqueandoId(null)
+    }
+  }
+
+  async function excluirEmpresa(empresaId: string) {
+    setExcluindoId(empresaId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/manage-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        body: JSON.stringify({ acao: 'excluir', empresa_id: empresaId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao excluir')
+      alert('✅ ' + json.mensagem)
+      setConfirmandoExcluir(null)
+      carregar()
+    } catch (err: any) {
+      alert('❌ ' + err.message)
+    } finally {
+      setExcluindoId(null)
+    }
+  }
+
+  async function resetarSenha(empresaId: string) {
+    setResetandoId(empresaId)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/manage-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        body: JSON.stringify({ acao: 'resetar_senha', empresa_id: empresaId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao enviar')
+      alert('✅ ' + json.mensagem)
+    } catch (err: any) {
+      alert('❌ ' + err.message)
+    } finally {
+      setResetandoId(null)
     }
   }
 
@@ -719,24 +764,55 @@ export default function Admin() {
                           {fmtDataCurta(emp.created_at)}
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          <button
-                            onClick={() => alterarBloqueio(emp.id, !emp.bloqueado)}
-                            disabled={bloqueandoId === emp.id}
-                            title={emp.bloqueado ? 'Desbloquear acesso' : 'Bloquear acesso'}
-                            style={{
-                              padding: '4px 10px',
-                              background: emp.bloqueado ? '#EAF3DE' : '#FCEBEB',
-                              color: emp.bloqueado ? '#27500A' : '#791F1F',
-                              border: 'none',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {bloqueandoId === emp.id ? '...' : emp.bloqueado ? '✓ Desbloquear' : '⊘ Bloquear'}
-                          </button>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {/* Bloquear/Desbloquear */}
+                            <button
+                              onClick={() => alterarBloqueio(emp.id, !emp.bloqueado)}
+                              disabled={bloqueandoId === emp.id}
+                              title={emp.bloqueado ? 'Desbloquear acesso' : 'Bloquear acesso'}
+                              style={{ padding: '4px 8px', background: emp.bloqueado ? '#EAF3DE' : '#FCEBEB', color: emp.bloqueado ? '#27500A' : '#791F1F', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              {bloqueandoId === emp.id ? '...' : emp.bloqueado ? '✓ Desbloquear' : '⊘ Bloquear'}
+                            </button>
+
+                            {/* Resetar senha */}
+                            <button
+                              onClick={() => resetarSenha(emp.id)}
+                              disabled={resetandoId === emp.id}
+                              title="Enviar e-mail de redefinição de senha para o responsável"
+                              style={{ padding: '4px 8px', background: '#E6F1FB', color: '#185FA5', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              {resetandoId === emp.id ? '...' : '✉ Resetar senha'}
+                            </button>
+
+                            {/* Excluir */}
+                            {confirmandoExcluir === emp.id ? (
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <span style={{ fontSize: 10, color: '#791F1F', fontWeight: 600 }}>Confirmar?</span>
+                                <button
+                                  onClick={() => excluirEmpresa(emp.id)}
+                                  disabled={excluindoId === emp.id}
+                                  style={{ padding: '4px 8px', background: '#791F1F', color: '#fff', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                  {excluindoId === emp.id ? '...' : 'Sim, excluir'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmandoExcluir(null)}
+                                  style={{ padding: '4px 6px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmandoExcluir(emp.id)}
+                                title="Excluir empresa e todos os dados"
+                                style={{ padding: '4px 8px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                              >
+                                🗑 Excluir
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
