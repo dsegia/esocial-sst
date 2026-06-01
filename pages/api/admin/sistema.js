@@ -11,6 +11,10 @@ async function autenticarAdmin(req) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return null
 
+  const adminPassword = process.env.ADMIN_PASSWORD
+  const senhaEnviada = req.headers['x-admin-password']
+  if (adminPassword && senhaEnviada !== adminPassword) return null
+
   const supabaseAnon = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

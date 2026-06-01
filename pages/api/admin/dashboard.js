@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ erro: 'Método não permitido' })
 
   const adminEmail = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
@@ -18,10 +19,15 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ erro: 'Não autenticado' })
 
+  const senhaEnviada = req.headers['x-admin-password']
+  if (adminPassword && senhaEnviada !== adminPassword) {
+    return res.status(403).json({ erro: 'Senha administrativa incorreta', senha_incorreta: true })
+  }
+
   const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ erro: 'Sessão inválida' })
-  if (user.email !== adminEmail) return res.status(403).json({ erro: 'Acesso restrito' })
+  if (user.email !== adminEmail) return res.status(403).json({ erro: `Acesso restrito. Logado como: ${user.email}` })
 
   const sb = createClient(supabaseUrl, serviceKey)
 
