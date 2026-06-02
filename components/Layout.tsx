@@ -53,7 +53,7 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
           setNomeUser(usuario.nome)
           const eId = getEmpresaId() || usuario.empresa_id
           supabase.from('empresas').select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos')
-            .eq('id', eId).single()
+            .eq('id', eId).maybeSingle()
             .then(({ data: emp }) => {
               if (emp) {
                 setNomeEmpresa(emp.razao_social || '')

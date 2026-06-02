@@ -52,7 +52,7 @@ export default function Dashboard() {
       supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId),
       supabase.from('asos').select('id, funcionario_id, tipo_aso, data_exame, prox_exame, conclusao').eq('empresa_id', empresaId).order('data_exame', { ascending: false }),
       supabase.from('transmissoes').select('id, evento, status, criado_em, recibo, dt_envio, funcionario_id, funcionarios(nome)').eq('empresa_id', empresaId).order('criado_em', { ascending: false }),
-      supabase.from('ltcats').select('id, data_emissao, prox_revisao, ativo, ghes').eq('empresa_id', empresaId).eq('ativo', true).limit(1).single(),
+      supabase.from('ltcats').select('id, data_emissao, prox_revisao, ativo, ghes').eq('empresa_id', empresaId).eq('ativo', true).limit(1).maybeSingle(),
       supabase.from('cats').select('id, criado_em').eq('empresa_id', empresaId),
       supabase.from('pcmso_programa').select('id, funcao, atualizado_em').eq('empresa_id', empresaId).order('atualizado_em', { ascending: false }),
     ])

@@ -97,7 +97,7 @@ export default function S2240() {
 
     const [funcsRes, ltcatRes, txRes, asosRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor,data_adm,data_nasc,ghe_id').eq('empresa_id', empId).eq('ativo', true).order('nome'),
-      supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).single(),
+      supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('transmissoes').select('id,status,evento,funcionario_id,recibo,dt_envio,criado_em,erro_descricao').eq('empresa_id', empId).eq('evento', 'S-2240').order('criado_em', { ascending: false }),
       supabase.from('asos').select('id,funcionario_id,tipo_aso,data_exame,exames').eq('empresa_id', empId).order('data_exame', { ascending: false }),
     ])

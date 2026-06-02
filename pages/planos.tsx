@@ -89,14 +89,14 @@ export default function Planos() {
     setEmpresaId(empId)
     const { data: emp } = await supabase
       .from('empresas')
-      .select('plano, trial_ends_at, creditos_restantes, creditos_incluidos')
-      .eq('id', empId).single()
+      .select('plano, trial_inicio, creditos_restantes, creditos_incluidos')
+      .eq('id', empId).maybeSingle()
     if (emp) {
       setPlanoAtual(emp.plano || 'trial')
       setCreditosRestantes(emp.creditos_restantes ?? null)
       setCreditosIncluidos(emp.creditos_incluidos ?? 0)
-      if (emp.trial_ends_at) {
-        const dias = Math.max(0, Math.ceil((new Date(emp.trial_ends_at).getTime() - Date.now()) / 86400000))
+      if (emp.trial_inicio) {
+        const dias = Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
         setTrialRestante(dias)
       }
     }
