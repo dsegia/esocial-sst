@@ -29,23 +29,39 @@ export default function Cadastro() {
   const [info, setInfo] = useState('')
   const [carregando, setCarregando] = useState(false)
 
-  function fmtCNPJ(v: string) {
+  function fmtDocumento(v: string) {
     const n = v.replace(/\D/g, '').slice(0, 14)
+    if (n.length <= 11) {
+      return n.replace(/(\d{3})(\d)/, '$1.$2')
+               .replace(/(\d{3})(\d)/, '$1.$2')
+               .replace(/(\d{3})(\d)/, '$1-$2')
+    }
     return n.replace(/(\d{2})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1/$2')
-            .replace(/(\d{4})(\d)/, '$1-$2')
+             .replace(/(\d{3})(\d)/, '$1.$2')
+             .replace(/(\d{3})(\d)/, '$1/$2')
+             .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
-  function validarCNPJ(cnpj: string): boolean {
-    const n = cnpj.replace(/\D/g, '')
-    if (n.length !== 14 || /^(\d)\1+$/.test(n)) return false
-    const calc = (s: string, pesos: number[]) =>
-      pesos.reduce((acc, p, i) => acc + parseInt(s[i]) * p, 0)
-    const d1 = calc(n, [5,4,3,2,9,8,7,6,5,4,3,2]) % 11
-    const d2 = calc(n, [6,5,4,3,2,9,8,7,6,5,4,3,2]) % 11
-    return parseInt(n[12]) === (d1 < 2 ? 0 : 11 - d1) &&
-           parseInt(n[13]) === (d2 < 2 ? 0 : 11 - d2)
+  function validarDocumento(doc: string): boolean {
+    const n = doc.replace(/\D/g, '')
+    if (/^(\d)\1+$/.test(n)) return false
+    if (n.length === 11) {
+      const calc = (s: string, pesos: number[]) =>
+        pesos.reduce((acc, p, i) => acc + parseInt(s[i]) * p, 0)
+      const d1 = calc(n, [10,9,8,7,6,5,4,3,2]) % 11
+      const d2 = calc(n, [11,10,9,8,7,6,5,4,3,2]) % 11
+      return parseInt(n[9]) === (d1 < 2 ? 0 : 11 - d1) &&
+             parseInt(n[10]) === (d2 < 2 ? 0 : 11 - d2)
+    }
+    if (n.length === 14) {
+      const calc = (s: string, pesos: number[]) =>
+        pesos.reduce((acc, p, i) => acc + parseInt(s[i]) * p, 0)
+      const d1 = calc(n, [5,4,3,2,9,8,7,6,5,4,3,2]) % 11
+      const d2 = calc(n, [6,5,4,3,2,9,8,7,6,5,4,3,2]) % 11
+      return parseInt(n[12]) === (d1 < 2 ? 0 : 11 - d1) &&
+             parseInt(n[13]) === (d2 < 2 ? 0 : 11 - d2)
+    }
+    return false
   }
 
   function validar(): string | null {
@@ -55,7 +71,7 @@ export default function Cadastro() {
     if (form.senha.length < 8) return 'A senha deve ter pelo menos 8 caracteres.'
     if (form.senha !== form.confirmar) return 'As senhas não coincidem.'
     if (!form.razao_social.trim()) return 'Informe a razão social da empresa.'
-    if (!validarCNPJ(form.cnpj)) return 'CNPJ inválido — verifique os dígitos.'
+    if (!validarDocumento(form.cnpj)) return 'CNPJ ou CPF inválido — verifique os dígitos.'
     return null
   }
 
@@ -253,9 +269,9 @@ export default function Cadastro() {
                   value={form.razao_social} onChange={e => setForm({ ...form, razao_social: e.target.value })} required />
               </div>
               <div style={s.field}>
-                <label style={s.label}>CNPJ *</label>
-                <input style={s.input} placeholder="00.000.000/0001-00"
-                  value={form.cnpj} onChange={e => setForm({ ...form, cnpj: fmtCNPJ(e.target.value) })} required />
+                <label style={s.label}>CNPJ ou CPF *</label>
+                <input style={s.input} placeholder="00.000.000/0001-00 ou 000.000.000-00"
+                  value={form.cnpj} onChange={e => setForm({ ...form, cnpj: fmtDocumento(e.target.value) })} required />
               </div>
             </div>
 
