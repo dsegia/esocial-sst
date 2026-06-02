@@ -57,6 +57,10 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
+  // Rate limit adicional por usuário (5 transmissões/minuto)
+  const { limited: limitedUser, retryAfter: retryUser } = checkRateLimit(`tx:${user.id}`, { windowMs: 60_000, max: 5 })
+  if (limitedUser) return res.status(429).json({ erro: 'Limite de transmissões por minuto atingido. Aguarde alguns segundos.', retryAfter: retryUser })
+
   // Resolve empresa_id — prioriza empresa_id enviado no body (seleção do UI)
   // Fallback para empresa padrão do usuário
   const { empresa_id: empresaIdBody } = req.body || {}

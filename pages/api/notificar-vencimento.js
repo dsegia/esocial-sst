@@ -171,6 +171,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         from: 'eSocial SST <noreply@esocialsst.com.br>',
         to: [email_destino],
