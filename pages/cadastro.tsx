@@ -14,6 +14,7 @@ type Etapa = 'form' | 'sucesso'
 const formVazio = () => ({
   nome: '',
   email: '',
+  confirmarEmail: '',
   senha: '',
   confirmar: '',
   razao_social: '',
@@ -50,6 +51,7 @@ export default function Cadastro() {
   function validar(): string | null {
     if (!form.nome.trim()) return 'Informe seu nome completo.'
     if (!form.email.trim()) return 'Informe seu e-mail.'
+    if (form.email.trim().toLowerCase() !== form.confirmarEmail.trim().toLowerCase()) return 'Os e-mails não coincidem.'
     if (form.senha.length < 8) return 'A senha deve ter pelo menos 8 caracteres.'
     if (form.senha !== form.confirmar) return 'As senhas não coincidem.'
     if (!form.razao_social.trim()) return 'Informe a razão social da empresa.'
@@ -221,6 +223,12 @@ export default function Cadastro() {
                 <input style={s.input} type="email" placeholder="joao@empresa.com"
                   value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
               </div>
+            </div>
+
+            <div style={s.field}>
+              <label style={s.label}>Confirmar e-mail *</label>
+              <input style={s.input} type="email" placeholder="joao@empresa.com"
+                value={form.confirmarEmail} onChange={e => setForm({ ...form, confirmarEmail: e.target.value })} required />
             </div>
 
             <div style={s.grid2}>
