@@ -17,6 +17,13 @@ const TIPO_INFO = {
   aso:   { label: 'ASO',   cor: '#633806', bg: '#FAEEDA', icone: '📋' },
 }
 
+// Tipos de documentos que o sistema NÃO processa — detectados pelo nome do arquivo
+const PALAVRAS_INCOMPATIVEIS = ['pgr', 'ppp', 'pgrtr', 'laudo ergonomico', 'laudo ergonômico', 'ppra', 'pcmat', 'art ', 'nr-', 'contrato', 'admissao', 'carteira', 'convenio', 'convenção', 'acordo coletivo']
+function detectarIncompativel(nomeArquivo) {
+  const n = nomeArquivo.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return PALAVRAS_INCOMPATIVEIS.some(p => n.includes(p))
+}
+
 const LIMITE_ARQUIVOS  = 50
 const CONCORRENCIA     = 3
 const LIMITE_BASE64    = 3 * 1024 * 1024
@@ -271,6 +278,9 @@ export default function Importar() {
         if (f.size > LIMITE_TAMANHO) {
           return { id: uid(), nome: f.name, tamanho: f.size, file: null, estado: 'erro', tipo: null, info: null, erro: `Arquivo muito grande (${fmtTamanho(f.size)}). Máximo: 50 MB.` }
         }
+        if (detectarIncompativel(f.name)) {
+          return { id: uid(), nome: f.name, tamanho: f.size, file: null, estado: 'incompativel', tipo: null, info: null, erro: null }
+        }
         return { id: uid(), nome: f.name, tamanho: f.size, file: f, estado: 'aguardando', tipo: null, info: null, erro: null }
       })
       if (validos.length > vagos) setErroGlobal(`Apenas ${vagos} adicionado(s). Limite: ${LIMITE_ARQUIVOS}.`)
@@ -293,10 +303,8 @@ export default function Importar() {
       const { tipo_detectado, dados } = resultado
 
       if (!tipo_detectado || !TIPO_INFO[tipo_detectado]) {
-        throw new Error(
-          `Tipo de documento não reconhecido pela IA${tipo_detectado ? ` ("${tipo_detectado}")` : ''}. ` +
-          'Certifique-se que o PDF é um ASO, LTCAT ou PCMSO válido e tente novamente.'
-        )
+        atualizarItem(item.id, { estado: 'incompativel', progresso: null })
+        return
       }
 
       if (tipo_detectado === 'aso') {
@@ -344,7 +352,7 @@ export default function Importar() {
   // ── Processamento em lote com concorrência limitada ───
   async function processarFila() {
     if (!empresaId || processando) return
-    const pendentes = fila.filter(it => it.estado === 'aguardando' && it.file)
+    const pendentes = fila.filter(it => it.estado === 'aguardando' && it.file && it.estado !== 'incompativel')
     if (pendentes.length === 0) return
     setProcessando(true)
 
@@ -402,6 +410,7 @@ export default function Importar() {
   const totalAguardando    = fila.filter(it => it.estado === 'aguardando').length
   const totalSalvos        = fila.filter(it => it.estado === 'salvo').length
   const totalErros         = fila.filter(it => it.estado === 'erro').length
+  const totalIncompat      = fila.filter(it => it.estado === 'incompativel').length
   const totalConfirmacao   = fila.filter(it => it.estado === 'confirmar_func').length
   const totalFila          = fila.length
 
@@ -465,8 +474,10 @@ export default function Importar() {
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
                   borderBottom: item.expandido || idx < fila.length - 1 ? '0.5px solid #f3f4f6' : 'none',
-                  background: item.estado === 'processando' ? '#F8FBFF'
-                    : item.estado === 'confirmar_func' ? '#FFFBF0' : '#fff',
+                  background: item.estado === 'processando'  ? '#F8FBFF'
+                    : item.estado === 'confirmar_func'        ? '#FFFBF0'
+                    : item.estado === 'incompativel'          ? '#f9fafb'
+                    : '#fff',
                 }}>
                   {/* Ícone */}
                   <div style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>
@@ -474,6 +485,7 @@ export default function Importar() {
                     {item.estado === 'processando'    && <Spinner />}
                     {item.estado === 'salvo'          && <span style={{ color: '#27a048' }}>✓</span>}
                     {item.estado === 'erro'           && <span style={{ color: '#dc2626' }}>✗</span>}
+                    {item.estado === 'incompativel'   && <span style={{ color: '#9ca3af' }}>○</span>}
                     {item.estado === 'confirmar_func' && <span style={{ color: '#EF9F27' }}>!</span>}
                   </div>
 
@@ -487,6 +499,7 @@ export default function Importar() {
                       {item.estado === 'aguardando'     && <span style={{ color: '#9ca3af' }}>{fmtTamanho(item.tamanho)}</span>}
                       {item.estado === 'salvo'          && <span style={{ color: '#6b7280' }}>{item.resumo}</span>}
                       {item.estado === 'erro'           && <span style={{ color: '#dc2626' }}>{item.erro}</span>}
+                      {item.estado === 'incompativel'   && <span style={{ color: '#9ca3af' }}>Documento não compatível — o sistema processa ASO, LTCAT e PCMSO</span>}
                       {item.estado === 'confirmar_func' && <span style={{ color: '#92600A', fontWeight: 500 }}>Funcionário não encontrado — confirme os dados abaixo</span>}
                     </div>
                   </div>
@@ -564,6 +577,7 @@ export default function Importar() {
               {totalSalvos      > 0 && <span style={{ color: '#27a048', fontWeight: 600 }}>✓ {totalSalvos} salvo{totalSalvos > 1 ? 's' : ''}</span>}
               {totalConfirmacao > 0 && <span style={{ color: '#EF9F27', fontWeight: 600 }}>! {totalConfirmacao} pendente{totalConfirmacao > 1 ? 's' : ''}</span>}
               {totalErros       > 0 && <span style={{ color: '#dc2626', fontWeight: 600 }}>✗ {totalErros} erro{totalErros > 1 ? 's' : ''}</span>}
+              {totalIncompat    > 0 && <span style={{ color: '#9ca3af', fontWeight: 600 }}>○ {totalIncompat} incompatível{totalIncompat > 1 ? 'is' : ''}</span>}
               {totalAguardando  > 0 && !processando && <span style={{ color: '#9ca3af' }}>{totalAguardando} aguardando</span>}
             </div>
           </div>
