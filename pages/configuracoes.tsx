@@ -113,7 +113,11 @@ export default function Configuracoes() {
       const data = await resp.json()
       if (data.sucesso) {
         setCertInfo(data.info)
-        setSucesso('Certificado lido com sucesso!')
+        if (data.info?.aviso) {
+          setErro(data.info.aviso)
+        } else {
+          setSucesso('Certificado lido com sucesso!')
+        }
       } else {
         setErro(data.erro || 'Erro ao ler certificado. Verifique o arquivo e a senha.')
       }

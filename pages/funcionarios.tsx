@@ -80,7 +80,7 @@ export default function Funcionarios() {
   }
 
   async function carregar(eId: string, q: string) {
-    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', true).order('nome').limit(500)
+    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', true).order('nome').limit(2000)
     if (q) query = query.or(`nome.ilike.%${q}%,cpf.ilike.%${q}%,matricula_esocial.ilike.%${q}%`)
     const { data } = await query
     setLista(data || [])

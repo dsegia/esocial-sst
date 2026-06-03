@@ -40,10 +40,19 @@ export default async function handler(req, res) {
     const validade = cert.validity.notAfter
     const diasRestantes = Math.round((validade - new Date()) / 86400000)
 
-    // Extrair CNPJ do CN (formato: NOME:CNPJ ou apenas CNPJ)
+    // Extrair CNPJ/CPF do CN (formato: NOME:CNPJ, NOME:CPF, ou apenas o número)
     const cn = getAttr('CN') || ''
     const cnpjMatch = cn.match(/\d{14}/) || cn.replace(/\D/g,'').match(/\d{14}/)
+    const cpfMatch  = !cnpjMatch && (cn.match(/\d{11}/) || cn.replace(/\D/g,'').match(/\d{11}/))
     const cnpj = cnpjMatch ? cnpjMatch[0] : null
+
+    // Detectar tipo: e-CNPJ (pessoa jurídica) vs e-CPF (pessoa física)
+    // e-CNPJ tem OID 2.16.76.1.3.3 (CNPJ) no Subject; e-CPF tem OID 2.16.76.1.3.1 (CPF)
+    // Fallback: detectar pelo comprimento do documento extraído
+    const tipoCert = cnpjMatch ? 'e-CNPJ' : cpfMatch ? 'e-CPF' : 'desconhecido'
+    const avisoEcpf = tipoCert === 'e-CPF'
+      ? 'Este certificado é e-CPF (pessoa física). Para transmitir ao eSocial é necessário e-CNPJ (pessoa jurídica) correspondente ao CNPJ da empresa.'
+      : null
 
     return res.status(200).json({
       sucesso: true,
@@ -54,9 +63,10 @@ export default async function handler(req, res) {
         validade: validade.toISOString().split('T')[0],
         dias_restantes: diasRestantes,
         tipo: 'A1',
+        tipo_certificado: tipoCert,
+        aviso: avisoEcpf,
         emissor: cert.issuer.attributes.find(a => a.shortName === 'O')?.value || 'AC ICP-Brasil',
         vencido: diasRestantes < 0,
-        serial: cert.serialNumber,
       }
     })
   } catch (err) {

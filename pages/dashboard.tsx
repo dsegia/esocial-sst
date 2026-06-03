@@ -106,11 +106,11 @@ export default function Dashboard() {
     const ltcatVencido = ltcat?.prox_revisao && new Date(ltcat.prox_revisao) < hoje
     const ltcatVence30 = ltcat?.prox_revisao && new Date(ltcat.prox_revisao) <= em30 && new Date(ltcat.prox_revisao) >= hoje
 
-    // Conformidade geral
+    // Conformidade geral — null quando sem funcionários (sem dado real para calcular)
     const totalFunc = funcs.length
     const conformidade = totalFunc > 0
       ? Math.round((asoEmDia.length / totalFunc) * 100)
-      : 100
+      : null
 
     // Montar alertas ordenados por criticidade
     const alertasLista = []

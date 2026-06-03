@@ -39,6 +39,16 @@ export default async function handler(req, res) {
       }
     }
 
+    // S-2220 exige ao menos 1 exame — bloqueia antes de gerar XML inválido
+    if (tipo === 'S-2220') {
+      const exames = dados.exames || dados.aso?.exames || []
+      if (!exames.length) {
+        return res.status(400).json({
+          erro: 'O ASO não possui exames cadastrados. Adicione ao menos 1 exame (ex: Exame Clínico) na tela de S-2220 antes de transmitir.',
+        })
+      }
+    }
+
     let xml = ''
     if (tipo === 'S-2220') xml = gerarS2220(dados, empresa, tpAmb, funcionario)
     else if (tipo === 'S-2240') xml = gerarS2240(dados, empresa, tpAmb)

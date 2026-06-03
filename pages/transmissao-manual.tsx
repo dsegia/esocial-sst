@@ -110,7 +110,12 @@ export default function TransmissaoManual() {
       const data = await resp.json()
       if (!data.sucesso) throw new Error(data.erro)
       setCertInfo(data.info)
-      setSucesso('Certificado lido com sucesso! Prossiga para selecionar os eventos.')
+      // Avisa se for e-CPF — não bloqueia mas deixa o usuário ciente
+      if (data.info?.aviso) {
+        setErro(data.info.aviso)
+      } else {
+        setSucesso('Certificado lido com sucesso! Prossiga para selecionar os eventos.')
+      }
       setEtapa('selecionar')
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Erro desconhecido')
@@ -119,6 +124,7 @@ export default function TransmissaoManual() {
   }
 
   async function transmitirSelecionados() {
+    if (processando) return  // Guard contra duplo clique antes do estado atualizar
     if (!selecionados.length) { setErro('Selecione ao menos uma transmissão.'); return }
     if (!pfxBase64 || !certSenha) { setErro('Certificado não carregado.'); return }
 
