@@ -162,7 +162,7 @@ export default function S2240() {
 
     // 1. GHE fixado manualmente (ghe_id salvo no funcionário)
     if (func.ghe_id !== undefined && func.ghe_id !== null) {
-      return ltcatAtivo.ghes[func.ghe_id] || null
+      return ltcatAtivo.ghes[func.ghe_id] ?? null
     }
 
     // 2. Cargo/Função do funcionário bate com funcoes cadastradas no GHE

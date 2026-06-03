@@ -20,11 +20,16 @@ export default function Conta() {
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
-    // Feedback pós-checkout
-    if (router.query.sucesso) setMsg(`Assinatura do plano ${router.query.plano || ''} ativada com sucesso!`)
+    if (!router.isReady) return
+    // Feedback pós-checkout — só lê query params quando router estiver pronto
+    if (router.query.sucesso) {
+      setMsg(`Assinatura do plano ${router.query.plano || ''} ativada com sucesso!`)
+      // Invalida cache do Layout para refletir novo plano imediatamente
+      try { sessionStorage.removeItem('esst_layout') } catch {}
+    }
     if (router.query.cancelado) setMsg('Checkout cancelado. Seu plano não foi alterado.')
     init()
-  }, [])
+  }, [router.isReady])
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()

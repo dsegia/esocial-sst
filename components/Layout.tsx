@@ -53,66 +53,98 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
   const [creditos, setCreditos] = useState<{ restantes: number; incluidos: number } | null>(null)
 
   const PAGES_SEM_BLOQUEIO = ['/planos', '/conta', '/login', '/cadastro', '/aceitar-convite', '/']
+  const CACHE_KEY = 'esst_layout'
+  const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+
+  function lerCache() {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY)
+      if (!raw) return null
+      const { data, ts } = JSON.parse(raw)
+      if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null }
+      return data
+    } catch { return null }
+  }
+
+  function salvarCache(data: any) {
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() })) } catch {}
+  }
+
+  function aplicarDados(usuario: any, emp: any) {
+    if (!usuario || !emp) return
+    setNomeUser(usuario.nome || '')
+    const perfilAtual = usuario.perfil || 'operador'
+    setPerfil(perfilAtual)
+    setNomeEmpresa(emp.razao_social || '')
+    setSemCert(!emp.cert_digital_validade)
+    const planoAtual = emp.plano || 'trial'
+    setPlano(planoAtual)
+    if (emp.creditos_restantes != null) {
+      setCreditos({ restantes: emp.creditos_restantes, incluidos: emp.creditos_incluidos ?? 0 })
+    }
+
+    // Visualizador: redireciona para /relatorios se tentar acessar rota proibida
+    if (perfilAtual === 'visualizador') {
+      const paginaAtual = window.location.pathname
+      const permitida = ROTAS_VISUALIZADOR.some(r => paginaAtual.startsWith(r))
+      if (!permitida) { router.replace('/relatorios'); return }
+    }
+
+    if (planoAtual === 'trial' && emp.trial_inicio) {
+      const dias = Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
+      setTrialDias(dias)
+      const paginaAtual = window.location.pathname
+      if (dias === 0 && !PAGES_SEM_BLOQUEIO.some(p => paginaAtual.startsWith(p))) {
+        router.push('/planos?trial_expirado=1')
+      }
+    }
+
+    if (planoAtual === 'cancelado') {
+      const paginaAtual = window.location.pathname
+      if (!PAGES_SEM_BLOQUEIO.some(p => paginaAtual.startsWith(p))) {
+        router.push('/planos?cancelado=1')
+      }
+    }
+  }
 
   useEffect(() => {
     setMulti(isMultiEmpresa())
-    supabase.auth.getSession().then(({ data: { session } }) => {
+
+    // Aplica cache imediatamente — sidebar fica preenchida sem esperar queries
+    const cache = lerCache()
+    if (cache) {
+      aplicarDados(cache.usuario, cache.emp)
+    }
+
+    // Busca dados frescos em paralelo (atualiza em background)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) return
-      supabase.from('usuarios').select('nome, empresa_id, perfil').eq('id', session.user.id).single()
-        .then(({ data: usuario }) => {
-          if (!usuario) return
-          setNomeUser(usuario.nome)
-          const perfilAtual = usuario.perfil || 'operador'
-          setPerfil(perfilAtual)
+      const eId = getEmpresaId()
 
-          // Visualizador: redireciona para /relatorios se tentar acessar rota proibida
-          if (perfilAtual === 'visualizador') {
-            const paginaAtual = window.location.pathname
-            const permitida = ROTAS_VISUALIZADOR.some(r => paginaAtual.startsWith(r))
-            if (!permitida) {
-              router.replace('/relatorios')
-              return
-            }
-          }
+      // Promise.all: queries em paralelo em vez de sequencial (salva ~300ms)
+      const [{ data: usuario }, { data: emp }] = await Promise.all([
+        supabase.from('usuarios').select('nome, empresa_id, perfil').eq('id', session.user.id).single(),
+        eId
+          ? supabase.from('empresas').select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos').eq('id', eId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
 
-          const eId = getEmpresaId() || usuario.empresa_id
-          supabase.from('empresas').select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos')
-            .eq('id', eId).maybeSingle()
-            .then(({ data: emp }) => {
-              if (emp) {
-                setNomeEmpresa(emp.razao_social || '')
-                setSemCert(!emp.cert_digital_validade)
-                const planoAtual = emp.plano || 'trial'
-                setPlano(planoAtual)
-                if (emp.creditos_restantes != null) {
-                  setCreditos({ restantes: emp.creditos_restantes, incluidos: emp.creditos_incluidos ?? 0 })
-                }
+      // Se empresa não veio ainda (empresa_id está no usuario), busca agora
+      const empFinal = emp || await supabase.from('empresas')
+        .select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos')
+        .eq('id', usuario?.empresa_id).maybeSingle().then(r => r.data)
 
-                if (planoAtual === 'trial' && emp.trial_inicio) {
-                  const dias = Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
-                  setTrialDias(dias)
-
-                  // Redireciona para planos se trial expirou
-                  const paginaAtual = window.location.pathname
-                  if (dias === 0 && !PAGES_SEM_BLOQUEIO.some(p => paginaAtual.startsWith(p))) {
-                    router.push('/planos?trial_expirado=1')
-                  }
-                }
-
-                // Redireciona se assinatura cancelada
-                if (planoAtual === 'cancelado') {
-                  const paginaAtual = window.location.pathname
-                  if (!PAGES_SEM_BLOQUEIO.some(p => paginaAtual.startsWith(p))) {
-                    router.push('/planos?cancelado=1')
-                  }
-                }
-              }
-            })
-        })
+      salvarCache({ usuario, emp: empFinal })
+      aplicarDados(usuario, empFinal)
     })
   }, [])
 
-  async function sair() { limparEmpresa(); await supabase.auth.signOut(); router.push('/') }
+  async function sair() {
+    limparEmpresa()
+    try { sessionStorage.removeItem('esst_layout') } catch {}
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   function initials(nome: string) {
     return nome.split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase()

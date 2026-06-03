@@ -71,6 +71,7 @@ export default async function handler(req, res) {
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:12px">${a.matricula || '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center">
             ${a.tipo_alerta === 'Sem ASO' ? '<span style="color:#E24B4A">Sem ASO</span>' :
+              a.dias_restantes == null ? '<span style="color:#9ca3af">—</span>' :
               a.dias_restantes < 0 ? `<span style="color:#E24B4A">Vencido há ${Math.abs(a.dias_restantes)}d</span>` :
               `<span style="color:${a.dias_restantes <= 15 ? '#E24B4A' : '#EF9F27'}">${a.dias_restantes}d</span>`}
           </td>
