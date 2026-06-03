@@ -108,10 +108,11 @@ export default function Aso() {
 
     const { data } = await supabase
       .from('asos')
-      .select('*, funcionarios(id, nome, cpf, funcao, setor, matricula_esocial, data_nasc, data_adm, ativo)')
+      .select('id,funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,medico_nome,medico_crm,exames,riscos,pdf_path,criado_em,funcionarios(id,nome,cpf,funcao,setor,matricula_esocial,data_nasc,data_adm,ativo)')
       .eq('empresa_id', empId)
       .not('funcionario_id', 'is', null)
       .order('data_exame', { ascending: false })
+      .limit(2000)
 
     setAsos(data || [])
     setCarregando(false)

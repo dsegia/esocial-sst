@@ -76,7 +76,7 @@ export default function Login() {
         setEtapa('selecionar')
       } else {
         const empresaId = (minhasEmpresas && minhasEmpresas.length === 1)
-          ? minhasEmpresas[0].id
+          ? minhasEmpresas[0].empresa_id
           : usuario.empresa_id
         setMultiEmpresa(false)
         setEmpresaId(empresaId)
@@ -103,7 +103,7 @@ export default function Login() {
   }
 
   function selecionarEmpresa(empresa: Empresa) {
-    setEmpresaId(empresa.id)
+    setEmpresaId((empresa as any).empresa_id || empresa.id)
     router.push('/dashboard')
   }
 
@@ -132,7 +132,7 @@ export default function Login() {
 
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {empresas.map((emp) => (
-                <button key={emp.id} onClick={() => selecionarEmpresa(emp)}
+                <button key={(emp as any).empresa_id || emp.id} onClick={() => selecionarEmpresa(emp)}
                   style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, cursor:'pointer', textAlign:'left', transition:'border-color .15s, background .15s' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#185FA5'; (e.currentTarget as HTMLButtonElement).style.background = '#f5f9ff' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}

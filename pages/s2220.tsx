@@ -41,9 +41,10 @@ export default function S2220() {
       supabase.from('funcionarios')
         .select('id,nome,cpf,matricula_esocial,funcao,cod_cbo,setor,data_adm,data_nasc')
         .eq('empresa_id', empId).eq('ativo', true).order('nome'),
-      supabase.from('asos').select('*')
+      supabase.from('asos').select('id,funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,medico_nome,medico_crm,riscos')
         .eq('empresa_id', empId)
-        .order('data_exame', { ascending: false }),
+        .order('data_exame', { ascending: false })
+        .limit(2000),
       supabase.from('transmissoes')
         .select('id,status,evento,funcionario_id,recibo,dt_envio,criado_em,erro_descricao')
         .eq('empresa_id', empId).eq('evento', 'S-2220')

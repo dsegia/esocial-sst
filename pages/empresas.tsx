@@ -55,7 +55,7 @@ export default function Empresas() {
     const { data: rpcData } = await supabase.rpc('get_minhas_empresas')
     if (rpcData && rpcData.length > 0) {
       // Busca detalhes extras de cada empresa
-      const ids = rpcData.map((e: any) => e.id)
+      const ids = rpcData.map((e: any) => e.empresa_id)
       const { data: detalhes } = await supabase
         .from('empresas')
         .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
@@ -68,8 +68,8 @@ export default function Empresas() {
       const contagemMap: Record<string, number> = {}
       funcCounts?.forEach((f: any) => { contagemMap[f.empresa_id] = (contagemMap[f.empresa_id] || 0) + 1 })
       const mescladas = rpcData.map((r: any) => {
-        const d = detalhes?.find((x: any) => x.id === r.id) || {}
-        return { ...d, ...r, funcionarios_count: contagemMap[r.id] || 0 }
+        const d = detalhes?.find((x: any) => x.id === r.empresa_id) || {}
+        return { ...d, id: r.empresa_id, ...r, funcionarios_count: contagemMap[r.empresa_id] || 0 }
       })
       setEmpresas(mescladas)
     } else {

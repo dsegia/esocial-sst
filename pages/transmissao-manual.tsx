@@ -49,7 +49,7 @@ export default function TransmissaoManual() {
       .eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
     setEmpresa(user.empresas)
-    setEmpresaId(user.empresa_id)
+    setEmpresaId(getEmpresaId() || user.empresa_id)
 
     const { data: txs } = await supabase.from('transmissoes')
       .select('id, evento, status, criado_em, funcionarios(nome, matricula_esocial)')

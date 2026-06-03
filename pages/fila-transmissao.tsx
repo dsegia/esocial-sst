@@ -52,12 +52,14 @@ export default function FilaTransmissao() {
         .select('id, evento, status, criado_em, erro_descricao, tentativas, funcionarios(nome, matricula_esocial)')
         .eq('empresa_id', empresaId)
         .eq('status', 'pendente')
-        .order('criado_em', { ascending: true }),
+        .order('criado_em', { ascending: true })
+        .limit(500),
       supabase.from('transmissoes')
         .select('id, evento, status, criado_em, erro_descricao, tentativas, funcionarios(nome, matricula_esocial)')
         .eq('empresa_id', empresaId)
         .eq('status', 'rejeitado')
-        .order('criado_em', { ascending: false }),
+        .order('criado_em', { ascending: false })
+        .limit(500),
     ])
     setPendentes((pendRes.data || []) as unknown as Tx[])
     setRejeitados((rejRes.data || []) as unknown as Tx[])

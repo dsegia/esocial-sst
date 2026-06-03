@@ -47,12 +47,12 @@ export default async function handler(req, res) {
         .select('status, recibo, dt_envio')
         .eq('referencia_id', resultado.aso_id)
         .eq('evento', 'S-2220')
-        .single()
+        .maybeSingle()
 
       return res.status(200).json({
         ...resultado,
         transmissao: tx || null,
-        jaTransmitido: tx?.status === 'enviado' || tx?.status === 'lote',
+        jaTransmitido: tx?.status === 'enviado',
       })
     }
 
