@@ -65,10 +65,10 @@ export default function PCMSO() {
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
     const [funcsRes, ltcatRes, asosRes, progRes] = await Promise.all([
-      supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome'),
-      supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo',true).order('data_emissao',{ascending:false}).limit(1).single(),
-      supabase.from('asos').select('funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,exames').eq('empresa_id', empId).order('data_exame',{ascending:false}),
-      supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).order('funcao'),
+      supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome').limit(2000),
+      supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo',true).order('data_emissao',{ascending:false}).limit(1).maybeSingle(),
+      supabase.from('asos').select('funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,exames').eq('empresa_id', empId).order('data_exame',{ascending:false}).limit(5000),
+      supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).order('funcao').limit(200),
     ])
 
     setFuncionarios(funcsRes.data || [])
