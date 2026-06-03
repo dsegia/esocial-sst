@@ -73,7 +73,7 @@ export default function RedefinirSenha() {
               <form onSubmit={handleSubmit}>
                 <div style={s.field}>
                   <label style={s.label}>Nova senha</label>
-                  <input style={s.input} type="password" placeholder="Mínimo 6 caracteres"
+                  <input style={s.input} type="password" placeholder="Mínimo 8 caracteres"
                     value={novaSenha} onChange={e => setNovaSenha(e.target.value)} required autoFocus />
                 </div>
                 <div style={s.field}>

@@ -66,7 +66,8 @@ function data(br) {
 }
 function id(cnpjEmp) {
   const ts = Date.now().toString()
-  return `ID${cnpjEmp}${ts}`
+  const rnd = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
+  return `ID${cnpjEmp}${ts}${rnd}`
 }
 
 // Extrai UF do CRM com segurança — suporta "CRM-SP 12345", "12345-SP", "12345/SP"
@@ -128,7 +129,7 @@ function gerarS2220(aso, empresa, tpAmb, funcionario = {}) {
             <codProc>${codigoExame(ex.nome)}</codProc>
             <obsProc>${escapeXml(ex.nome)}</obsProc>
           </procRealizado>
-          ${ex.resultado ? `<indResult>${ex.resultado === 'Normal' ? '1' : ex.resultado === 'Alterado' ? '2' : '3'}</indResult>` : ''}
+          ${ex.resultado ? `<indResult>${ex.resultado === 'Normal' ? '1' : ex.resultado === 'Alterado' ? '2' : ex.resultado === 'Pendente' ? '3' : '1'}</indResult>` : '<indResult>1</indResult>'}
         </exame>`).join('')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -284,7 +285,7 @@ function gerarS2210(cat, empresa, tpAmb, funcionario = {}) {
         ${atend.hora ? `<hrAtendimento>${atend.hora}</hrAtendimento>` : ''}
         <nmMedico>${escapeXml(atend.medico)}</nmMedico>
         <nrCRM>${(atend.crm || '').replace(/\D/g,'')}</nrCRM>
-        <ufCRM>${(atend.crm || '').split('-').pop()?.trim().replace(/\d/g,'') || 'SP'}</ufCRM>
+        <ufCRM>${extrairUfCrm(atend.crm)}</ufCRM>
       </atendimento>
     </cat>
   </evtCAT>

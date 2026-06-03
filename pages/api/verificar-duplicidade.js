@@ -8,15 +8,15 @@ import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
+  const user = await requireAuth(req, res)
+  if (!user) return
+
   const ip = getClientIP(req)
   const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 30 })
   if (limited) {
     res.setHeader('Retry-After', String(retryAfter))
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
   }
-
-  const user = await requireAuth(req, res)
-  if (!user) return
 
   const { funcionario_id, tipo_aso, data_exame, aso_id } = req.body
 

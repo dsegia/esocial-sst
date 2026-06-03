@@ -103,9 +103,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ erro: 'Certificado vencido em ' + cert.validity.notAfter.toLocaleDateString('pt-BR') })
     }
 
-    // 2. Identificar o ID do elemento a assinar
-    const idMatch = xml.match(/Id="([^"]+)"/)
-    const elemId = idMatch ? idMatch[1] : 'signed-element'
+    // 2. Identificar o ID do elemento a assinar — busca pelo elemento correto
+    // Se tagAssinatura foi fornecida, procura o Id dentro dessa tag específica
+    let elemId = 'signed-element'
+    if (tagAssinatura && tagAssinatura !== 'eSocial') {
+      const tagIdMatch = xml.match(new RegExp(`<${tagAssinatura}[^>]*\\sId="([^"]+)"`))
+      if (tagIdMatch) elemId = tagIdMatch[1]
+      else {
+        const fallback = xml.match(/Id="([^"]+)"/)
+        if (fallback) elemId = fallback[1]
+      }
+    } else {
+      const idMatch = xml.match(/Id="([^"]+)"/)
+      if (idMatch) elemId = idMatch[1]
+    }
 
     // 3. Normalizar linha e remover declaração XML
     const xmlLimpo = xml
