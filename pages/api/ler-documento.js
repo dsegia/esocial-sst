@@ -285,8 +285,9 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
       const modo = pdf_base64 ? 'pdf-nativo' : paginas?.length > 0 ? 'imagem' : 'texto'
       if (tipo === 'auto') {
         // Garante que tipo existe — se Claude esqueceu, inferir pela estrutura
+        // Usa Array.isArray para diferenciar array vazio [] (LTCAT sem agentes) de undefined
         const tipoDetectado = resultado.tipo ||
-          (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
+          (Array.isArray(resultado.ghes) ? 'ltcat' : Array.isArray(resultado.programas) ? 'pcmso' : resultado.aso ? 'aso' : null)
         if (!tipoDetectado) throw new Error('Tipo de documento não identificado pelo Claude')
         const { tipo: _, ...dadosSemTipo } = resultado
         return { tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo, modelo: 'claude-sonnet' }

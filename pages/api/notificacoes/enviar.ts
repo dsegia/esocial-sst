@@ -93,12 +93,13 @@ async function processarEmpresa(empresaId: string) {
     .eq('id', empresaId)
     .single()
 
-  // ASOs vencidos
+  // ASOs vencidos — limite para evitar OOM em empresas grandes
   const { data: asoVencidos } = await supabaseAdmin
     .from('asos')
     .select('id, prox_exame, funcionarios(nome)')
     .eq('empresa_id', empresaId)
     .lt('prox_exame', hoje.toISOString().split('T')[0])
+    .limit(100)
 
   // ASOs vencendo em até 30 dias
   const { data: asosVence30 } = await supabaseAdmin
@@ -107,6 +108,7 @@ async function processarEmpresa(empresaId: string) {
     .eq('empresa_id', empresaId)
     .gte('prox_exame', hoje.toISOString().split('T')[0])
     .lte('prox_exame', em30.toISOString().split('T')[0])
+    .limit(100)
 
   // Transmissões pendentes há mais de 3 dias
   const { data: txPendentes } = await supabaseAdmin
@@ -115,6 +117,7 @@ async function processarEmpresa(empresaId: string) {
     .eq('empresa_id', empresaId)
     .eq('status', 'pendente')
     .lt('criado_em', h3.toISOString())
+    .limit(50)
 
   // Transmissões rejeitadas não corrigidas
   const { data: txRejeitadas } = await supabaseAdmin
@@ -122,6 +125,7 @@ async function processarEmpresa(empresaId: string) {
     .select('id, evento')
     .eq('empresa_id', empresaId)
     .eq('status', 'rejeitado')
+    .limit(50)
 
   const itens: string[] = []
 

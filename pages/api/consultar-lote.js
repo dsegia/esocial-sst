@@ -147,7 +147,6 @@ export default async function handler(req, res) {
       return res.status(504).json({ erro: 'Timeout ao consultar Gov.br. Tente novamente.' })
     }
     console.error('[consultar-lote]', err)
-    console.error('[consultar-lote]', err)
     return res.status(500).json({ erro: 'Erro ao consultar lote. Verifique o certificado e tente novamente.' })
   }
 }
