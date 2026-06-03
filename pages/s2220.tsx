@@ -87,11 +87,12 @@ export default function S2220() {
 
     if (!tx) return { label:'Pendente envio', cor:'#EF9F27', bg:'#FAEEDA', pode:true, motivo:'ASO cadastrado — aguardando transmissão' }
 
-    if (tx.status === 'enviado')   return { label:'Transmitido',    cor:'#1D9E75', bg:'#EAF3DE', pode:false, motivo:`Recibo: ${tx.recibo||'—'}` }
+    if (tx.status === 'enviado' && !vencido) return { label:'Transmitido',    cor:'#1D9E75', bg:'#EAF3DE', pode:false, motivo:`Recibo: ${tx.recibo||'—'}` }
+    if (tx.status === 'enviado' && vencido)  return { label:'ASO vencido',    cor:'#E24B4A', bg:'#FCEBEB', pode:true,  motivo:`ASO transmitido mas vencido há ${Math.abs(dias!)} dias — renove` }
     if (tx.status === 'pendente')  return { label:'Aguardando',     cor:'#EF9F27', bg:'#FAEEDA', pode:true,  motivo:'Transmissão pendente' }
     if (tx.status === 'rejeitado') return { label:'Rejeitado',      cor:'#E24B4A', bg:'#FCEBEB', pode:true,  motivo:tx.erro_descricao||'Verifique o erro e retransmita' }
 
-    if (vencido) return { label:'ASO vencido', cor:'#E24B4A', bg:'#FCEBEB', pode:true, motivo:`Vencido há ${Math.abs(dias)} dias` }
+    if (vencido) return { label:'ASO vencido', cor:'#E24B4A', bg:'#FCEBEB', pode:true, motivo:`Vencido há ${Math.abs(dias!)} dias` }
 
     return { label:'Em dia', cor:'#1D9E75', bg:'#EAF3DE', pode:false, motivo:'' }
   }

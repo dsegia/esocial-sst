@@ -80,7 +80,7 @@ export default function Funcionarios() {
   }
 
   async function carregar(eId: string, q: string) {
-    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', true).order('nome')
+    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', true).order('nome').limit(500)
     if (q) query = query.or(`nome.ilike.%${q}%,cpf.ilike.%${q}%,matricula_esocial.ilike.%${q}%`)
     const { data } = await query
     setLista(data || [])
@@ -238,28 +238,42 @@ export default function Funcionarios() {
   async function confirmarImport() {
     if (!previewImport.length) return
     setSalvandoImport(true); setErro(''); setSucesso('')
+
+    // Busca todos os CPFs de uma vez para evitar N+1
+    const cpfs = previewImport.map(f => f.cpf)
+    const { data: existentes } = await supabase.from('funcionarios')
+      .select('id, cpf').eq('empresa_id', empresaId).in('cpf', cpfs)
+    const mapaExistentes = new Map((existentes || []).map(e => [e.cpf, e.id]))
+
+    const paraInserir: any[] = []
     let ok = 0; let fail = 0
+
     for (const func of previewImport) {
       const cpfLimpo = func.cpf.replace(/\D/g,'')
-      const { data: existe } = await supabase.from('funcionarios').select('id').eq('empresa_id', empresaId).eq('cpf', func.cpf).single()
-      if (existe) {
+      const idExistente = mapaExistentes.get(func.cpf)
+      if (idExistente) {
         const { error } = await supabase.from('funcionarios').update({
           nome: func.nome, data_nasc: func.data_nasc, data_adm: func.data_adm,
           matricula_esocial: func.matricula_esocial || ('AUTO-' + cpfLimpo.slice(-6)),
           funcao: func.funcao, setor: func.setor, vinculo: func.vinculo, turno: func.turno,
-        }).eq('id', existe.id)
+        }).eq('id', idExistente).eq('empresa_id', empresaId)
         error ? fail++ : ok++
       } else {
-        const { error } = await supabase.from('funcionarios').insert({
+        paraInserir.push({
           empresa_id: empresaId, ativo: true,
           nome: func.nome, cpf: func.cpf,
           data_nasc: func.data_nasc, data_adm: func.data_adm,
           matricula_esocial: func.matricula_esocial || ('AUTO-' + cpfLimpo.slice(-6)),
           funcao: func.funcao, setor: func.setor, vinculo: func.vinculo, turno: func.turno,
         })
-        error ? fail++ : ok++
       }
     }
+
+    if (paraInserir.length > 0) {
+      const { error } = await supabase.from('funcionarios').insert(paraInserir)
+      error ? fail += paraInserir.length : ok += paraInserir.length
+    }
+
     setSucesso(`${ok} funcionário(s) importado(s).${fail > 0 ? ` ${fail} com erro.` : ''}`)
     setMostrarImport(false); setPreviewImport([]); setSalvandoImport(false)
     carregar(empresaId, busca)

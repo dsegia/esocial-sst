@@ -38,7 +38,7 @@ export default function TransmissaoManual() {
   const [pfxBase64, setPfxBase64] = useState('')
   const [sessionToken, setSessionToken] = useState('')
 
-  useEffect(() => { init() }, [])
+  useEffect(() => { init() }, [router.isReady])
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -58,15 +58,25 @@ export default function TransmissaoManual() {
       .eq('status', 'pendente')
       .order('criado_em', { ascending: false })
     setPendentes(txs || [])
+
+    const idsParam = router.query.ids as string | undefined
+    if (idsParam) setSelecionados(idsParam.split(',').filter(Boolean))
+
     setCarregando(false)
   }
 
   async function testarConexao() {
+    if (!pfxBase64 || !certSenha) {
+      setTesteResult({ ok: false, msg: 'Carregue e valide o certificado digital antes de testar a conexão.' })
+      return
+    }
     setTestando(true)
     setTesteResult(null)
     try {
-      const resp = await fetch(`/api/testar-conexao-esocial?ambiente=${ambiente}`, {
-        headers: { Authorization: `Bearer ${sessionToken}` },
+      const resp = await fetch('/api/testar-conexao-esocial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify({ pfx: pfxBase64, cert_senha: certSenha }),
       })
       const data = await resp.json()
       if (data.conectado) {

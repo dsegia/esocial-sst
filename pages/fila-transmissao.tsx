@@ -93,8 +93,8 @@ export default function FilaTransmissao() {
   }
 
   function transmitirSelecionados() {
-    // Redireciona para transmissao-manual que já tem toda a lógica de certificado + lote
-    router.push('/transmissao-manual')
+    const ids = selecionados.join(',')
+    router.push(`/transmissao-manual${ids ? `?ids=${ids}` : ''}`)
   }
 
   // Agrupamento por evento para o resumo

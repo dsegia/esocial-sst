@@ -55,7 +55,7 @@ export default function Dashboard() {
       supabase.from('ltcats').select('id, data_emissao, prox_revisao, ativo, ghes').eq('empresa_id', empresaId).eq('ativo', true).limit(1).maybeSingle(),
       supabase.from('cats').select('id, criado_em').eq('empresa_id', empresaId).limit(500),
       supabase.from('pcmso_programa').select('id, funcao, atualizado_em').eq('empresa_id', empresaId).order('atualizado_em', { ascending: false }).limit(200),
-    ]).catch(() => [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { data: [] }, { data: [] }])
+    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { data: [] }, { data: [] }] })
 
     const funcs    = (funcsRes.data || []).filter(f => f.ativo)
     const asos     = asosRes.data || []

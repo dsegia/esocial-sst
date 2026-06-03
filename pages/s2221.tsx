@@ -67,19 +67,23 @@ export default function S2221() {
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaIdState(empId)
     const [funcsRes, examesRes] = await Promise.all([
-      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor').eq('empresa_id', empId).eq('ativo', true).order('nome'),
-      supabase.from('transmissoes').select('id,status,payload,funcionario_id,criado_em,dt_envio,recibo').eq('empresa_id', empId).eq('evento', 'S-2221').order('criado_em', { ascending: false }),
+      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor').eq('empresa_id', empId).eq('ativo', true).order('nome').limit(500),
+      supabase.from('transmissoes').select('id,status,payload,funcionario_id,criado_em,dt_envio,recibo').eq('empresa_id', empId).eq('evento', 'S-2221').order('criado_em', { ascending: false }).limit(500),
     ])
     setFuncionarios(funcsRes.data || [])
     setExames(examesRes.data || [])
     setCarregando(false)
   }
 
+  const SUBSTANCIAS_OBRIGATORIAS = ['Cocaína / Benzoilecgonina', 'Maconha (THC)', 'Anfetaminas / Metanfetaminas', 'Benzodiazepínicos', 'Opioides']
+
   async function salvar() {
     setErro(''); setSucesso('')
     if (!form.funcionario_id) { setErro('Selecione o funcionário.'); return }
     if (!form.dt_exame)       { setErro('Informe a data do exame.'); return }
     if (!form.laboratorio)    { setErro('Informe o laboratório.'); return }
+    const faltando = SUBSTANCIAS_OBRIGATORIAS.filter(s => !form.substancias_testadas.includes(s))
+    if (faltando.length > 0) { setErro(`Substâncias obrigatórias pela Res. CONTRAN 432/2013 não marcadas: ${faltando.join(', ')}`); return }
     setSalvando(true)
 
     const payload = {

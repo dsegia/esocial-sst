@@ -40,7 +40,8 @@ export default function Alertas() {
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
     if (session.user.email) setEmailDestino(session.user.email)
-    const { data } = await supabase.rpc('get_alertas_vencimento', { p_empresa_id: empId })
+    const { data, error: rpcErr } = await supabase.rpc('get_alertas_vencimento', { p_empresa_id: empId })
+    if (rpcErr) console.error('get_alertas_vencimento:', rpcErr.message)
     setAlertas(data as Alerta[] || [])
     setCarregando(false)
   }

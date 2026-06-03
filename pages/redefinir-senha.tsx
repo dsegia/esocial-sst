@@ -18,15 +18,16 @@ export default function RedefinirSenha() {
   const [pronto, setPronto] = useState(false)
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setPronto(true)
     })
+    return () => subscription.unsubscribe()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErro('')
-    if (novaSenha.length < 6) { setErro('A senha deve ter pelo menos 6 caracteres.'); return }
+    if (novaSenha.length < 8) { setErro('A senha deve ter pelo menos 8 caracteres.'); return }
     if (novaSenha !== confirmar) { setErro('As senhas não coincidem.'); return }
     setCarregando(true)
     const { error } = await supabase.auth.updateUser({ password: novaSenha })
