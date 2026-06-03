@@ -96,7 +96,7 @@ export default function Admin() {
     const canal = supabase
       .channel('admin-empresas')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
-        setSenhaAdmin(prev => { carregar(prev); return prev })
+        setSenhaAdmin(prev => { setTimeout(() => carregar(prev), 0); return prev })
       })
       .subscribe()
 

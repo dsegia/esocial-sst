@@ -210,7 +210,8 @@ export default function Configuracoes() {
     setSalvando(false)
   }
 
-  const certVencendo = certInfo?.validade ? Math.round((new Date(certInfo.validade).getTime() - Date.now()) / 86400000) : 999
+  const certVencendoMs = certInfo?.validade ? new Date(certInfo.validade).getTime() : NaN
+  const certVencendo = isNaN(certVencendoMs) ? 999 : Math.round((certVencendoMs - Date.now()) / 86400000)
 
   if (carregando) return <div style={s.loading}>Carregando...</div>
 

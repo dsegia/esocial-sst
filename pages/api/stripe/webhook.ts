@@ -12,6 +12,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const PLANOS_VALIDOS = new Set(['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'enterprise'])
+
 const CREDITOS_POR_PLANO: Record<string, number> = {
   micro:        50,
   starter:      100,
@@ -56,6 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const plano = sub.metadata?.plano as string
       const empresaId = empresaIdDe(sub)
       if (!empresaId || !plano) break
+      if (!PLANOS_VALIDOS.has(plano)) {
+        console.error('[webhook] plano inválido recebido do Stripe:', plano)
+        break
+      }
 
       const ativo = sub.status === 'active' || sub.status === 'trialing'
       const expira = sub.current_period_end

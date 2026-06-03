@@ -17,7 +17,8 @@ export default async function handler(req, res) {
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
   }
 
-  const { empresa_id, email_destino, dias_aviso = 30, modo = 'preview' } = req.body
+  const { empresa_id, email_destino, modo = 'preview' } = req.body
+  const dias_aviso = Math.max(1, Math.min(365, parseInt(req.body.dias_aviso) || 30))
   if (!empresa_id) return res.status(400).json({ erro: 'empresa_id obrigatório' })
 
   // Valida que o usuário autenticado tem acesso à empresa solicitada
