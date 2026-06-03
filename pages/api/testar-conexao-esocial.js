@@ -86,20 +86,31 @@ export default async function handler(req, res) {
 
   } catch (err) {
     const latencia = Date.now() - inicio
+    const msg = err.message || ''
+
     if (err.name === 'TimeoutError') {
       return res.status(200).json({
-        conectado: false,
-        latencia_ms: latencia,
-        ambiente,
-        endpoint,
+        conectado: false, latencia_ms: latencia, ambiente, endpoint,
         erro: 'Timeout: webservice não respondeu em 15 segundos',
       })
     }
+
+    // mTLS: produção real exige certificado. "socket hang up", "ECONNRESET",
+    // "SSL" ou "certificate" indicam que o servidor respondeu mas rejeitou
+    // a conexão por falta de certificado — o webservice ESTÁ no ar.
+    const exigeCert = /socket hang up|ECONNRESET|SSL|certificate|EPROTO|handshake/i.test(msg)
+    if (exigeCert) {
+      return res.status(200).json({
+        conectado: true,
+        latencia_ms: latencia,
+        ambiente,
+        endpoint,
+        descricao: 'Webservice respondeu — certificado digital obrigatório para transmitir',
+      })
+    }
+
     return res.status(200).json({
-      conectado: false,
-      latencia_ms: latencia,
-      ambiente,
-      endpoint,
+      conectado: false, latencia_ms: latencia, ambiente, endpoint,
       erro: 'Falha na conexão com o webservice.',
     })
   }
