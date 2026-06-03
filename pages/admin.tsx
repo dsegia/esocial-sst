@@ -90,14 +90,13 @@ export default function Admin() {
   const [marcandoErro, setMarcandoErro] = useState<string | null>(null)
 
   useEffect(() => {
-    const senhaGuardada = sessionStorage.getItem('admin_password') || ''
-    setSenhaAdmin(senhaGuardada)
-    carregar(senhaGuardada)
+    setPedindoSenha(true)
+    setCarregando(false)
 
     const canal = supabase
       .channel('admin-empresas')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
-        carregar(sessionStorage.getItem('admin_password') || '')
+        setSenhaAdmin(prev => { carregar(prev); return prev })
       })
       .subscribe()
 
@@ -373,7 +372,6 @@ export default function Admin() {
         <form onSubmit={async e => {
           e.preventDefault()
           setSenhaErro('')
-          sessionStorage.setItem('admin_password', senhaInput)
           setSenhaAdmin(senhaInput)
           await carregar(senhaInput)
         }}>

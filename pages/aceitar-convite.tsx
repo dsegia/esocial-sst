@@ -90,12 +90,18 @@ export default function AceitarConvite() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const empresaIdFinal = (user.user_metadata?.empresa_id as string) || (empresa_id as string) || null
-        await supabase.from('usuarios').upsert({
-          id: user.id,
-          email: user.email,
-          nome: nome.trim(),
-          empresa_id: empresaIdFinal,
-        }, { onConflict: 'id' })
+        const { data: existente } = await supabase.from('usuarios').select('id, empresa_id').eq('id', user.id).single()
+        if (existente) {
+          // Usuário já existe — só atualiza nome, nunca sobrescreve empresa_id
+          await supabase.from('usuarios').update({ nome: nome.trim() }).eq('id', user.id)
+        } else {
+          await supabase.from('usuarios').insert({
+            id: user.id,
+            email: user.email,
+            nome: nome.trim(),
+            empresa_id: empresaIdFinal,
+          })
+        }
       }
 
       setEtapa('sucesso')

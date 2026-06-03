@@ -111,12 +111,15 @@ export default function Empresas() {
     // Verifica se CNPJ já existe
     const { data: existe } = await supabase.from('empresas').select('id, razao_social').eq('cnpj', form.cnpj).single()
     if (existe) {
-      // Empresa já existe — vincular ao usuário
-      const { error: vinErr } = await supabase.from('usuario_empresas').upsert({
-        usuario_id: userId, empresa_id: existe.id, perfil: 'admin', tipo_acesso: 'empresa',
-      }, { onConflict: 'usuario_id,empresa_id' })
-      if (vinErr) { setErro('Erro ao vincular empresa: ' + vinErr.message); setSalvando(false); return }
-      setSucesso(`Empresa "${existe.razao_social}" vinculada à sua conta.`)
+      // Verifica se o usuário já está vinculado a esta empresa
+      const { data: vinculo } = await supabase.from('usuario_empresas')
+        .select('perfil').eq('usuario_id', userId).eq('empresa_id', existe.id).single()
+      if (!vinculo) {
+        setErro(`Esta empresa já está cadastrada por outro usuário. Para acessá-la, solicite um convite ao administrador responsável.`)
+        setSalvando(false); return
+      }
+      // Usuário já vinculado — apenas recarrega
+      setSucesso(`Empresa "${existe.razao_social}" já está na sua conta.`)
       setMostrarForm(false); setForm(formVazio())
       await carregar(userId)
       setSalvando(false); return
