@@ -49,11 +49,12 @@ export default function TransmissaoManual() {
       .eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
     setEmpresa(user.empresas)
-    setEmpresaId(getEmpresaId() || user.empresa_id)
+    const empId = getEmpresaId() || user.empresa_id
+    setEmpresaId(empId)
 
     const { data: txs } = await supabase.from('transmissoes')
       .select('id, evento, status, criado_em, funcionarios(nome, matricula_esocial)')
-      .eq('empresa_id', user.empresa_id)
+      .eq('empresa_id', empId)
       .eq('status', 'pendente')
       .order('criado_em', { ascending: false })
     setPendentes(txs || [])
@@ -152,20 +153,20 @@ export default function TransmissaoManual() {
         // 1. Buscar transmissão e funcionário
         const { data: txCompleta, error: errTx } = await supabase.from('transmissoes')
           .select(`*, funcionarios(nome, cpf, matricula_esocial)`)
-          .eq('id', txId).single()
+          .eq('id', txId).eq('empresa_id', empresaId).single()
 
         if (errTx || !txCompleta) throw new Error('Transmissão não encontrada: ' + (errTx?.message || txId))
 
         // 2. Buscar dados do evento conforme referencia_tipo + referencia_id
         let dadosEvento = null
         if (txCompleta.referencia_tipo === 'aso' && txCompleta.referencia_id) {
-          const { data } = await supabase.from('asos').select('*').eq('id', txCompleta.referencia_id).single()
+          const { data } = await supabase.from('asos').select('*').eq('id', txCompleta.referencia_id).eq('empresa_id', empresaId).single()
           dadosEvento = data
         } else if (txCompleta.referencia_tipo === 'ltcat' && txCompleta.referencia_id) {
-          const { data } = await supabase.from('ltcats').select('*').eq('id', txCompleta.referencia_id).single()
+          const { data } = await supabase.from('ltcats').select('*').eq('id', txCompleta.referencia_id).eq('empresa_id', empresaId).single()
           dadosEvento = data
         } else if (txCompleta.referencia_tipo === 'cat' && txCompleta.referencia_id) {
-          const { data } = await supabase.from('cats').select('*').eq('id', txCompleta.referencia_id).single()
+          const { data } = await supabase.from('cats').select('*').eq('id', txCompleta.referencia_id).eq('empresa_id', empresaId).single()
           dadosEvento = data
         }
 
@@ -190,7 +191,7 @@ export default function TransmissaoManual() {
         setEtapa('assinar')
 
         // 3. Assinar XML
-        const TAG_MAP: Record<string, string> = { 'S-2220':'evtMonit', 'S-2240':'evtExpRisco', 'S-2210':'evtCAT' }
+        const TAG_MAP: Record<string, string> = { 'S-2220':'evtMonit', 'S-2240':'evtExpRisco', 'S-2210':'evtCAT', 'S-2221':'evtToxic' }
         const assinarResp = await fetch('/api/assinar-xml', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },

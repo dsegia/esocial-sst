@@ -135,7 +135,7 @@ export default function S2240() {
   async function salvarExames() {
     if (!asoDoFunc) return
     setSalvandoEdit(true)
-    const { error } = await supabase.from('asos').update({ exames: formExames }).eq('id', asoDoFunc.id)
+    const { error } = await supabase.from('asos').update({ exames: formExames }).eq('id', asoDoFunc.id).eq('empresa_id', empresaId)
     if (error) setErro('Erro ao salvar exames: ' + error.message)
     else { setSucesso('Exames atualizados!'); await init() }
     setSalvandoEdit(false)
@@ -267,14 +267,14 @@ export default function S2240() {
       matricula_esocial: formEdit.matricula_esocial || ('PEND-' + Date.now()),
       funcao:            formEdit.funcao || null,
       setor:             formEdit.setor  || null,
-    }).eq('id', editandoFunc.id)
+    }).eq('id', editandoFunc.id).eq('empresa_id', empresaId)
     if (error) { setErro('Erro: ' + error.message) }
     else { setSucesso('Funcionário atualizado!'); setEditandoFunc(null); init() }
     setSalvandoEdit(false)
   }
 
   async function excluirFuncionario(funcId: string) {
-    const { error } = await supabase.from('funcionarios').delete().eq('id', funcId)
+    const { error } = await supabase.from('funcionarios').delete().eq('id', funcId).eq('empresa_id', empresaId)
     if (error) { setErro('Erro: ' + error.message); return }
     setSucesso('Funcionário excluído permanentemente.')
     setConfirmExcluirFunc(null)
@@ -282,7 +282,7 @@ export default function S2240() {
   }
 
   async function excluirTransmissao(txId: string) {
-    const { error } = await supabase.from('transmissoes').delete().eq('id', txId)
+    const { error } = await supabase.from('transmissoes').delete().eq('id', txId).eq('empresa_id', empresaId)
     if (error) { setErro('Erro ao excluir: ' + error.message); return }
     setSucesso('Transmissão excluída.')
     setConfirmExcluirTx(null)

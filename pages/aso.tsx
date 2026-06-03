@@ -154,7 +154,7 @@ export default function Aso() {
       matricula_esocial: formFunc.matricula_esocial || ('PEND-' + Date.now()),
       funcao:            formFunc.funcao || null,
       setor:             formFunc.setor || null,
-    }).eq('id', editando.funcionarios.id)
+    }).eq('id', editando.funcionarios.id).eq('empresa_id', empresaId)
     if (error) setErro('Erro ao salvar funcionário: ' + error.message)
     else { setSucesso('Dados do funcionário salvos!'); await init() }
     setSalvando(false)
@@ -164,7 +164,7 @@ export default function Aso() {
     setSalvando(true)
     const { error } = await supabase.from('asos').update({
       exames: formExames,
-    }).eq('id', editando.id)
+    }).eq('id', editando.id).eq('empresa_id', empresaId)
     if (error) setErro('Erro ao salvar exames: ' + error.message)
     else { setSucesso('Exames atualizados!'); await init() }
     setSalvando(false)
@@ -191,7 +191,8 @@ export default function Aso() {
 
   async function excluirAso(id: string) {
     if (!confirm('Excluir este ASO?')) return
-    await supabase.from('asos').delete().eq('id', id)
+    const { error: delErr } = await supabase.from('asos').delete().eq('id', id).eq('empresa_id', empresaId)
+    if (delErr) { setErro('Erro ao excluir ASO: ' + delErr.message); return }
     setAsos(prev => prev.filter(a => a.id !== id))
   }
 

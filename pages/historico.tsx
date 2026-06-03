@@ -67,7 +67,7 @@ export default function Historico() {
 
   async function excluir(id: string) {
     setErro(''); setSucesso('')
-    const { error } = await supabase.from('transmissoes').delete().eq('id', id)
+    const { error } = await supabase.from('transmissoes').delete().eq('id', id).eq('empresa_id', empresaId)
     if (error) { setErro('Erro ao excluir: ' + error.message); return }
     setSucesso('Transmissão excluída.')
     setConfirmExcluir(null)
@@ -77,7 +77,7 @@ export default function Historico() {
   async function excluirSelecionados() {
     if (!selecionados.length) return
     setErro(''); setSucesso('')
-    const { error } = await supabase.from('transmissoes').delete().in('id', selecionados)
+    const { error } = await supabase.from('transmissoes').delete().in('id', selecionados).eq('empresa_id', empresaId)
     if (error) { setErro('Erro ao excluir: ' + error.message); return }
     setSucesso(`${selecionados.length} transmissão(ões) excluída(s).`)
     setSelecionados([])
@@ -98,7 +98,7 @@ export default function Historico() {
     setErro(''); setSucesso('')
     const { error } = await supabase.from('transmissoes')
       .update({ status: 'pendente', erro_descricao: null, erro_codigo: null })
-      .eq('id', id)
+      .eq('id', id).eq('empresa_id', empresaId)
     if (error) { setErro('Erro: ' + error.message); return }
     setSucesso('Transmissão recolocada na fila. Acesse Fila de Transmissão para enviar.')
     carregar(empresaId, filtroEvt, filtroSt, pagina)

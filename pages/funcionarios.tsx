@@ -147,7 +147,7 @@ export default function Funcionarios() {
     }
 
     if (funcEditando) {
-      const { error } = await supabase.from('funcionarios').update(dados).eq('id', funcEditando.id)
+      const { error } = await supabase.from('funcionarios').update(dados).eq('id', funcEditando.id).eq('empresa_id', empresaId)
       if (error) { setErro('Erro ao atualizar: ' + error.message); return }
       setSucesso(`${form.nome} atualizado com sucesso!`)
     } else {
@@ -163,7 +163,7 @@ export default function Funcionarios() {
         if (!existente.ativo) {
           // Reativar registro removido anteriormente
           const { error } = await supabase.from('funcionarios')
-            .update({ ...dados, ativo: true }).eq('id', existente.id)
+            .update({ ...dados, ativo: true }).eq('id', existente.id).eq('empresa_id', empresaId)
           if (error) { setErro('Erro ao reativar: ' + error.message); return }
           setSucesso(`${form.nome} reativado com sucesso!`)
         } else {
@@ -183,7 +183,7 @@ export default function Funcionarios() {
 
   async function desativar(id: string, nome: string) {
     if (!confirm(`Excluir ${nome} permanentemente? Todos os ASOs e transmissões vinculados também serão removidos.`)) return
-    await supabase.from('funcionarios').delete().eq('id', id)
+    await supabase.from('funcionarios').delete().eq('id', id).eq('empresa_id', empresaId)
     carregar(empresaId, busca)
   }
 

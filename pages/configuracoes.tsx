@@ -156,7 +156,7 @@ export default function Configuracoes() {
 
   async function carregarUsuarios(empId: string) {
     setLoadingUsers(true)
-    const { data } = await supabase.from('usuarios').select('id, nome, perfil, criado_em')
+    const { data } = await supabase.from('usuarios').select('id, nome, perfil, email, criado_em')
       .eq('empresa_id', empId).order('criado_em', { ascending: true })
     setUsuarios(data || [])
     setLoadingUsers(false)
@@ -164,7 +164,7 @@ export default function Configuracoes() {
 
   async function alterarPerfil(userId: string, novoPerfil: string) {
     setAlterandoPerfil(userId)
-    const { error } = await supabase.from('usuarios').update({ perfil: novoPerfil }).eq('id', userId)
+    const { error } = await supabase.from('usuarios').update({ perfil: novoPerfil }).eq('id', userId).eq('empresa_id', empresaId)
     if (error) { setErro('Erro ao alterar perfil: ' + error.message) }
     else { await carregarUsuarios(empresaId) }
     setAlterandoPerfil(null)
@@ -471,7 +471,7 @@ export default function Configuracoes() {
                       Remover
                     </button>
                     <div style={{ fontSize:11, color:'#9ca3af', flexShrink:0 }}>
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      {u.criado_em ? new Date(u.criado_em).toLocaleDateString('pt-BR') : '—'}
                     </div>
                   </div>
                 )

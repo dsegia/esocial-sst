@@ -76,7 +76,7 @@ export async function requireEmpresaAccess(
     return null
   }
 
-  const perfil = usuarioDb.perfil || 'admin'
+  const perfil = usuarioDb.perfil
   if (!perfisPermitidos.includes(perfil)) {
     res.status(403).json({ erro: 'Permissão insuficiente' })
     return null

@@ -57,7 +57,7 @@ export default function Relatorios() {
   }
 
   async function excluir(id: string) {
-    const { error } = await supabase.from('transmissoes').delete().eq('id', id)
+    const { error } = await supabase.from('transmissoes').delete().eq('id', id).eq('empresa_id', empresaId)
     if (error) { setErro('Erro: ' + error.message); return }
     setSucesso('Excluída.')
     setConfirmExcluir(null)
