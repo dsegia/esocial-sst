@@ -156,8 +156,8 @@ export default function Configuracoes() {
 
   async function carregarUsuarios(empId: string) {
     setLoadingUsers(true)
-    const { data } = await supabase.from('usuarios').select('id, email, nome, perfil, created_at')
-      .eq('empresa_id', empId).order('created_at', { ascending: true })
+    const { data } = await supabase.from('usuarios').select('id, nome, perfil, criado_em')
+      .eq('empresa_id', empId).order('criado_em', { ascending: true })
     setUsuarios(data || [])
     setLoadingUsers(false)
   }
