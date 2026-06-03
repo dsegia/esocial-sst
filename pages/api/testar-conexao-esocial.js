@@ -1,13 +1,58 @@
 // pages/api/testar-conexao-esocial.js
-// Testa conectividade com o webservice eSocial Gov.br
-// Envia SOAP mínimo sem certificado — eSocial responde com erro de autenticação,
-// o que confirma que a conexão está funcionando.
+// Testa conectividade com o webservice eSocial Gov.br usando mTLS real com o certificado do cliente
 
+import https from 'node:https'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 
-const ENDPOINTS = {
-  producao: 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+const ENDPOINT = 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php'
+
+const SOAP_MINIMO = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope
+  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:v1="http://www.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <v1:EnviarLoteEventosRequest>
+      <loteEventos>
+        <eSocial xmlns="http://www.esocial.gov.br/schema/lote/eventos/envio/v1_1_1">
+          <envioLoteEventos grupo="1">
+            <ideEmpregador><tpInsc>1</tpInsc><nrInsc>00000000000000</nrInsc></ideEmpregador>
+            <ideTransmissor><tpInsc>1</tpInsc><nrInsc>00000000000000</nrInsc></ideTransmissor>
+            <eventos/>
+          </envioLoteEventos>
+        </eSocial>
+      </loteEventos>
+    </v1:EnviarLoteEventosRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`
+
+function postComCert(pfxBuffer, passphrase) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(ENDPOINT)
+    const body = Buffer.from(SOAP_MINIMO, 'utf-8')
+    const req = https.request({
+      hostname: url.hostname,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml;charset=UTF-8',
+        'SOAPAction': '"enviarLoteEventos"',
+        'Content-Length': body.length,
+      },
+      pfx: pfxBuffer,
+      passphrase,
+      rejectUnauthorized: true,
+    }, (res) => {
+      let data = ''
+      res.on('data', chunk => { data += chunk })
+      res.on('end', () => resolve({ status: res.statusCode, body: data }))
+    })
+    req.on('error', reject)
+    req.setTimeout(15000, () => req.destroy(Object.assign(new Error('TimeoutError'), { name: 'TimeoutError' })))
+    req.write(body)
+    req.end()
+  })
 }
 
 export default async function handler(req, res) {
@@ -20,98 +65,52 @@ export default async function handler(req, res) {
 
   const ip = getClientIP(req)
   const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
-  if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
+  if (limited) return res.status(429).json({ erro: 'Muitas requisições.', retryAfter })
 
-  const ambiente = req.query.ambiente || 'producao'
-  const endpoint = ENDPOINTS[ambiente]
-  if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
+  const { pfx: pfxBase64, cert_senha } = req.body || {}
+
+  if (!pfxBase64 || !cert_senha) {
+    return res.status(200).json({
+      conectado: false,
+      erro: 'Carregue e valide o certificado digital antes de testar a conexão.',
+    })
+  }
 
   const inicio = Date.now()
 
-  // SOAP envelope mínimo — sem assinatura válida
-  // O Gov.br deve responder com SOAP Fault de autenticação,
-  // o que confirma que a conexão está ativa.
-  const soapMinimo = `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope
-  xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:v1="http://www.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0">
-  <soapenv:Header/>
-  <soapenv:Body>
-    <v1:EnviarLoteEventosRequest>
-      <loteEventos>
-        <eSocial xmlns="http://www.esocial.gov.br/schema/lote/eventos/envio/v1_1_1">
-          <envioLoteEventos grupo="1">
-            <ideEmpregador><tpInsc>1</tpInsc><nrInsc>00000000</nrInsc></ideEmpregador>
-            <ideTransmissor><tpInsc>1</tpInsc><nrInsc>00000000000000</nrInsc></ideTransmissor>
-            <eventos/>
-          </envioLoteEventos>
-        </eSocial>
-      </loteEventos>
-    </v1:EnviarLoteEventosRequest>
-  </soapenv:Body>
-</soapenv:Envelope>`
-
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml;charset=UTF-8',
-        'SOAPAction': '"enviarLoteEventos"',
-      },
-      body: soapMinimo,
-      signal: AbortSignal.timeout(15000),
-    })
-
+    const pfxBuffer = Buffer.from(pfxBase64, 'base64')
+    const { status, body } = await postComCert(pfxBuffer, cert_senha)
     const latencia = Date.now() - inicio
-    const body = await response.text()
 
-    // Qualquer resposta HTTP (mesmo SOAP Fault) = conexão OK
-    const ehSoapFault = body.includes('Fault') || body.includes('fault')
-    const ehRespostaEsocial = body.includes('esocial') || body.includes('eSocial') || ehSoapFault
-    const cdResp = body.match(/<cdResp>([^<]+)<\/cdResp>/)?.[1]
-    const descResp = body.match(/<descResp>([^<]+)<\/descResp>/)?.[1]
-    const faultString = body.match(/<faultstring>([^<]+)<\/faultstring>/)?.[1]
+    const cdResp    = body.match(/<cdResp>([^<]+)<\/cdResp>/)?.[1]
+    const descResp  = body.match(/<descResp>([^<]+)<\/descResp>/)?.[1]
+    const fault     = body.match(/<faultstring>([^<]+)<\/faultstring>/)?.[1]
 
     return res.status(200).json({
       conectado: true,
       latencia_ms: latencia,
-      http_status: response.status,
-      ambiente,
-      endpoint,
-      resposta_esocial: ehRespostaEsocial,
+      http_status: status,
       codigo: cdResp || null,
-      descricao: descResp || faultString || 'Webservice respondeu',
-      raw_preview: body.substring(0, 300),
+      descricao: descResp || fault || 'Webservice respondeu',
     })
-
   } catch (err) {
     const latencia = Date.now() - inicio
+    const msg = err.message || ''
 
     if (err.name === 'TimeoutError') {
-      return res.status(200).json({
-        conectado: false, latencia_ms: latencia, ambiente, endpoint,
-        erro: 'Timeout: webservice não respondeu em 15 segundos',
-      })
+      return res.status(200).json({ conectado: false, latencia_ms: latencia, erro: 'Timeout: Gov.br não respondeu em 15s' })
     }
-
-    // Node fetch (undici) lança err.message = "fetch failed" com o erro real em err.cause
-    // Inspecionar tanto a mensagem principal quanto a causa
-    const msg = (err.message || '') + ' ' + (err.cause?.message || '') + ' ' + (err.cause?.code || '')
-    const SSL_PATTERN = /socket hang up|ECONNRESET|EPROTO|SSL|certificate|handshake|TLS|fetch failed/i
-
-    if (SSL_PATTERN.test(msg)) {
-      return res.status(200).json({
-        conectado: true,
-        latencia_ms: latencia,
-        ambiente,
-        endpoint,
-        descricao: 'Webservice no ar — certificado digital necessário para transmitir',
-      })
+    if (/mac verify failure|bad decrypt|invalid password|wrong password/i.test(msg)) {
+      return res.status(200).json({ conectado: false, latencia_ms: latencia, erro: 'Senha do certificado incorreta.' })
+    }
+    if (/certificate expired|cert.*expir/i.test(msg)) {
+      return res.status(200).json({ conectado: false, latencia_ms: latencia, erro: 'Certificado digital vencido. Renove o e-CNPJ.' })
     }
 
     return res.status(200).json({
-      conectado: false, latencia_ms: latencia, ambiente, endpoint,
-      erro: `Falha na conexão: ${err.cause?.code || err.message || 'erro desconhecido'}`,
+      conectado: false, latencia_ms: latencia,
+      erro: `Erro na conexão: ${msg.substring(0, 120)}`,
     })
   }
 }
