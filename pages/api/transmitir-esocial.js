@@ -127,9 +127,14 @@ export default async function handler(req, res) {
     return res.status(400).json({ erro: 'XML assinado e CNPJ são obrigatórios' })
   }
 
-  // Evita XML injection que quebraria a estrutura do envelope SOAP
-  const tagsBloqueadas = ['</loteEventos>', '</enviarLoteEventos>', '</soapenv:Body>', '</soapenv:Envelope>']
-  if (tagsBloqueadas.some(tag => xml_assinado.includes(tag))) {
+  // Valida que xml_assinado é um XML eSocial legítimo — deve começar com
+  // a declaração XML ou com a tag <eSocial e conter a assinatura digital.
+  // Rejeita qualquer conteúdo que tente escapar do elemento <evento>.
+  const xmlTrimmed = xml_assinado.trim()
+  const startsCorrectly = xmlTrimmed.startsWith('<?xml') || xmlTrimmed.startsWith('<eSocial')
+  // Proíbe qualquer tentativa de fechar o elemento pai <evento> ou injetar novos elementos SOAP
+  const FORBIDDEN = [/<\/evento\s*>/i, /<\/eventos\s*>/i, /<\/loteEventos\s*>/i, /<soapenv:/i, /<soap:/i, /<!ENTITY/i, /<!DOCTYPE/i]
+  if (!startsCorrectly || FORBIDDEN.some(re => re.test(xmlTrimmed))) {
     return res.status(400).json({ erro: 'XML inválido.' })
   }
 

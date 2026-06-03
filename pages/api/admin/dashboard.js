@@ -20,14 +20,14 @@ export default async function handler(req, res) {
   if (!token) return res.status(401).json({ erro: 'Não autenticado' })
 
   const senhaEnviada = req.headers['x-admin-password']
-  if (adminPassword && senhaEnviada !== adminPassword) {
-    return res.status(403).json({ erro: 'Senha administrativa incorreta', senha_incorreta: true })
+  if (!adminPassword || senhaEnviada !== adminPassword) {
+    return res.status(403).json({ erro: 'Acesso negado', senha_incorreta: true })
   }
 
   const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ erro: 'Sessão inválida' })
-  if (user.email !== adminEmail) return res.status(403).json({ erro: `Acesso restrito. Logado como: ${user.email}` })
+  if (user.email !== adminEmail) return res.status(403).json({ erro: 'Acesso restrito' })
 
   const sb = createClient(supabaseUrl, serviceKey)
 

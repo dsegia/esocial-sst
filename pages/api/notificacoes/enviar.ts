@@ -29,11 +29,15 @@ async function enviarEmail(to: string, subject: string, html: string) {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
-  const { empresa_id, secret } = req.body || {}
+  // Secret deve ser enviado no header Authorization (nunca no body — evita logging)
+  const authHeader = req.headers.authorization || ''
+  const secret = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
 
   if (!process.env.NOTIFICACOES_SECRET || secret !== process.env.NOTIFICACOES_SECRET) {
     return res.status(401).json({ erro: 'Não autorizado' })
   }
+
+  const { empresa_id } = req.body || {}
 
   // Determinar quais empresas processar
   let empresaIds: string[] = []

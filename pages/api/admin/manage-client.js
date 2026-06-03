@@ -21,8 +21,8 @@ export default async function handler(req, res) {
 
   const adminPassword = process.env.ADMIN_PASSWORD
   const senhaEnviada = req.headers['x-admin-password']
-  if (adminPassword && senhaEnviada !== adminPassword) {
-    return res.status(403).json({ erro: 'Senha administrativa incorreta' })
+  if (!adminPassword || senhaEnviada !== adminPassword) {
+    return res.status(403).json({ erro: 'Acesso negado' })
   }
 
   const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)

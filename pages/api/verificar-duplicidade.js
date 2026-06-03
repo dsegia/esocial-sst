@@ -30,6 +30,21 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // Verifica que o funcionário pertence a uma empresa do usuário autenticado
+  const { data: usuarioDb } = await sb
+    .from('usuarios').select('empresa_id').eq('id', user.id).single()
+  const { data: vinculo } = await sb
+    .from('usuario_empresas').select('empresa_id').eq('usuario_id', user.id)
+  const empresasPermitidas = [
+    ...(usuarioDb?.empresa_id ? [usuarioDb.empresa_id] : []),
+    ...((vinculo || []).map(v => v.empresa_id)),
+  ]
+  const { data: func } = await sb
+    .from('funcionarios').select('empresa_id').eq('id', funcionario_id).single()
+  if (!func || !empresasPermitidas.includes(func.empresa_id)) {
+    return res.status(403).json({ erro: 'Acesso não autorizado a este funcionário' })
+  }
+
   try {
     const { data: resultado, error } = await sb
       .rpc('verificar_aso_duplicado', {

@@ -338,6 +338,21 @@ export default async function handler(req, res) {
     }
   }
 
+  // Verifica plano — impede consumo de créditos de IA por empresas canceladas
+  if (userId) {
+    try {
+      const { createClient: cc } = require('@supabase/supabase-js')
+      const sbAdmin = cc(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
+      const { data: usuarioDb } = await sbAdmin.from('usuarios').select('empresa_id').eq('id', userId).single()
+      if (usuarioDb?.empresa_id) {
+        const { data: emp } = await sbAdmin.from('empresas').select('plano').eq('id', usuarioDb.empresa_id).single()
+        if (emp?.plano === 'cancelado') {
+          return res.status(403).json({ erro: 'Assinatura cancelada. Acesse /planos para reativar.' })
+        }
+      }
+    } catch { /* não bloqueia se a verificação falhar */ }
+  }
+
   const { paginas, texto_pdf, pdf_base64, tipo } = req.body
   const geminiKey    = process.env.GEMINI_API_KEY
   const anthropicKey = process.env.ANTHROPIC_API_KEY
