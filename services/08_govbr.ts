@@ -2,11 +2,10 @@ import https from 'https'
 import { atualizarTransmissao } from './09_sst'
 
 const ESOCIAL_URL = {
-  producao_restrita: 'https://restrito.esocial.gov.br/services/rest',
-  producao:          'https://esocial.gov.br/services/rest',
+  producao: 'https://esocial.gov.br/services/rest',
 }
 
-export type AmbienteESocial = 'producao_restrita' | 'producao'
+export type AmbienteESocial = 'producao'
 
 export async function enviarLote(params: {
   transmissaoId: string

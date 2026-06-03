@@ -7,8 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 
-// Envia SOAP com mTLS (certificado A1 do cliente) se pfx disponível,
-// ou sem mTLS como fallback (Produção Restrita aceita sem mTLS)
+// Envia SOAP com mTLS (certificado A1 do cliente)
 function postSoap(url, headers, body, pfxBuffer, passphrase) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url)
@@ -37,8 +36,7 @@ function postSoap(url, headers, body, pfxBuffer, passphrase) {
 }
 
 const ENDPOINTS = {
-  producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
-  producao:          'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+  producao: 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
 }
 
 const sbAdmin = createClient(
@@ -123,7 +121,7 @@ export default async function handler(req, res) {
     })
   }
 
-  const { xml_assinado, cnpj_empregador, ambiente = 'producao_restrita', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body
+  const { xml_assinado, cnpj_empregador, ambiente = 'producao', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body
 
   if (!xml_assinado || !cnpj_empregador) {
     return res.status(400).json({ erro: 'XML assinado e CNPJ são obrigatórios' })

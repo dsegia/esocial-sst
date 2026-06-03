@@ -5,7 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const GOVBR_ENDPOINT = 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php'
+const GOVBR_ENDPOINT = 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php'
 
 async function autenticarAdmin(req) {
   const token = req.headers.authorization?.replace('Bearer ', '')

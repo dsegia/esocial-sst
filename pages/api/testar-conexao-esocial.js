@@ -7,7 +7,6 @@ import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 
 const ENDPOINTS = {
-  producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
   producao: 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
 }
 
@@ -23,7 +22,7 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
-  const ambiente = req.query.ambiente || 'producao_restrita'
+  const ambiente = req.query.ambiente || 'producao'
   const endpoint = ENDPOINTS[ambiente]
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 

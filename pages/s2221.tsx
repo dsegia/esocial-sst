@@ -100,7 +100,7 @@ export default function S2221() {
       referencia_tipo: 'exame_toxicologico',
       status:         'pendente',
       tentativas:     0,
-      ambiente:       'producao_restrita',
+      ambiente:       'producao',
       payload,
     })
 

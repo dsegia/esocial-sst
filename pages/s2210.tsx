@@ -112,7 +112,7 @@ export default function S2210() {
       referencia_tipo: 'cat',
       status: 'pendente',
       tentativas: 0,
-      ambiente: 'producao_restrita',
+      ambiente: 'producao',
     })
 
     setSucesso('CAT salva! Transmissão S-2210 criada como pendente.')

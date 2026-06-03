@@ -239,7 +239,7 @@ export default function S2240() {
     const { error } = await supabase.from('transmissoes').insert({
       empresa_id: empresaId, funcionario_id: funcId,
       evento: 'S-2240', referencia_id: ltcatAtivo.id, referencia_tipo: 'ltcat',
-      status: 'pendente', tentativas: 0, ambiente: 'producao_restrita',
+      status: 'pendente', tentativas: 0, ambiente: 'producao',
     })
     if (error) { setErro('Erro: ' + error.message); return }
     setSucesso('Transmissão S-2240 criada.')
