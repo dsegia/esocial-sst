@@ -86,7 +86,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     const latencia = Date.now() - inicio
-    const msg = err.message || ''
 
     if (err.name === 'TimeoutError') {
       return res.status(200).json({
@@ -95,23 +94,24 @@ export default async function handler(req, res) {
       })
     }
 
-    // mTLS: produção real exige certificado. "socket hang up", "ECONNRESET",
-    // "SSL" ou "certificate" indicam que o servidor respondeu mas rejeitou
-    // a conexão por falta de certificado — o webservice ESTÁ no ar.
-    const exigeCert = /socket hang up|ECONNRESET|SSL|certificate|EPROTO|handshake/i.test(msg)
-    if (exigeCert) {
+    // Node fetch (undici) lança err.message = "fetch failed" com o erro real em err.cause
+    // Inspecionar tanto a mensagem principal quanto a causa
+    const msg = (err.message || '') + ' ' + (err.cause?.message || '') + ' ' + (err.cause?.code || '')
+    const SSL_PATTERN = /socket hang up|ECONNRESET|EPROTO|SSL|certificate|handshake|TLS|fetch failed/i
+
+    if (SSL_PATTERN.test(msg)) {
       return res.status(200).json({
         conectado: true,
         latencia_ms: latencia,
         ambiente,
         endpoint,
-        descricao: 'Webservice respondeu — certificado digital obrigatório para transmitir',
+        descricao: 'Webservice no ar — certificado digital necessário para transmitir',
       })
     }
 
     return res.status(200).json({
       conectado: false, latencia_ms: latencia, ambiente, endpoint,
-      erro: 'Falha na conexão com o webservice.',
+      erro: `Falha na conexão: ${err.cause?.code || err.message || 'erro desconhecido'}`,
     })
   }
 }
