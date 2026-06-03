@@ -106,7 +106,7 @@ export default function FilaTransmissao() {
 
   // Mais antigo
   const maisAntigo = pendentes.length > 0
-    ? diasAtraso(pendentes[pendentes.length - 1]?.criado_em || pendentes[0].criado_em)
+    ? diasAtraso(pendentes[0].criado_em)
     : null
 
   if (carregando) return (
