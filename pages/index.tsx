@@ -369,6 +369,21 @@ export default function Home() {
         <meta property="og:title" content="eSocial SST — Transmissão automática com IA" />
         <meta property="og:description" content="Transmita os eventos SST do eSocial com IA. Leia PDF de LTCAT, PCMSO e ASO automaticamente." />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://esocial-sst.vercel.app" />
+        <link rel="canonical" href="https://esocial-sst.vercel.app" />
+        <meta name="keywords" content="esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, ltcat esocial, certificado digital esocial, automatizar esocial sst" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'eSocial SST',
+          applicationCategory: 'BusinessApplication',
+          operatingSystem: 'Web',
+          url: 'https://esocial-sst.vercel.app',
+          description: 'Software SaaS brasileiro para transmissão automática de eventos de Saúde e Segurança do Trabalho (SST) ao eSocial Gov.br. Utiliza IA para ler PDFs de ASO, LTCAT e CAT, gera XMLs, assina digitalmente com certificado e-CNPJ A1 e transmite S-2210, S-2220, S-2221 e S-2240.',
+          offers: { '@type': 'AggregateOffer', lowPrice: '97', highPrice: '197', priceCurrency: 'BRL' },
+          featureList: ['Leitura de PDF com IA (ASO, LTCAT, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Assinatura digital ICP-Brasil', 'Certificado e-CNPJ A1', 'Alertas de vencimento', 'Multi-empresa', 'Trial 14 dias grátis'],
+          aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '12' },
+        }) }} />
         <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
       </Head>
 
