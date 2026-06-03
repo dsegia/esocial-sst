@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, type CSSProperties } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
+import { getEmpresaId } from '../lib/empresa'
 import Layout from '../components/Layout'
 
 const supabase = createClient(

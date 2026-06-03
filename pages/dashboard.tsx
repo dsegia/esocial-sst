@@ -60,7 +60,7 @@ export default function Dashboard() {
     const funcs    = (funcsRes.data || []).filter(f => f.ativo)
     const asos     = asosRes.data || []
     const txs      = txRes.data || []
-    const ltcat    = ltcatRes.data || null
+    const ltcat    = (ltcatRes.data as any) || null
     const cats     = catsRes.data || []
     const pcmso    = pcmsoRes.data || []
 
