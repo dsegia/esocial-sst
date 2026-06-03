@@ -450,7 +450,7 @@ export default function PCMSO() {
 
             {formFunc.exames.map((ex,i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 0', borderBottom:'0.5px solid #f3f4f6' }}>
-                <div style={{ flex:1, fontSize:13 }}>{ex.nome}</div>
+                <div style={{ flex:1, fontSize:13, color:'#111' }}>{ex.nome}</div>
                 <select style={{ ...s.input, width:130 }} value={ex.periodicidade}
                   onChange={e => setFormFunc(p=>({...p, exames:p.exames.map((x,idx)=>idx===i?{...x,periodicidade:e.target.value}:x)}))}>
                   {PERIODICIDADES.map(p => <option key={p}>{p}</option>)}
