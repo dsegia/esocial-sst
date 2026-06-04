@@ -424,28 +424,16 @@ export default async function handler(req, res) {
   if (!geminiKey && !anthropicKey) return res.status(500).json({ erro: 'Nenhuma API key configurada' })
 
   // Roteamento:
-  // pdf_base64 → PDF pequeno (≤3MB): Claude nativo direto
-  // texto_pdf  → PDF com texto (>3MB): Gemini primário → Claude fallback
-  // paginas    → PDF escaneado: Claude primário (pago para leitura de imagens) → Gemini fallback
+  // pdf_base64 → PDF pequeno (≤3MB): Claude nativo direto → Gemini fallback
+  // texto_pdf  → PDF com texto: Gemini primário → Claude fallback
+  // paginas    → PDF escaneado: Gemini primário (OCR imagens) → Claude fallback
 
   const pdfBase64Efetivo = pdf_base64 || null
 
-  // PDF escaneado via imagens: Claude primário (melhor leitura de imagens)
-  if (paginas?.length > 0 && !pdfBase64Efetivo && !texto_pdf && anthropicKey) {
-    const _t0 = Date.now()
-    const result = await lerComClaude(null, null, paginas, tipo, anthropicKey)
-    logIA('claude', 'claude-sonnet', result ? 'ok' : 'fallback', Date.now() - _t0, tipo)
-    if (result) return res.status(200).json({ sucesso: true, ...result })
-    // fallback Gemini para imagens
-    console.error('[ler-doc] Claude falhou para imagens, tentando Gemini')
-  }
-
-  // PDF com texto ou base64 pequeno: fluxo normal
-  // AUTO/LTCAT/PCMSO: Claude nativo (preferencial) → Gemini texto fallback
-  // ASO: Gemini primário → Claude fallback
+  // PDF pequeno base64 ou texto: Claude nativo primeiro (LTCAT/PCMSO/auto)
   if ((tipo === 'auto' || tipo === 'ltcat' || tipo === 'pcmso') && anthropicKey && !paginas?.length) {
     const _t0claude = Date.now()
-    const claudeResult = await lerComClaude(pdfBase64Efetivo, texto_pdf, paginas, tipo, anthropicKey)
+    const claudeResult = await lerComClaude(pdfBase64Efetivo, texto_pdf, null, tipo, anthropicKey)
     if (claudeResult) {
       logIA('claude', 'claude-sonnet', 'ok', Date.now() - _t0claude, tipo)
       return res.status(200).json({ sucesso: true, ...claudeResult })
@@ -498,8 +486,14 @@ REGRAS CRÍTICAS:
   "confianca":{"data_emissao":90,"resp_nome":90,"ghes":85}
 }`
 
-  const promptBase = tipo === 'ltcat' ? prompt_ltcat : tipo === 'pcmso' ? PROMPT_PCMSO : tipo === 'auto' ? PROMPT_AUTO : prompt_aso
   const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
+  // Para imagens: usa PROMPT_PCMSO focado se nome sugere PCMSO (mais preciso que PROMPT_AUTO)
+  const eImagens = paginas?.length > 0 && !pdfBase64Efetivo && !usandoTexto
+  const promptBase = tipo === 'ltcat' ? prompt_ltcat
+    : tipo === 'pcmso' ? PROMPT_PCMSO
+    : tipo === 'auto' && eImagens ? PROMPT_PCMSO  // imagens auto → tenta PCMSO focado primeiro
+    : tipo === 'auto' ? PROMPT_AUTO
+    : prompt_aso
 
   function extrairJSON(str) {
     const ini = str.indexOf('{'); if (ini===-1) return null
@@ -588,24 +582,26 @@ REGRAS CRÍTICAS:
         const resultado = parseRobusto(texto)
         if (resultado) {
           logIA('gemini', modelo, 'ok', Date.now() - _t0gem, tipo)
-          if (tipo === 'auto') {
-            const tipoDetectado = resultado.tipo ||
-              (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
+          const modo = usandoTexto ? 'texto' : 'imagem'
+          if (tipo === 'auto' || eImagens) {
+            // Para imagens com PROMPT_PCMSO, tipo_detectado é sempre 'pcmso'
+            const tipoDetectado = eImagens ? 'pcmso'
+              : resultado.tipo || (Array.isArray(resultado.ghes) ? 'ltcat' : Array.isArray(resultado.programas) ? 'pcmso' : resultado.aso ? 'aso' : null)
             if (!tipoDetectado) continue
-            // PCMSO com 0 programas em modo texto = tabelas não extraíram; tenta próximo modelo
+            // PCMSO com 0 programas em modo TEXTO: tenta próximo modelo
             if (tipoDetectado === 'pcmso' && (resultado.programas?.length ?? 0) === 0 && usandoTexto) {
-              console.error('[ler-doc] Gemini PCMSO 0 programas, tentando próximo modelo')
+              console.error('[ler-doc] Gemini PCMSO 0 programas modo texto, tentando próximo modelo')
               continue
             }
             const { tipo: _, ...dadosSemTipo } = resultado
-            return res.status(200).json({ sucesso:true, tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo: usandoTexto?'texto':'imagem', modelo })
+            return res.status(200).json({ sucesso:true, tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo, modelo })
           }
-          // PCMSO explícito com 0 programas: não aceita, tenta próximo modelo
+          // PCMSO explícito com 0 programas em modo texto: tenta próximo modelo
           if (tipo === 'pcmso' && (resultado.programas?.length ?? 0) === 0 && usandoTexto) {
-            console.error('[ler-doc] Gemini PCMSO explícito 0 programas, tentando próximo modelo')
+            console.error('[ler-doc] Gemini PCMSO 0 programas modo texto, tentando próximo modelo')
             continue
           }
-          return res.status(200).json({ sucesso:true, dados: enriquecer(resultado, tipo), modo: usandoTexto?'texto':'imagem', modelo })
+          return res.status(200).json({ sucesso:true, dados: enriquecer(resultado, tipo), modo, modelo })
         }
       } catch (err) {
         logIA('gemini', modelo, 'erro', Date.now() - _t0gem, tipo, err.message)
