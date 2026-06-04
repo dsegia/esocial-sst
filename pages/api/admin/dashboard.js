@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
     const { data: usuarios } = await sb
       .from('usuarios')
-      .select('id, nome')
+      .select('id, nome, empresa_id')
 
     // Email dos usuários via auth (service role permite)
     const { data: authUsers } = await sb.auth.admin.listUsers()
@@ -181,8 +181,16 @@ export default async function handler(req, res) {
     const totalFuncs    = Object.values(mapFuncs).reduce((a, b) => a + b, 0)
 
     const PRECO_PLANO = { micro: 49, starter: 97, pro: 197, professional: 197, business: 497, enterprise: 997 }
-    const mrr = (empresas || []).reduce((acc, e) => acc + (PRECO_PLANO[e.plano] || 0), 0)
-    const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial').length
+    // Exclui do MRR a empresa do próprio admin (conta interna)
+    const adminEmpresaId = (() => {
+      const adminUser = (authUsers?.users || []).find(u => u.email === adminEmail)
+      if (!adminUser) return null
+      return (usuarios || []).find(u => u.id === adminUser.id)?.empresa_id || null
+    })()
+    const mrr = (empresas || [])
+      .filter(e => e.id !== adminEmpresaId)
+      .reduce((acc, e) => acc + (PRECO_PLANO[e.plano] || 0), 0)
+    const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial' && e.id !== adminEmpresaId).length
 
     return res.status(200).json({
       ok: true,
