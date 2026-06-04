@@ -99,10 +99,11 @@ async function carregarPdfJs() {
   return pdfJsLoading
 }
 
-async function extrairPaginas(pdfDoc, de, ate, onProgresso) {
+async function extrairPaginas(pdfDoc, pagNums, onProgresso) {
   const paginas = []
-  for (let i = de; i <= ate; i++) {
-    if (onProgresso) onProgresso(`Convertendo página ${i - de + 1}/${ate - de + 1}...`)
+  for (let idx = 0; idx < pagNums.length; idx++) {
+    const i = pagNums[idx]
+    if (onProgresso) onProgresso(`Convertendo página ${i} (${idx + 1}/${pagNums.length})...`)
     const page = await pdfDoc.getPage(i)
     const vp = page.getViewport({ scale: 1.5 })
     const canvas = document.createElement('canvas')
@@ -142,7 +143,6 @@ async function processarArquivo(file, onProgresso, token) {
   // PDF grande COM texto → Gemini via texto (LTCAT, ASO, PCMSO editável)
   // PDF grande SEM texto (escaneado) → Storage URL → Claude lê nativo completo
   let payload
-  let storageKey = null
 
   if (file.size <= LIMITE_BASE64) {
     onProgresso('Preparando leitura nativa...')
@@ -153,30 +153,27 @@ async function processarArquivo(file, onProgresso, token) {
     onProgresso(`PDF com texto (${fmtTamanho(file.size)}) — leitura via Gemini...`)
     payload = { texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else {
-    // PDF escaneado grande → upload Storage → Claude lê o PDF completo nativamente
-    onProgresso('PDF escaneado — enviando para leitura nativa Claude...')
-    storageKey = `temp/${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`
-    const { error: upErr } = await supabase.storage.from('documentos-temp').upload(storageKey, file, { upsert: true })
-    if (upErr) throw new Error('Falha ao preparar documento para leitura. Tente novamente.')
-    const { data: urlData } = await supabase.storage.from('documentos-temp').createSignedUrl(storageKey, 600)
-    if (!urlData?.signedUrl) throw new Error('Falha ao obter URL do documento.')
-    payload = { pdf_url: urlData.signedUrl, tipo: 'auto' }
+    // PDF escaneado: envia páginas-chave como imagens de alta qualidade
+    // Estratégia: primeiras 2 págs (cabeçalho/médico) + últimas 8 págs (grade de exames)
+    onProgresso('PDF escaneado — selecionando páginas relevantes...')
+    const total = pdfDoc.numPages
+    const inicioPags = [1, 2].filter(p => p <= total)
+    const fimInicio = Math.max(3, total - 7)
+    const fimPags = Array.from({ length: total - fimInicio + 1 }, (_, i) => fimInicio + i).filter(p => p <= total)
+    const pagsSelecionadas = [...new Set([...inicioPags, ...fimPags])].sort((a, b) => a - b).slice(0, 10)
+    const paginas = await extrairPaginas(pdfDoc, pagsSelecionadas, onProgresso)
+    payload = { paginas, texto_pdf: '', tipo: 'auto' }
   }
 
   onProgresso('Identificando com IA...')
+  const r = await fetch('/api/ler-documento', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  })
   let json
-  try {
-    const r = await fetch('/api/ler-documento', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(payload),
-    })
-    try { json = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
-    if (!r.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
-  } finally {
-    // Limpa o arquivo temporário do Storage após processar (sucesso ou erro)
-    if (storageKey) supabase.storage.from('documentos-temp').remove([storageKey]).catch(() => {})
-  }
+  try { json = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
+  if (!r.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
   return json
 }
 

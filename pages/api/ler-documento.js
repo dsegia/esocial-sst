@@ -417,47 +417,33 @@ export default async function handler(req, res) {
     } catch { /* não bloqueia se a verificação falhar */ }
   }
 
-  const { paginas, texto_pdf, pdf_base64, pdf_url, tipo } = req.body
+  const { paginas, texto_pdf, pdf_base64, tipo } = req.body
   const geminiKey    = process.env.GEMINI_API_KEY
   const anthropicKey = process.env.ANTHROPIC_API_KEY
 
   if (!geminiKey && !anthropicKey) return res.status(500).json({ erro: 'Nenhuma API key configurada' })
 
   // Roteamento:
-  // pdf_url   → PDF escaneado grande: baixa server-side → Claude nativo (pago para isso)
-  // pdf_base64 → PDF pequeno: Claude nativo direto
-  // texto_pdf  → PDF com texto: Gemini primário → Claude fallback
-  // paginas    → imagens (legacy fallback)
+  // pdf_base64 → PDF pequeno (≤3MB): Claude nativo direto
+  // texto_pdf  → PDF com texto (>3MB): Gemini primário → Claude fallback
+  // paginas    → PDF escaneado: Claude primário (pago para leitura de imagens) → Gemini fallback
 
-  let pdfBase64Efetivo = pdf_base64 || null
+  const pdfBase64Efetivo = pdf_base64 || null
 
-  // PDF escaneado via URL: baixar e converter para base64 server-side
-  if (pdf_url && anthropicKey) {
-    try {
-      const _t0dl = Date.now()
-      const dlResp = await fetch(pdf_url)
-      if (!dlResp.ok) throw new Error(`Download falhou: ${dlResp.status}`)
-      const arrayBuf = await dlResp.arrayBuffer()
-      const bytes = new Uint8Array(arrayBuf)
-      let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
-      pdfBase64Efetivo = btoa(bin)
-      console.log(`[ler-doc] PDF baixado: ${(arrayBuf.byteLength/1024/1024).toFixed(1)}MB em ${Date.now()-_t0dl}ms`)
-    } catch (err) {
-      console.error('[ler-doc] Falha ao baixar PDF:', err.message)
-      return res.status(500).json({ erro: 'Não foi possível acessar o documento. Tente novamente.' })
-    }
-    // PDF escaneado: Claude direto, sem fallback Gemini (não lê imagens)
+  // PDF escaneado via imagens: Claude primário (melhor leitura de imagens)
+  if (paginas?.length > 0 && !pdfBase64Efetivo && !texto_pdf && anthropicKey) {
     const _t0 = Date.now()
-    const result = await lerComClaude(pdfBase64Efetivo, null, null, tipo, anthropicKey)
-    logIA('claude', 'claude-sonnet', result ? 'ok' : 'erro', Date.now() - _t0, tipo)
+    const result = await lerComClaude(null, null, paginas, tipo, anthropicKey)
+    logIA('claude', 'claude-sonnet', result ? 'ok' : 'fallback', Date.now() - _t0, tipo)
     if (result) return res.status(200).json({ sucesso: true, ...result })
-    return res.status(500).json({ erro: 'Não foi possível ler o documento escaneado. O PDF pode estar ilegível ou com qualidade insuficiente.' })
+    // fallback Gemini para imagens
+    console.error('[ler-doc] Claude falhou para imagens, tentando Gemini')
   }
 
   // PDF com texto ou base64 pequeno: fluxo normal
   // AUTO/LTCAT/PCMSO: Claude nativo (preferencial) → Gemini texto fallback
   // ASO: Gemini primário → Claude fallback
-  if ((tipo === 'auto' || tipo === 'ltcat' || tipo === 'pcmso') && anthropicKey) {
+  if ((tipo === 'auto' || tipo === 'ltcat' || tipo === 'pcmso') && anthropicKey && !paginas?.length) {
     const _t0claude = Date.now()
     const claudeResult = await lerComClaude(pdfBase64Efetivo, texto_pdf, paginas, tipo, anthropicKey)
     if (claudeResult) {
