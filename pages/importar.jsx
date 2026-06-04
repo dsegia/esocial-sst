@@ -148,15 +148,38 @@ async function processarArquivo(file, onProgresso, token) {
   }
 
   onProgresso('Identificando com IA...')
-  const resp = await fetch('/api/ler-documento', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify(payload),
-  })
-  let json
-  try { json = await resp.json() }
-  catch { throw new Error('O servidor não respondeu. Tente novamente.') }
-  if (!resp.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
+  const chamarApi = async (p) => {
+    const r = await fetch('/api/ler-documento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(p),
+    })
+    let j
+    try { j = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
+    if (!r.ok || !j.sucesso) throw new Error(j.erro || 'Erro na análise do documento')
+    return j
+  }
+
+  let json = await chamarApi(payload)
+
+  // Retry em modo imagem se PCMSO retornou 0 programas (tabelas não extraíram como texto)
+  const tipoDet = json.tipo_detectado || (json.dados?.programas !== undefined ? 'pcmso' : null)
+  if (tipoDet === 'pcmso' && (json.dados?.programas?.length ?? 0) === 0 && payload.texto_pdf) {
+    onProgresso('Tabelas não encontradas — tentando leitura visual...')
+    const paginas = []
+    const maxImg = Math.min(pdfDoc.numPages, 15)
+    for (let i = 1; i <= maxImg; i++) {
+      onProgresso(`Convertendo página ${i}/${maxImg}...`)
+      const page = await pdfDoc.getPage(i)
+      const vp = page.getViewport({ scale: 1.5 })
+      const canvas = document.createElement('canvas')
+      canvas.width = vp.width; canvas.height = vp.height
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
+      paginas.push(canvas.toDataURL('image/jpeg', 0.7).split(',')[1])
+    }
+    json = await chamarApi({ paginas, texto_pdf: '', tipo: 'pcmso' })
+  }
+
   return json
 }
 

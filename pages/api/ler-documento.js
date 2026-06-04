@@ -550,11 +550,18 @@ REGRAS CRÍTICAS:
             const tipoDetectado = resultado.tipo ||
               (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
             if (!tipoDetectado) continue
-            if (tipoDetectado === 'pcmso') {
-              console.error('[ler-doc] Gemini PCMSO programas:', JSON.stringify(resultado.programas || []).substring(0, 300))
+            // PCMSO com 0 programas em modo texto = tabelas não extraíram; tenta próximo modelo
+            if (tipoDetectado === 'pcmso' && (resultado.programas?.length ?? 0) === 0 && usandoTexto) {
+              console.error('[ler-doc] Gemini PCMSO 0 programas, tentando próximo modelo')
+              continue
             }
             const { tipo: _, ...dadosSemTipo } = resultado
             return res.status(200).json({ sucesso:true, tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo: usandoTexto?'texto':'imagem', modelo })
+          }
+          // PCMSO explícito com 0 programas: não aceita, tenta próximo modelo
+          if (tipo === 'pcmso' && (resultado.programas?.length ?? 0) === 0 && usandoTexto) {
+            console.error('[ler-doc] Gemini PCMSO explícito 0 programas, tentando próximo modelo')
+            continue
           }
           return res.status(200).json({ sucesso:true, dados: enriquecer(resultado, tipo), modo: usandoTexto?'texto':'imagem', modelo })
         }
@@ -580,7 +587,7 @@ REGRAS CRÍTICAS:
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'x-api-key': anthropicKey, 'anthropic-version':'2023-06-01' },
-        body: JSON.stringify({ model:'claude-haiku-4-5-20251022', max_tokens:4000, messages:[{role:'user',content}] })
+        body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:4000, messages:[{role:'user',content}] })
       })
       if (!response.ok) {
         const errBody = await response.text()
