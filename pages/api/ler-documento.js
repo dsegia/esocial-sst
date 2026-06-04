@@ -308,8 +308,8 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
 
     if (!response.ok) {
       const errBody = await response.text()
-      console.error('[ler-documento] Anthropic error:', response.status, errBody.substring(0, 200))
-      throw new Error('Falha na API de processamento')
+      console.error('[ler-documento] Anthropic ERRO STATUS:', response.status, '| BODY:', errBody.substring(0, 400))
+      throw new Error(`Anthropic ${response.status}: ${errBody.substring(0, 100)}`)
     }
     const data = await response.json()
     const texto = data.content?.[0]?.text || ''
