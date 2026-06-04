@@ -19,12 +19,6 @@ export default async function handler(req, res) {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ erro: 'Não autenticado' })
 
-  const adminPassword = process.env.ADMIN_PASSWORD
-  const senhaEnviada = req.headers['x-admin-password']
-  if (!adminPassword || senhaEnviada !== adminPassword) {
-    return res.status(403).json({ erro: 'Acesso negado' })
-  }
-
   const supabaseAnon = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
   const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ erro: 'Sessão inválida' })

@@ -64,12 +64,6 @@ export default function Admin() {
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null)
   const [aba, setAba] = useState<'dashboard' | 'clientes' | 'sistema'>('dashboard')
 
-  // Tela de senha admin
-  const [senhaAdmin, setSenhaAdmin] = useState('')
-  const [senhaInput, setSenhaInput] = useState('')
-  const [senhaErro, setSenhaErro] = useState('')
-  const [pedindoSenha, setPedindoSenha] = useState(false)
-
   // Modal novo cliente
   const [modalConvite, setModalConvite] = useState(false)
   const [conviteForm, setConviteForm] = useState({ email: '', razao_social: '', cnpj: '', plano: 'trial' })
@@ -99,13 +93,12 @@ export default function Admin() {
   const [marcandoErro, setMarcandoErro] = useState<string | null>(null)
 
   useEffect(() => {
-    setPedindoSenha(true)
-    setCarregando(false)
+    carregar()
 
     const canal = supabase
       .channel('admin-empresas')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'empresas' }, () => {
-        setSenhaAdmin(prev => { setTimeout(() => carregar(prev), 0); return prev })
+        carregar()
       })
       .subscribe()
 
@@ -116,38 +109,21 @@ export default function Admin() {
     if (aba === 'sistema') carregarSistema()
   }, [aba])
 
-  async function carregar(senha?: string) {
+  async function carregar() {
     setCarregando(true)
     setErro('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
 
-      const s = senha !== undefined ? senha : senhaAdmin
       const resp = await fetch('/api/admin/dashboard', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'x-admin-password': s,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       const json = await resp.json()
 
-      if (resp.status === 401) { router.push('/login'); return }
-      if (resp.status === 403 && json.senha_incorreta) {
-        setPedindoSenha(true)
-        setSenhaErro('Senha incorreta. Tente novamente.')
-        setCarregando(false)
-        return
-      }
-      if (resp.status === 403) {
-        setErro(json.erro || 'Acesso negado')
-        setCarregando(false)
-        return
-      }
+      if (resp.status === 401 || resp.status === 403) { router.push('/login'); return }
       if (!resp.ok) throw new Error(json.erro || 'Erro ao carregar dados')
 
-      setPedindoSenha(false)
-      setSenhaErro('')
       setTotais(json.totais)
       setEmpresas(json.empresas)
       setRecentes(json.recentes)
@@ -165,10 +141,7 @@ export default function Admin() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/sistema', {
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          'x-admin-password': senhaAdmin,
-        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       })
       const json = await resp.json()
       if (!resp.ok) throw new Error(json.erro || 'Erro ao carregar')
@@ -186,7 +159,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/sistema', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ acao: 'marcar_erro', transmissao_id: transmissaoId }),
       })
       if (resp.ok) carregarSistema()
@@ -203,7 +176,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/invite-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify(conviteForm),
       })
       const json = await resp.json()
@@ -227,7 +200,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/update-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ empresa_id: empresaId, plano }),
       })
       const json = await resp.json()
@@ -247,7 +220,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/update-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ empresa_id: empresaId, bloqueado }),
       })
       const json = await resp.json()
@@ -266,7 +239,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/manage-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ acao: 'excluir', empresa_id: empresaId }),
       })
       const json = await resp.json()
@@ -287,7 +260,7 @@ export default function Admin() {
       const { data: { session } } = await supabase.auth.getSession()
       const resp = await fetch('/api/admin/manage-client', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ acao: 'resetar_senha', empresa_id: empresaId }),
       })
       const json = await resp.json()
@@ -361,46 +334,6 @@ export default function Admin() {
   if (carregando) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'sans-serif', fontSize: 14, color: '#6b7280' }}>
       Carregando painel administrativo...
-    </div>
-  )
-
-  if (pedindoSenha) return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f4f6f9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      <div style={{ background: '#fff', borderRadius: 14, padding: '2rem', width: 360, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{ width: 36, height: 36, background: '#185FA5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-            </svg>
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Área Administrativa</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>Digite a senha de acesso</div>
-          </div>
-        </div>
-        <form onSubmit={async e => {
-          e.preventDefault()
-          setSenhaErro('')
-          setSenhaAdmin(senhaInput)
-          await carregar(senhaInput)
-        }}>
-          <input
-            type="password"
-            autoFocus
-            placeholder="Senha administrativa"
-            value={senhaInput}
-            onChange={e => setSenhaInput(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: `1px solid ${senhaErro ? '#dc2626' : '#d1d5db'}`, borderRadius: 8, boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: 8, outline: 'none' }}
-          />
-          {senhaErro && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>{senhaErro}</div>}
-          <button
-            type="submit"
-            style={{ width: '100%', padding: '10px', background: '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-          >
-            Entrar
-          </button>
-        </form>
-      </div>
     </div>
   )
 
@@ -810,7 +743,7 @@ export default function Admin() {
                                   const { data: { session } } = await supabase.auth.getSession()
                                   await fetch('/api/admin/renovar-creditos', {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
                                     body: JSON.stringify({ empresa_id: emp.id }),
                                   })
                                   setRenovandoId(null)

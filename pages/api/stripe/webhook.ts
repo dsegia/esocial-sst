@@ -75,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         (item: any) => item.price?.recurring?.usage_type === 'metered'
       )
 
-      await supabaseAdmin
+      const { error: updateErr } = await supabaseAdmin
         .from('empresas')
         .update({
           plano: ativo ? plano : 'cancelado',
@@ -88,6 +88,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
         .eq('id', empresaId)
 
+      if (updateErr) {
+        console.error('[webhook] erro ao atualizar empresa:', empresaId, updateErr.message)
+        return res.status(500).json({ error: 'DB update failed' })
+      }
+
       break
     }
 
@@ -97,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const empresaId = empresaIdDe(sub)
       if (!empresaId) break
 
-      await supabaseAdmin
+      const { error: cancelErr } = await supabaseAdmin
         .from('empresas')
         .update({
           plano: 'cancelado',
@@ -109,6 +114,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           creditos_incluidos: 0,
         })
         .eq('id', empresaId)
+
+      if (cancelErr) {
+        console.error('[webhook] erro ao cancelar empresa:', empresaId, cancelErr.message)
+        return res.status(500).json({ error: 'DB update failed' })
+      }
 
       break
     }
@@ -126,10 +136,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single()
 
       if (empresa && empresa.creditos_incluidos > 0) {
-        await supabaseAdmin
+        const { error: renewErr } = await supabaseAdmin
           .from('empresas')
           .update({ creditos_restantes: empresa.creditos_incluidos })
           .eq('id', empresa.id)
+        if (renewErr) {
+          console.error('[webhook] erro ao renovar créditos:', empresa.id, renewErr.message)
+          return res.status(500).json({ error: 'DB update failed' })
+        }
       }
       break
     }

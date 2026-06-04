@@ -6,12 +6,6 @@ import { createClient } from '@supabase/supabase-js'
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
-  const adminPassword = process.env.ADMIN_PASSWORD
-  const senhaEnviada = req.headers['x-admin-password']
-  if (!adminPassword || senhaEnviada !== adminPassword) {
-    return res.status(403).json({ erro: 'Acesso negado' })
-  }
-
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ erro: 'Não autenticado' })
 

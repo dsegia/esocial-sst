@@ -239,7 +239,9 @@ export default async function handler(req, res) {
 
     if (recibo) {
       // Envia email de confirmação em background (sem bloquear resposta)
-      enviarConfirmacaoTransmissao(sbAdmin, user.id, empresaId, recibo, ambiente).catch(() => {})
+      enviarConfirmacaoTransmissao(sbAdmin, user.id, empresaId, recibo, ambiente).catch(err => {
+        console.error('[transmitir] falha ao enviar e-mail de confirmação:', err?.message || err)
+      })
 
       return res.status(200).json({
         sucesso: true,

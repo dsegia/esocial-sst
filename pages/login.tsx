@@ -44,9 +44,12 @@ export default function Login() {
 
       setInfo('Verificando acesso...')
 
-      // Admin vai direto para /admin sem depender da tabela usuarios
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-      if (adminEmail && data.user.email === adminEmail) {
+      // Verifica se é admin via API (server-side, sem expor o email no bundle)
+      const adminCheck = await fetch('/api/auth/is-admin', {
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      })
+      const { admin } = await adminCheck.json()
+      if (admin) {
         setInfo('Bem-vindo, Admin!')
         router.push('/admin')
         return
