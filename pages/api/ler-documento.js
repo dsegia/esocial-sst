@@ -298,7 +298,6 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
         'Content-Type': 'application/json',
         'x-api-key': anthropicKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'pdfs-2024-09-25', // habilita suporte nativo a PDF
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6', // Sonnet para melhor precisão em documentos complexos
@@ -551,6 +550,32 @@ REGRAS CRÍTICAS:
             const tipoDetectado = resultado.tipo ||
               (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
             if (!tipoDetectado) continue
+            // Se PCMSO veio com programas vazio, faz retry com prompt dedicado
+            if (tipoDetectado === 'pcmso' && Array.isArray(resultado.programas) && resultado.programas.length === 0) {
+              console.error('[ler-doc] Gemini retornou PCMSO com 0 programas, retry com prompt dedicado')
+              const partsRetry = pdfBase64Efetivo
+                ? [{ inlineData: { mimeType: 'application/pdf', data: pdfBase64Efetivo } }, { text: PROMPT_PCMSO }]
+                : usandoTexto
+                  ? [{ text: `${PROMPT_PCMSO}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0, 20000)}` }]
+                  : parts
+              const _t0retry = Date.now()
+              try {
+                const rRetry = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
+                  { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': geminiKey },
+                    body: JSON.stringify({ contents:[{parts: partsRetry}], generationConfig:{temperature:0,maxOutputTokens:8192} }) }
+                )
+                if (rRetry.ok) {
+                  const dRetry = await rRetry.json()
+                  const tRetry = (dRetry.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('')
+                  const resRetry = parseRobusto(tRetry)
+                  if (resRetry && Array.isArray(resRetry.programas) && resRetry.programas.length > 0) {
+                    logIA('gemini', modelo, 'ok', Date.now() - _t0retry, 'pcmso-retry')
+                    return res.status(200).json({ sucesso:true, tipo_detectado: 'pcmso', dados: enriquecer(resRetry, 'pcmso'), modo: usandoTexto?'texto':'imagem', modelo })
+                  }
+                }
+              } catch {}
+            }
             const { tipo: _, ...dadosSemTipo } = resultado
             return res.status(200).json({ sucesso:true, tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo: usandoTexto?'texto':'imagem', modelo })
           }
