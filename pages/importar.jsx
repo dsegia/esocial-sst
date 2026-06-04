@@ -128,13 +128,24 @@ async function processarArquivo(file, onProgresso, token) {
   const pdfDoc = await lib.getDocument({ data: arrayBuf.slice(0) }).promise
 
   onProgresso('Extraindo texto...')
-  let textoPdf = ''
+  // Para PCMSOs: o texto relevante é nas seções de GHE (grade de exames)
+  // Extrai todas as páginas mas prioriza as que contêm palavras-chave dos GHEs
+  const PALAVRAS_GHE = ['admissional','periódico','periodico','demissional','retorno ao trabalho','ghe','grupo homogêneo','grade de exame','funções:','funcoes:']
+  const paginasTexto = []
   const maxPaginasTexto = Math.min(pdfDoc.numPages, 60)
   for (let i = 1; i <= maxPaginasTexto; i++) {
     const page = await pdfDoc.getPage(i)
     const content = await page.getTextContent()
-    textoPdf += content.items.map(it => it.str).join(' ') + '\n'
-    if (textoPdf.length > 80000) break
+    const texto = content.items.map(it => it.str).join(' ')
+    const temGHE = PALAVRAS_GHE.some(p => texto.toLowerCase().includes(p))
+    paginasTexto.push({ n: i, texto, temGHE })
+  }
+  // Páginas com GHE primeiro, depois o restante, até 60k chars
+  const ordenado = [...paginasTexto.filter(p => p.temGHE), ...paginasTexto.filter(p => !p.temGHE)]
+  let textoPdf = ''
+  for (const p of ordenado) {
+    if (textoPdf.length > 60000) break
+    textoPdf += p.texto + '\n'
   }
   const temTexto = textoPdf.replace(/\s/g, '').length > 300
 
