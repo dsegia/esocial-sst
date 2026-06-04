@@ -27,6 +27,7 @@ type Empresa = {
   creditos_incluidos: number
   creditos_restantes: number
   creditos_usados: number
+  divergencia: boolean
 }
 
 type Transmissao = {
@@ -77,6 +78,9 @@ export default function Admin() {
   const [editandoPlano, setEditandoPlano] = useState<string | null>(null)
   const [novoPlano, setNovoPlano] = useState('')
   const [salvandoPlano, setSalvandoPlano] = useState(false)
+
+  // Renovação de créditos
+  const [renovandoId, setRenovandoId] = useState<string | null>(null)
 
   // Bloqueio inline
   const [bloqueandoId, setBloqueandoId] = useState<string | null>(null)
@@ -565,7 +569,7 @@ export default function Admin() {
                                   <div>
                                     <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, fontWeight:600, color: cor, marginBottom:3 }}>
                                       <span>{emp.creditos_usados}/{emp.creditos_incluidos}</span>
-                                      <span style={{ color:'#9ca3af', fontWeight:400 }}>{pct}%</span>
+                                      <span style={{ color:'#9ca3af', fontWeight:400 }}>{pct}%{emp.divergencia ? ' ⚠' : ''}</span>
                                     </div>
                                     <div style={{ height:4, background:'#e5e7eb', borderRadius:99, overflow:'hidden' }}>
                                       <div style={{ height:'100%', width:`${pct}%`, background: cor, borderRadius:99 }} />
@@ -793,6 +797,29 @@ export default function Admin() {
                             >
                               {bloqueandoId === emp.id ? '...' : emp.bloqueado ? '✓ Desbloquear' : '⊘ Bloquear'}
                             </button>
+
+                            {/* Renovar créditos */}
+                            {emp.creditos_incluidos > 0 && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Renovar ${emp.creditos_incluidos} créditos para ${emp.razao_social}?`)) return
+                                  setRenovandoId(emp.id)
+                                  const { data: { session } } = await supabase.auth.getSession()
+                                  await fetch('/api/admin/renovar-creditos', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}`, 'x-admin-password': senhaAdmin },
+                                    body: JSON.stringify({ empresa_id: emp.id }),
+                                  })
+                                  setRenovandoId(null)
+                                  carregar()
+                                }}
+                                disabled={renovandoId === emp.id}
+                                title={`Renovar créditos (${emp.creditos_incluidos} créditos do plano ${emp.plano})`}
+                                style={{ padding: '4px 8px', background: emp.divergencia ? '#FEF3C7' : '#f3f4f6', color: emp.divergencia ? '#92400E' : '#374151', border: emp.divergencia ? '1px solid #D97706' : 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                              >
+                                {renovandoId === emp.id ? '...' : emp.divergencia ? '⚠ Renovar' : '↺ Renovar'}
+                              </button>
+                            )}
 
                             {/* Resetar senha */}
                             <button

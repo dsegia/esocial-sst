@@ -148,6 +148,11 @@ export default async function handler(req, res) {
         creditos_incluidos: emp.creditos_incluidos ?? 0,
         creditos_restantes: emp.creditos_restantes ?? 0,
         creditos_usados: (emp.creditos_incluidos ?? 0) - (emp.creditos_restantes ?? 0),
+        // divergencia: créditos consumidos ≠ transmissões enviadas/rejeitadas (indica anomalia)
+        divergencia: Math.abs(
+          ((emp.creditos_incluidos ?? 0) - (emp.creditos_restantes ?? 0)) -
+          ((mapTrans[emp.id]?.enviado ?? 0) + (mapTrans[emp.id]?.erro ?? 0))
+        ) > 0,
         trial_restante: emp.plano === 'trial' && emp.trial_inicio
           ? Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
           : null,
