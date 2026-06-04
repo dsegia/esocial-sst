@@ -104,11 +104,11 @@ async function extrairPaginas(pdfDoc, de, ate, onProgresso) {
   for (let i = de; i <= ate; i++) {
     if (onProgresso) onProgresso(`Convertendo página ${i - de + 1}/${ate - de + 1}...`)
     const page = await pdfDoc.getPage(i)
-    const vp = page.getViewport({ scale: 1.0 })
+    const vp = page.getViewport({ scale: 0.8 })
     const canvas = document.createElement('canvas')
     canvas.width = vp.width; canvas.height = vp.height
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
-    paginas.push(canvas.toDataURL('image/jpeg', 0.6).split(',')[1])
+    paginas.push(canvas.toDataURL('image/jpeg', 0.5).split(',')[1])
   }
   return paginas
 }
@@ -148,36 +148,19 @@ async function processarArquivo(file, onProgresso, token) {
     payload = { texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else {
     onProgresso('PDF escaneado — convertendo imagens...')
-    const paginas = await extrairPaginas(pdfDoc, 1, Math.min(pdfDoc.numPages, 20), onProgresso)
+    const paginas = await extrairPaginas(pdfDoc, 1, Math.min(pdfDoc.numPages, 10), onProgresso)
     payload = { paginas, texto_pdf: '', tipo: 'auto' }
   }
 
   onProgresso('Identificando com IA...')
-  const chamarApi = async (p) => {
-    const r = await fetch('/api/ler-documento', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(p),
-    })
-    let j
-    try { j = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
-    if (!r.ok || !j.sucesso) throw new Error(j.erro || 'Erro na análise do documento')
-    return j
-  }
-
-  let json = await chamarApi(payload)
-
-  // Retry se PCMSO retornou 0 programas (imagens insuficientes ou texto garbled)
-  const tipoDet = json.tipo_detectado || (json.dados?.programas !== undefined ? 'pcmso' : null)
-  if (tipoDet === 'pcmso' && (json.dados?.programas?.length ?? 0) === 0) {
-    onProgresso('Poucos programas encontrados — ampliando leitura visual...')
-    const inicio = payload.paginas?.length > 0 ? Math.min(payload.paginas.length + 1, pdfDoc.numPages) : 1
-    const paginas = await extrairPaginas(pdfDoc, inicio, Math.min(pdfDoc.numPages, inicio + 24), onProgresso)
-    if (paginas.length > 0) {
-      json = await chamarApi({ paginas, texto_pdf: '', tipo: 'pcmso' })
-    }
-  }
-
+  const r = await fetch('/api/ler-documento', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  })
+  let json
+  try { json = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
+  if (!r.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
   return json
 }
 
