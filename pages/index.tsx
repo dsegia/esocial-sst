@@ -197,6 +197,18 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .testi-name{font-size:13px;font-weight:700;color:#0f172a;}
 .testi-role{font-size:11px;color:#94a3b8;margin-top:2px;}
 
+/* ── VIDEO SECTION ── */
+.video-section{background:#fff;padding:80px 0;border-top:1px solid #f1f5f9;}
+.video-frame-wrap{}
+.video-frame{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;aspect-ratio:16/9;position:relative;box-shadow:0 16px 60px rgba(15,23,42,.1);}
+.video-frame iframe{width:100%;height:100%;border:none;}
+.video-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(145deg,#f8fafc,#e8f0fa);position:relative;}
+.video-play-btn{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#185FA5,#3b82f6);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(24,95,165,.35);cursor:pointer;transition:transform .15s,box-shadow .15s;padding-left:4px;}
+.video-play-btn:hover{transform:scale(1.08);box-shadow:0 12px 36px rgba(24,95,165,.45);}
+@media(max-width:860px){
+  .video-section .section-wrap>div{grid-template-columns:1fr !important;gap:36px !important;}
+}
+
 /* ── BLOG STRIP ── */
 .blog-section{background:#f8fafc;padding:72px 0;}
 .blog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
@@ -410,12 +422,7 @@ export default function Home() {
       <nav className={scrolled ? 'scrolled' : ''}>
         <div className="nav-inner">
           <a href="#" className="nav-logo">
-            <div className="nav-logo-mark">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div>
-              <div className="nav-logo-text">eSocial <span>SST</span></div>
-            </div>
+            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:44, width:'auto' }} />
           </a>
           <div className="nav-links">
             <a href="#eventos">Eventos SST</a>
@@ -810,6 +817,69 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── VIDEO AVATAR ── */}
+      <section className="video-section">
+        <div className="section-wrap">
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:64, alignItems:'center' }}>
+            <div className="reveal">
+              <div className="section-label">Conheça o sistema</div>
+              <h2 className="section-h2">
+                Veja como é simples<br /><span className="grad">transmitir o eSocial SST</span>
+              </h2>
+              <p style={{ fontSize:15, color:'#64748b', lineHeight:1.85, marginBottom:28 }}>
+                Em menos de 2 minutos veja como importar um PDF de ASO, deixar a IA extrair os dados e transmitir o evento S-2220 diretamente ao governo — sem digitar nada.
+              </p>
+              <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:12 }}>
+                {[
+                  '📄 Upload do PDF em 1 clique',
+                  '🤖 IA extrai dados em segundos',
+                  '✅ Revisão e transmissão ao gov.br',
+                  '📥 Recibo salvo automaticamente',
+                ].map((item,i) => (
+                  <li key={i} style={{ display:'flex', alignItems:'center', gap:10, fontSize:14, color:'#334155', fontWeight:500 }}>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ marginTop:28 }}>
+                <Link href="/cadastro" className="btn-hero-main" style={{ display:'inline-flex' }}>
+                  Testar grátis por 14 dias →
+                </Link>
+              </div>
+            </div>
+            <div className="video-frame-wrap reveal">
+              <div className="video-frame">
+                {/* Substitua o src abaixo pelo embed do HeyGen/YouTube quando tiver o vídeo */}
+                <div className="video-placeholder">
+                  <div className="video-play-btn">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg>
+                  </div>
+                  <div style={{ marginTop:20, textAlign:'center' }}>
+                    <div style={{ fontWeight:700, color:'#0f172a', fontSize:15, marginBottom:6 }}>Demonstração do sistema</div>
+                    <div style={{ fontSize:12, color:'#94a3b8' }}>Vídeo em breve</div>
+                  </div>
+                  <div style={{ position:'absolute', top:16, left:16 }}>
+                    <img src="/logo-completa.png" alt="DSEG" style={{ height:32, width:'auto', opacity:.7 }} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:16 }}>
+                {[
+                  { val:'< 2min', label:'Duração' },
+                  { val:'100%', label:'Gratuito' },
+                  { val:'HD', label:'Qualidade' },
+                ].map(({ val, label }) => (
+                  <div key={label} style={{ textAlign:'center' }}>
+                    <div style={{ fontSize:16, fontWeight:800, color:'#185FA5' }}>{val}</div>
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
