@@ -24,6 +24,9 @@ type Empresa = {
   funcionarios: number
   responsavel: { nome: string; email: string } | null
   created_at: string
+  creditos_incluidos: number
+  creditos_restantes: number
+  creditos_usados: number
 }
 
 type Transmissao = {
@@ -523,7 +526,7 @@ export default function Admin() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                     <thead>
                       <tr style={{ background: '#f9fafb', borderBottom: '0.5px solid #e5e7eb' }}>
-                        {['Empresa', 'Responsável', 'Plano', 'Envios/mês', 'Variação', 'Pendente', 'Erro', 'Funcionários', 'Desde'].map(h => (
+                        {['Empresa', 'Responsável', 'Plano', 'Uso mês', 'Variação', 'Pendente', 'Erro', 'Funcionários', 'Desde'].map(h => (
                           <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -554,8 +557,26 @@ export default function Admin() {
                                 {labelPlano(emp.plano, emp.trial_restante)}
                               </span>
                             </td>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111' }}>
-                              {emp.trans_mes.toLocaleString('pt-BR')}
+                            <td style={{ padding: '10px 12px', minWidth: 110 }}>
+                              {emp.creditos_incluidos > 0 ? (() => {
+                                const pct = Math.min(100, Math.round(emp.creditos_usados / emp.creditos_incluidos * 100))
+                                const cor = pct >= 100 ? '#dc2626' : pct >= 80 ? '#EF9F27' : '#27a048'
+                                return (
+                                  <div>
+                                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, fontWeight:600, color: cor, marginBottom:3 }}>
+                                      <span>{emp.creditos_usados}/{emp.creditos_incluidos}</span>
+                                      <span style={{ color:'#9ca3af', fontWeight:400 }}>{pct}%</span>
+                                    </div>
+                                    <div style={{ height:4, background:'#e5e7eb', borderRadius:99, overflow:'hidden' }}>
+                                      <div style={{ height:'100%', width:`${pct}%`, background: cor, borderRadius:99 }} />
+                                    </div>
+                                  </div>
+                                )
+                              })() : (
+                                <span style={{ color:'#9ca3af', fontSize:11 }}>
+                                  {emp.plano === 'trial' ? `${emp.trans_mes} envios` : '—'}
+                                </span>
+                              )}
                             </td>
                             <td style={{ padding: '10px 12px' }}>
                               {emp.variacao_pct === null ? (

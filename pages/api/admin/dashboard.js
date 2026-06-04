@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     // Busca todas as empresas — usa nomes reais das colunas (criado_em, ativo)
     const { data: empresas, error: errEmp } = await sb
       .from('empresas')
-      .select('id, razao_social, cnpj, plano, trial_inicio, ativo, criado_em')
+      .select('id, razao_social, cnpj, plano, trial_inicio, ativo, criado_em, creditos_incluidos, creditos_restantes')
       .order('criado_em', { ascending: false })
 
     if (errEmp) throw new Error('Erro ao buscar empresas: ' + errEmp.message)
@@ -145,6 +145,9 @@ export default async function handler(req, res) {
         variacao_pct: variacao,
         funcionarios: mapFuncs[emp.id] || 0,
         responsavel: mapUsuario[emp.id] || null,
+        creditos_incluidos: emp.creditos_incluidos ?? 0,
+        creditos_restantes: emp.creditos_restantes ?? 0,
+        creditos_usados: (emp.creditos_incluidos ?? 0) - (emp.creditos_restantes ?? 0),
         trial_restante: emp.plano === 'trial' && emp.trial_inicio
           ? Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
           : null,
