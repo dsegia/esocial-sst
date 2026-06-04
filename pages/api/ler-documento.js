@@ -4,36 +4,102 @@
 
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 
-// ─── TABELA 27 — Procedimentos Diagnósticos ───────────
+// ─── TABELA 27 — Procedimentos Diagnósticos (eSocial S-2220) ───────────
 const TABELA27 = {
-  'avaliacao clinica':'0001','exame clinico':'0001','anamnese':'0001',
-  'avaliacao psicossocial':'0002','psicossocial':'0002',
-  'hemograma':'0010','hemograma completo':'0010',
-  'glicemia':'0011','glicemia de jejum':'0011','glicemia/ glicose':'0011','glicemia/glicose':'0011',
-  'urina':'0012','eas':'0012','urina tipo i':'0012',
-  'ureia':'0013','creatinina':'0014','acido urico':'0015',
-  'colesterol':'0016','triglicerides':'0017','triglicérides':'0017',
-  'tgo':'0018','ast':'0018','tgp':'0019','alt':'0019',
-  'gama gt':'0020','gama-gt':'0020',
-  'tipagem':'0029','tipagem sanguinea':'0029','abo rh':'0029',
-  'audiometria':'0040','audiometria tonal':'0040',
-  'acuidade visual':'0050','snellen':'0050','visao':'0050',
-  'espirometria':'0060','prova de funcao pulmonar':'0060',
-  'rx torax':'0061','rx de torax':'0061','rx torax pa oit':'0061','radiografia torax':'0061',
+  // 0001 — Avaliação Clínica
+  'avaliacao clinica':'0001','exame clinico':'0001','anamnese':'0001','consulta medica':'0001','avaliacao medica':'0001',
+  // 0002 — Avaliação Psicossocial
+  'avaliacao psicossocial':'0002','psicossocial':'0002','avaliacao psiquiatrica':'0002','avaliacao psicologica':'0002',
+  // 0010 — Hemograma
+  'hemograma':'0010','hemograma completo':'0010','eritrograma':'0010','leucograma':'0010','plaquetas':'0010','cbc':'0010',
+  // 0011 — Glicemia
+  'glicemia':'0011','glicemia de jejum':'0011','glicose':'0011','hemoglobina glicada':'0011','hba1c':'0011','curva glicemica':'0011','glicemia/ glicose':'0011','glicemia/glicose':'0011',
+  // 0012 — Urina Tipo I (EAS)
+  'urina':'0012','eas':'0012','urina tipo i':'0012','urina rotina':'0012','sumario de urina':'0012','urinocalise':'0012','parcial de urina':'0012',
+  // 0013 — Ureia
+  'ureia':'0013','ureia sanguinea':'0013','bun':'0013',
+  // 0014 — Creatinina
+  'creatinina':'0014','clearance creatinina':'0014','taxa filtracao glomerular':'0014','tfg':'0014',
+  // 0015 — Ácido Úrico
+  'acido urico':'0015',
+  // 0016 — Colesterol Total e Frações
+  'colesterol':'0016','ldl':'0016','hdl':'0016','vldl':'0016','perfil lipidico':'0016','lipidograma':'0016','colesterol total':'0016','nao hdl':'0016',
+  // 0017 — Triglicérides
+  'triglicerides':'0017','triglicerideos':'0017','triglicerideo':'0017',
+  // 0018 — TGO/AST
+  'tgo':'0018','ast':'0018','aspartato aminotransferase':'0018','transaminase oxalacetica':'0018',
+  // 0019 — TGP/ALT
+  'tgp':'0019','alt':'0019','alanina aminotransferase':'0019','transaminase piruvica':'0019',
+  // 0020 — Gama GT
+  'gama gt':'0020','gama-gt':'0020','ggt':'0020','gamma gt':'0020','gamaglutamiltransferase':'0020',
+  // 0021 — Sódio
+  'sodio':'0021','sodio serico':'0021','sodio plasmatico':'0021',
+  // 0022 — Potássio
+  'potassio':'0022','potassio serico':'0022','kalemia':'0022',
+  // 0023 — Cálcio
+  'calcio':'0023','calcio serico':'0023','calcio total':'0023','calcio ionico':'0023','calcemia':'0023',
+  // 0024 — Fósforo
+  'fosforo':'0024','fosforo serico':'0024','fosfatemia':'0024','fosfatase alcalina':'0024',
+  // 0025 — Ferro Sérico / Ferritina
+  'ferro serico':'0025','ferritina':'0025','ferro':'0025','transferrina':'0025','saturacao de transferrina':'0025','capacidade de ligacao do ferro':'0025','tibc':'0025',
+  // 0026 — TSH
+  'tsh':'0026','hormonio estimulante da tireoide':'0026','tireotropina':'0026',
+  // 0027 — T4 Livre / T3
+  't4 livre':'0027','t4':'0027','t3 livre':'0027','t3':'0027','tiroxina':'0027','triiodotironina':'0027',
+  // 0028 — Coproparasitológico
+  'parasitologico':'0028','coproparasitologico':'0028','exame de fezes':'0028','protoparasitologico':'0028','fezes':'0028','coprologico':'0028',
+  // 0029 — Tipagem Sanguínea
+  'tipagem':'0029','tipagem sanguinea':'0029','abo rh':'0029','grupo sanguineo':'0029','fator rh':'0029','tipo sanguineo':'0029',
+  // 0030 — Proteína C Reativa
+  'proteina c reativa':'0030','pcr':'0030','pcr ultrassensivel':'0030',
+  // 0031 — VDRL / Sífilis
+  'vdrl':'0031','sifilis':'0031','rpr':'0031','fta-abs':'0031','ftaabs':'0031','tpha':'0031','sorogia para sifilis':'0031',
+  // 0032 — Anti-HCV (Hepatite C)
+  'antihcv':'0032','anti-hcv':'0032','hepatite c':'0032','anti hcv':'0032','hcv':'0032',
+  // 0033 — Anti-HIV
+  'anti-hiv':'0033','antihiv':'0033','hiv':'0033','anti hiv':'0033','aids':'0033',
+  // 0040 — Audiometria Tonal
+  'audiometria':'0040','audiometria tonal':'0040','audiometria tonal limiar':'0040','atl':'0040',
+  // 0041 — Audiometria de Voz / Logoaudiometria
+  'audiometria de voz':'0041','logoaudiometria':'0041','audiometria vocal':'0041','indice de reconhecimento de fala':'0041','irf':'0041',
+  // 0042 — Emissão Otoacústica
+  'emissao otoacustica':'0042','eoa':'0042','otoemissao acustica':'0042','emissoes otoacusticas':'0042',
+  // 0050 — Acuidade Visual
+  'acuidade visual':'0050','snellen':'0050','visao':'0050','teste de visao':'0050','refratometria':'0050','optometria':'0050','avaliacao visual':'0050',
+  // 0051 — Campimetria / Perimetria Visual
+  'campimetria':'0051','perimetria':'0051','campo visual':'0051','campimetria computadorizada':'0051',
+  // 0060 — Espirometria
+  'espirometria':'0060','prova de funcao pulmonar':'0060','pfp':'0060','espirografia':'0060','capacidade pulmonar':'0060','cvf':'0060','vef1':'0060',
+  // 0061 — RX Tórax PA (Padrão OIT)
+  'rx torax':'0061','rx de torax':'0061','rx torax pa oit':'0061','radiografia torax':'0061','radiografia de torax':'0061','raio x torax':'0061','rx pa':'0061',
+  // 0062 — RX Tórax (Outras Incidências)
+  'rx torax perfil':'0062','rx torax lateral':'0062','radiografia torax perfil':'0062','rx torax ap':'0062',
+  // 0070 — Eletroencefalograma
   'eletroencefalograma':'0070','eeg':'0070',
-  'teste de romberg':'0073','romberg':'0073',
-  'eletrocardiograma':'0080','ecg':'0080',
-  'rx coluna':'0091','coluna lombar':'0091',
-  'avaliacao dermatologica':'0100','dermatologica':'0100',
-  'hepatite b':'0110','hbsag':'0110','anti-hbs':'0110','antihbs':'0110','hbs ag':'0110',
-  'toxicologico':'0120','exame toxicologico':'0120',
-  'vdrl':'0031','sifilis':'0031',
-  'antihcv':'0032','anti-hcv':'0032','hepatite c':'0032',
-  'anti-hiv':'0033','antihiv':'0033',
-  'eletrolitos':'0021','sodio':'0022','potassio':'0023',
-  'ferritina':'0024','ferro serico':'0025',
-  'tsh':'0026','t4':'0027',
-  'parasitologico':'0028','coproparasitologico':'0028',
+  // 0071 — Avaliação Neurológica
+  'avaliacao neurologica':'0071','exame neurologico':'0071','neurologia':'0071','reflexos neurologicos':'0071',
+  // 0073 — Teste de Romberg
+  'teste de romberg':'0073','romberg':'0073','rombergismo':'0073','equilíbrio':'0073',
+  // 0080 — Eletrocardiograma
+  'eletrocardiograma':'0080','ecg':'0080','eletro':'0080','eletro em repouso':'0080',
+  // 0081 — Ecocardiograma
+  'ecocardiograma':'0081','eco cardiaco':'0081','ecografia cardiaca':'0081','eco doppler':'0081',
+  // 0090 — RX Coluna Cervical
+  'rx coluna cervical':'0090','coluna cervical':'0090','rx cervical':'0090','radiografia coluna cervical':'0090',
+  // 0091 — RX Coluna Lombar / Lombossacra
+  'rx coluna':'0091','coluna lombar':'0091','rx lombar':'0091','coluna lombossacra':'0091','rx lombossacro':'0091','radiografia coluna lombar':'0091',
+  // 0092 — RX Coluna Dorsal / Torácica
+  'rx coluna dorsal':'0092','coluna dorsal':'0092','rx dorsal':'0092','coluna toracica':'0092','rx toracica':'0092',
+  // 0100 — Avaliação Dermatológica
+  'avaliacao dermatologica':'0100','dermatologica':'0100','dermatologia':'0100','exame dermatologico':'0100',
+  // 0101 — Patch Test / Teste de Contato
+  'patch test':'0101','teste de contato':'0101','teste epicutaneo':'0101','fotopatch test':'0101','epicutaneo':'0101',
+  // 0110 — Hepatite B (HBsAg + Anti-HBs)
+  'hepatite b':'0110','hbsag':'0110','anti-hbs':'0110','antihbs':'0110','hbs ag':'0110','anti hbs':'0110','marcadores hepatite b':'0110','anti-hbc':'0110','antihbc':'0110',
+  // 0120 — Exame Toxicológico Ampliado
+  'toxicologico':'0120','exame toxicologico':'0120','toxicologico ampliado':'0120','exame toxicologico ampliado':'0120',
+  // 0121 — Exame Toxicológico Específico
+  'toxicologico especifico':'0121','exame toxicologico especifico':'0121',
 }
 
 // ─── TABELA 24 — Agentes Nocivos ──────────────────────
