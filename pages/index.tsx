@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* ── NAV ── */
 nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(226,232,240,.8);transition:box-shadow .2s;}
 nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
-.nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:66px;display:flex;align-items:center;justify-content:space-between;}
+.nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:80px;display:flex;align-items:center;justify-content:space-between;}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .nav-logo-mark{width:36px;height:36px;background:linear-gradient(135deg,#185FA5,#3b82f6);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(24,95,165,.3);}
 .nav-logo-text{font-size:15px;font-weight:800;color:#0f172a;letter-spacing:-.3px;}
@@ -422,7 +422,7 @@ export default function Home() {
       <nav className={scrolled ? 'scrolled' : ''}>
         <div className="nav-inner">
           <a href="#" className="nav-logo">
-            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:44, width:'auto' }} />
+            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:72, width:'auto' }} />
           </a>
           <div className="nav-links">
             <a href="#eventos">Eventos SST</a>
