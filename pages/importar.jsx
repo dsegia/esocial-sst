@@ -137,30 +137,46 @@ async function processarArquivo(file, onProgresso, token) {
   }
   const temTexto = textoPdf.replace(/\s/g, '').length > 300
 
+  // ── Roteamento:
+  // PDF pequeno (≤3MB) → base64 nativo Claude (qualquer tipo)
+  // PDF grande COM texto → Gemini via texto (LTCAT, ASO, PCMSO editável)
+  // PDF grande SEM texto (escaneado) → Storage URL → Claude lê nativo completo
   let payload
+  let storageKey = null
+
   if (file.size <= LIMITE_BASE64) {
     onProgresso('Preparando leitura nativa...')
     const bytes = new Uint8Array(arrayBuf.slice(0))
     let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
     payload = { pdf_base64: btoa(bin), texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else if (temTexto) {
-    onProgresso(`PDF grande (${fmtTamanho(file.size)}) — usando texto...`)
+    onProgresso(`PDF com texto (${fmtTamanho(file.size)}) — leitura via Gemini...`)
     payload = { texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else {
-    onProgresso('PDF escaneado — convertendo imagens...')
-    const paginas = await extrairPaginas(pdfDoc, 1, Math.min(pdfDoc.numPages, 6), onProgresso)
-    payload = { paginas, texto_pdf: '', tipo: 'auto' }
+    // PDF escaneado grande → upload Storage → Claude lê o PDF completo nativamente
+    onProgresso('PDF escaneado — enviando para leitura nativa Claude...')
+    storageKey = `temp/${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`
+    const { error: upErr } = await supabase.storage.from('documentos-temp').upload(storageKey, file, { upsert: true })
+    if (upErr) throw new Error('Falha ao preparar documento para leitura. Tente novamente.')
+    const { data: urlData } = await supabase.storage.from('documentos-temp').createSignedUrl(storageKey, 600)
+    if (!urlData?.signedUrl) throw new Error('Falha ao obter URL do documento.')
+    payload = { pdf_url: urlData.signedUrl, tipo: 'auto' }
   }
 
   onProgresso('Identificando com IA...')
-  const r = await fetch('/api/ler-documento', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify(payload),
-  })
   let json
-  try { json = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
-  if (!r.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
+  try {
+    const r = await fetch('/api/ler-documento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(payload),
+    })
+    try { json = await r.json() } catch { throw new Error('O servidor não respondeu. Tente novamente.') }
+    if (!r.ok || !json.sucesso) throw new Error(json.erro || 'Erro na análise do documento')
+  } finally {
+    // Limpa o arquivo temporário do Storage após processar (sucesso ou erro)
+    if (storageKey) supabase.storage.from('documentos-temp').remove([storageKey]).catch(() => {})
+  }
   return json
 }
 
