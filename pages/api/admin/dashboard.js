@@ -106,7 +106,8 @@ export default async function handler(req, res) {
     }
 
     for (const t of (transPassado || [])) {
-      mapTransPassado[t.empresa_id] = (mapTransPassado[t.empresa_id] || 0) + 1
+      if (t.status === 'enviado')
+        mapTransPassado[t.empresa_id] = (mapTransPassado[t.empresa_id] || 0) + 1
     }
 
     for (const f of (funcionarios || [])) {
@@ -137,7 +138,7 @@ export default async function handler(req, res) {
         plano: emp.plano,
         bloqueado: !emp.ativo,               // ativo=false significa bloqueado
         created_at: emp.criado_em,
-        trans_mes: trans.total,
+        trans_mes: trans.enviado,  // apenas efetivamente enviados (não pendentes)
         trans_pendente: trans.pendente,
         trans_erro: trans.erro,
         trans_transmitido: trans.enviado,
@@ -174,7 +175,7 @@ export default async function handler(req, res) {
     }))
 
     const totalEmpresas = empresas?.length || 0
-    const totalTrans    = (transAtual || []).length
+    const totalTrans    = (transAtual || []).filter(t => t.status === 'enviado').length  // só efetivamente enviados
     const totalPendente = (transAtual || []).filter(t => t.status === 'pendente').length
     const totalErros    = (transAtual || []).filter(t => t.status === 'rejeitado').length
     const totalFuncs    = Object.values(mapFuncs).reduce((a, b) => a + b, 0)
