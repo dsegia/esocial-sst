@@ -20,23 +20,42 @@ const EXAMES_POR_RISCO = {
 }
 
 const TIPOS_CONSULTA = [
-  { key:'admissional',    label:'Admissional',  cor:'#1D9E75', bg:'#EAF3DE' },
-  { key:'periodico',      label:'Periódico',    cor:'#185FA5', bg:'#E6F1FB' },
+  { key:'admissional',     label:'Admissional', cor:'#1D9E75', bg:'#EAF3DE' },
+  { key:'periodico',       label:'Periódico',   cor:'#185FA5', bg:'#E6F1FB' },
   { key:'retorno_trabalho',label:'Retorno',     cor:'#7C3AED', bg:'#EDE9FE' },
-  { key:'mudanca_risco',  label:'Mudança',      cor:'#D97706', bg:'#FEF3C7' },
-  { key:'demissional',    label:'Demissional',  cor:'#DC2626', bg:'#FEE2E2' },
+  { key:'mudanca_risco',   label:'Mudança',     cor:'#D97706', bg:'#FEF3C7' },
+  { key:'demissional',     label:'Demissional', cor:'#DC2626', bg:'#FEE2E2' },
 ]
-function tiposExame(ex) {
-  if (ex.tipos?.length) return ex.tipos
-  if (ex.periodicidade) {
-    const p = ex.periodicidade.toLowerCase()
-    if (p.includes('admissional')) return ['admissional']
-    if (p.includes('demissional')) return ['demissional']
-    if (p.includes('retorno')) return ['retorno_trabalho']
-    if (p.includes('mudança') || p.includes('mudanca')) return ['mudanca_risco']
-    return ['periodico']
+
+// Retorna todos os exames únicos de um programa (nova estrutura)
+function todosExamesGhe(prog) {
+  const vistos = new Set()
+  const lista = []
+  for (const t of TIPOS_CONSULTA) {
+    for (const ex of (prog.exames?.[t.key] || [])) {
+      const nome = ex.nome || ex
+      if (!vistos.has(nome)) { vistos.add(nome); lista.push({ nome, codigo_t27: ex.codigo_t27 }) }
+    }
   }
-  return ['periodico']
+  return lista
+}
+
+// Backward compat: converte estrutura antiga (array de exames com tipos[]) para nova (objeto por tipo)
+function normalizeExames(prog) {
+  if (prog.exames && !Array.isArray(prog.exames)) return prog.exames // já é novo formato
+  const result = {}
+  for (const t of TIPOS_CONSULTA) result[t.key] = []
+  for (const ex of (prog.exames || [])) {
+    const tipos = ex.tipos?.length ? ex.tipos : ex.periodicidade ? [ex.periodicidade.toLowerCase().includes('admissional')?'admissional':ex.periodicidade.toLowerCase().includes('demissional')?'demissional':'periodico'] : ['periodico']
+    for (const t of tipos) { if (result[t]) result[t].push({ nome: ex.nome, codigo_t27: ex.codigo_t27 }) }
+  }
+  return result
+}
+
+function todosRiscos(riscos) {
+  if (!riscos) return []
+  if (Array.isArray(riscos)) return riscos
+  return [...(riscos.acidentes||[]), ...(riscos.ergonomicos||[]), ...(riscos.fisicos||[]), ...(riscos.biologicos||[]), ...(riscos.quimicos||[])]
 }
 
 const EXAMES_COMUNS = [
@@ -273,62 +292,83 @@ export default function PCMSO() {
               </button>
             </div>
           ) : (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              {programa.map(prog => (
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {programa.map(prog => {
+                const exNorm = normalizeExames(prog)
+                const todosEx = todosExamesGhe({ ...prog, exames: exNorm })
+                const riscos = todosRiscos(prog.riscos)
+                const funcoes = prog.funcoes?.length ? prog.funcoes : [prog.funcao]
+                return (
                 <div key={prog.id} style={s.card}>
+                  {/* Header */}
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                     <div>
-                      <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>{prog.funcao}</div>
-                      {prog.setor && <div style={{ fontSize:11, color:'#6b7280' }}>Setor: {prog.setor}</div>}
+                      <div style={{ fontSize:14, fontWeight:700, color:'#111' }}>{prog.funcao}</div>
+                      <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>
+                        Funções: {funcoes.join(' · ')}
+                      </div>
                     </div>
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, riscos:prog.riscos||[], exames:prog.exames||[] })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))) })
                         setAba('novo')
                       }}>Editar</button>
-                      <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}
-                        onClick={() => excluirPrograma(prog.id)}>Excluir</button>
+                      <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
                     </div>
                   </div>
 
                   {/* Riscos */}
-                  {prog.riscos?.length > 0 && (
+                  {riscos.length > 0 && (
                     <div style={{ marginBottom:10 }}>
                       <div style={s.secLabel}>Riscos</div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                        {prog.riscos.slice(0,3).map((r,i) => (
+                        {riscos.slice(0,4).map((r,i) => (
                           <span key={i} style={{ padding:'2px 8px', borderRadius:99, fontSize:10, background:'#FAEEDA', color:'#633806' }}>{r}</span>
                         ))}
-                        {prog.riscos.length > 3 && <span style={{ fontSize:10, color:'#9ca3af' }}>+{prog.riscos.length-3}</span>}
+                        {riscos.length > 4 && <span style={{ fontSize:10, color:'#9ca3af' }}>+{riscos.length-4}</span>}
                       </div>
                     </div>
                   )}
 
-                  {/* Exames */}
+                  {/* Tabela de exames por tipo */}
                   <div>
-                    <div style={s.secLabel}>Exames obrigatórios ({prog.exames?.length || 0})</div>
-                    {(prog.exames||[]).slice(0,4).map((ex,i) => (
-                      <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12, color:'#374151', padding:'4px 0', borderBottom:'0.5px solid #f3f4f6', gap:6 }}>
-                        <span style={{ flex:1 }}>• {ex.nome}</span>
-                        <div style={{ display:'flex', gap:2, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                          {tiposExame(ex).map(t => {
-                            const info = TIPOS_CONSULTA.find(tc=>tc.key===t)
-                            return info ? <span key={t} style={{ padding:'1px 5px', borderRadius:99, fontSize:9, fontWeight:600, background:info.bg, color:info.cor, whiteSpace:'nowrap' }}>{info.label}</span> : null
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                    {(prog.exames||[]).length > 4 && (
-                      <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>+{prog.exames.length-4} exames</div>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop:10, fontSize:11, color:'#6b7280' }}>
-                    {funcionarios.filter(f => f.funcao === prog.funcao).length} funcionário(s) com esta função
+                    <div style={s.secLabel}>Exames por tipo de consulta</div>
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                        <thead>
+                          <tr>
+                            {TIPOS_CONSULTA.map(tc => (
+                              <th key={tc.key} style={{ padding:'4px 6px', textAlign:'left', fontWeight:600, fontSize:10, color:tc.cor, background:tc.bg, borderRadius:4, whiteSpace:'nowrap', border:'1px solid #f3f4f6' }}>
+                                {tc.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            {TIPOS_CONSULTA.map(tc => (
+                              <td key={tc.key} style={{ padding:'4px 6px', verticalAlign:'top', border:'1px solid #f3f4f6', minWidth:90 }}>
+                                {(exNorm[tc.key]||[]).map((ex,i) => (
+                                  <div key={i} style={{ fontSize:11, color:'#374151', lineHeight:1.5 }}>
+                                    • {ex.nome || ex}
+                                    {ex.codigo_t27 && <span style={{ fontSize:9, color:'#9ca3af', marginLeft:3 }}>[{ex.codigo_t27}]</span>}
+                                  </div>
+                                ))}
+                                {!(exNorm[tc.key]?.length) && <span style={{ color:'#d1d5db', fontSize:10 }}>—</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ marginTop:6, fontSize:11, color:'#9ca3af' }}>
+                      {todosEx.length} exame(s) únicos · {funcoes.length} função(ões) · {funcionarios.filter(f=>funcoes.includes(f.funcao)).length} funcionário(s)
+                    </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -377,7 +417,7 @@ export default function PCMSO() {
                       <td style={s.td}>
                         {prog ? (
                           <div>
-                            <span style={{ fontSize:11, color:'#1D9E75', fontWeight:500 }}>✓ {prog.exames?.length} exames definidos</span>
+                            <span style={{ fontSize:11, color:'#1D9E75', fontWeight:500 }}>✓ {todosExamesGhe({...prog, exames:normalizeExames(prog)}).length} exames definidos</span>
                             <div style={{ fontSize:10, color:'#9ca3af' }}>
                               {prog.exames?.slice(0,2).map(e=>e.nome).join(', ')}{prog.exames?.length>2?'...':''}
                             </div>

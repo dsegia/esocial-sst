@@ -137,9 +137,13 @@ REGRAS CRÍTICAS:
 
 const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento COMPLETO e retorne SOMENTE JSON válido, sem texto antes ou depois.
 
-PCMSO lista funções/cargos e para cada uma os exames médicos obrigatórios separados por TIPO DE CONSULTA.
+PCMSO é organizado em GHEs (Grupos Homogêneos de Exposição). Cada GHE tem:
+- Nome/setor do grupo
+- Lista de funções/cargos daquele grupo
+- Riscos por categoria (acidentes, ergonômicos, físicos, biológicos, químicos)
+- Tabela de exames com colunas por tipo de consulta
 
-TIPOS DE CONSULTA (colunas comuns no documento):
+TIPOS DE CONSULTA (colunas da tabela de exames):
 - "admissional" → coluna ADMISSIONAL
 - "periodico" → coluna PERIÓDICO / PERIÓDICA / ANUAL / SEMESTRAL
 - "retorno_trabalho" → coluna RETORNO AO TRABALHO
@@ -147,12 +151,12 @@ TIPOS DE CONSULTA (colunas comuns no documento):
 - "demissional" → coluna DEMISSIONAL
 
 COMO EXTRAIR:
-1. Para cada função/cargo: identifique quais exames aparecem em cada coluna/tipo
-2. Cada exame recebe um array "tipos" com os tipos em que aparece. Ex: Exame clínico que está em Admissional e Periódico → "tipos": ["admissional","periodico"]
-3. Riscos: extraia dos campos "Perigos de acidentes", "Perigos ergonômicos", "Perigos físicos", "Perigos biológicos", "Perigos químicos" — ignore "N/A"
-4. Se o documento tiver tabela com colunas de tipo, extraia cada exame com seus tipos. Se não tiver colunas, use "tipos": ["periodico"] como padrão
-5. CADA função/cargo = 1 item em "programas". Se o documento tiver 8 cargos = 8 itens
-6. NUNCA retorne programas = [] se houver qualquer lista de exames ou funções
+1. CADA GHE/setor = 1 item em "programas"
+2. "funcoes": liste CADA cargo/função do GHE separadamente
+3. "riscos": extraia de "Perigos de acidentes", "Perigos ergonômicos", "Perigos físicos", "Perigos biológicos", "Perigos químicos" — ignore "N/A"
+4. "exames": objeto com chaves por tipo. Liste os exames de cada coluna exatamente como aparecem no documento
+5. Se não houver colunas distintas, use "periodico" como padrão para todos os exames
+6. NUNCA retorne programas = [] se o documento contiver exames ou funções
 
 {
   "dados_gerais": {
@@ -163,24 +167,40 @@ COMO EXTRAIR:
   },
   "programas": [
     {
-      "funcao": "Auxiliar Administrativo",
-      "setor": "Administrativo | Recepção",
-      "riscos": ["Quedas do mesmo nível", "Postura inadequada", "Movimentos repetitivos"],
-      "exames": [
-        {"nome": "Exame clínico", "tipos": ["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"], "obrigatorio": true},
-        {"nome": "Acuidade visual", "tipos": ["admissional","periodico"], "obrigatorio": true}
-      ]
+      "ghe": "Administrativo | Recepção",
+      "funcoes": ["Auxiliar Administrativo", "Recepcionista"],
+      "riscos": {
+        "acidentes": ["Quedas do mesmo nível", "Batida contra móveis do escritório"],
+        "ergonomicos": ["Postura inadequada", "Movimentos repetitivos"],
+        "fisicos": [],
+        "biologicos": [],
+        "quimicos": []
+      },
+      "exames": {
+        "admissional": [{"nome": "Exame clínico"}, {"nome": "Acuidade visual"}],
+        "periodico":   [{"nome": "Exame clínico"}, {"nome": "Acuidade visual"}],
+        "retorno_trabalho": [{"nome": "Exame clínico"}],
+        "mudanca_risco":    [{"nome": "Exame clínico"}],
+        "demissional":      [{"nome": "Exame clínico"}]
+      }
     },
     {
-      "funcao": "Auxiliar de Enfermagem",
-      "setor": "Enfermagem",
-      "riscos": ["Vírus", "Bactérias", "Fungos", "Exposição a fluidos biológicos", "Medicamentos"],
-      "exames": [
-        {"nome": "Exame clínico", "tipos": ["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"], "obrigatorio": true},
-        {"nome": "Hemograma completo", "tipos": ["admissional","periodico"], "obrigatorio": true},
-        {"nome": "Anti-HBS", "tipos": ["admissional","periodico"], "obrigatorio": true},
-        {"nome": "HbsAG", "tipos": ["admissional","periodico"], "obrigatorio": true}
-      ]
+      "ghe": "Enfermagem",
+      "funcoes": ["Auxiliar de Enfermagem", "Técnico de Enfermagem", "Enfermeiro"],
+      "riscos": {
+        "acidentes": ["Quedas do mesmo nível", "Perfurocortantes"],
+        "ergonomicos": ["Postura inadequada", "Movimentos repetitivos"],
+        "fisicos": [],
+        "biologicos": ["Vírus", "Bactérias", "Fungos", "Parasitas", "Exposição a fluidos biológicos", "Materiais perfurocortantes contaminados"],
+        "quimicos": ["Medicamentos e drogas", "Produtos de limpeza e desinfecção"]
+      },
+      "exames": {
+        "admissional": [{"nome": "Exame clínico"}, {"nome": "Hemograma completo"}, {"nome": "Anti-HBS"}, {"nome": "HbsAG"}, {"nome": "VDRL"}, {"nome": "AntiHCV"}],
+        "periodico":   [{"nome": "Exame clínico"}, {"nome": "Hemograma completo"}, {"nome": "Anti-HBS"}, {"nome": "HbsAG"}, {"nome": "VDRL"}, {"nome": "AntiHCV"}],
+        "retorno_trabalho": [{"nome": "Exame clínico"}],
+        "mudanca_risco":    [{"nome": "Exame clínico"}],
+        "demissional":      [{"nome": "Exame clínico"}]
+      }
     }
   ],
   "confianca": {"medico": 90, "programas": 85}
@@ -197,12 +217,11 @@ PASSO 2 — Extraia os dados completos conforme o tipo:
 
 LTCAT → {"tipo":"ltcat","dados_gerais":{"data_emissao":"AAAA-MM-DD","data_vigencia":null,"prox_revisao":null,"resp_nome":"Nome do engenheiro/médico","resp_conselho":"CREA","resp_registro":"número do CREA/CRM"},"ghes":[{"nome":"GHE 01 - NOME","setor":"nome do setor","qtd_trabalhadores":1,"aposentadoria_especial":false,"funcoes":["Cargo 1","Cargo 2","Cargo 3"],"agentes":[{"tipo":"fis","nome":"Ruído contínuo","valor":null,"limite":null,"supera_lt":false}],"epc":[{"nome":"Extintor","eficaz":true}],"epi":[]}],"confianca":{"data_emissao":95,"resp_nome":95,"ghes":90}}
 
-PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"funcao":"Nome do cargo","setor":null,"riscos":["Ergonômico"],"exames":[{"nome":"Exame clínico","tipos":["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"],"obrigatorio":true},{"nome":"Acuidade visual","tipos":["admissional","periodico"],"obrigatorio":true}]}],"confianca":{"medico":90,"programas":85}}
+PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"ghe":"Nome do GHE / Setor","funcoes":["Cargo 1","Cargo 2"],"riscos":{"acidentes":["risco"],"ergonomicos":["risco"],"fisicos":[],"biologicos":[],"quimicos":[]},"exames":{"admissional":[{"nome":"Exame clínico"}],"periodico":[{"nome":"Exame clínico"}],"retorno_trabalho":[{"nome":"Exame clínico"}],"mudanca_risco":[{"nome":"Exame clínico"}],"demissional":[{"nome":"Exame clínico"}]}}],"confianca":{"medico":90,"programas":85}}
 PCMSO — REGRAS ESPECÍFICAS:
-- Extraia CADA cargo/função como item separado em "programas". Se o documento tiver 8 cargos = 8 itens no array
-- Para cada exame, "tipos" lista os tipos de consulta em que ele aparece: "admissional","periodico","retorno_trabalho","mudanca_risco","demissional"
-- Se o documento tiver colunas por tipo de consulta, extraia cada exame com seus tipos corretos
-- Se não houver distinção, use "tipos":["periodico"] como padrão
+- CADA GHE/setor = 1 item em "programas". "funcoes" lista todos os cargos do GHE
+- "exames" é um objeto com chaves: admissional, periodico, retorno_trabalho, mudanca_risco, demissional
+- Liste os exames de cada coluna/tipo exatamente como aparecem. Se não houver colunas, use "periodico" para todos
 - NUNCA retorne programas=[] se o documento contiver exames ou funções
 
 ASO → {"tipo":"aso","funcionario":{"nome":null,"cpf":null,"data_nasc":null,"data_adm":null,"matricula":null,"funcao":null,"setor":null},"aso":{"tipo_aso":"periodico","data_exame":null,"prox_exame":null,"conclusao":"apto","medico_nome":null,"medico_crm":null},"exames":[{"nome":"exame","resultado":"Normal"}],"riscos":["risco"],"confianca":{"nome":85,"cpf":85,"tipo_aso":80,"data_exame":90,"conclusao":85}}
@@ -214,33 +233,45 @@ REGRAS GERAIS:
 - Retorne SOMENTE o JSON, sem texto antes ou depois`
 
 // Enriquece resultado com códigos das tabelas (escopo de módulo para uso em lerComClaude e handler)
+const TIPOS_EXAME = ['admissional','periodico','retorno_trabalho','mudanca_risco','demissional']
+
+function enriquecerExame(ex) {
+  return { ...ex, codigo_t27: codigoExame(ex.nome || ex) }
+}
+
 function enriquecer(dados, tipo) {
   if (!dados) return dados
-  if (tipo !== 'ltcat') {
+  if (tipo === 'pcmso') {
+    // Nova estrutura: programas com exames agrupados por tipo
+    if (dados.programas?.length) {
+      dados.programas = dados.programas.map(prog => {
+        const examesEnriq = {}
+        for (const t of TIPOS_EXAME) {
+          if (Array.isArray(prog.exames?.[t])) {
+            examesEnriq[t] = prog.exames[t].map(enriquecerExame)
+          }
+        }
+        return { ...prog, exames: examesEnriq }
+      })
+    }
+  } else if (tipo === 'aso') {
     if (dados.exames?.length) {
-      dados.exames = dados.exames.map(ex => ({
-        ...ex,
-        codigo_t27: codigoExame(ex.nome),
-      }))
+      dados.exames = dados.exames.map(enriquecerExame)
     }
     if (dados.riscos?.length) {
       dados.riscos_codificados = dados.riscos.map(r => ({
-        nome: r,
-        codigo_t24: codigoAgente(r),
+        nome: r, codigo_t24: codigoAgente(r),
         tipo: codigoAgente(r).startsWith('01') ? 'fis'
             : codigoAgente(r).startsWith('02') ? 'qui'
             : codigoAgente(r).startsWith('03') ? 'bio'
             : codigoAgente(r).startsWith('09') ? 'aus' : 'out',
       }))
     }
-  } else {
+  } else if (tipo === 'ltcat') {
     if (dados.ghes?.length) {
       dados.ghes = dados.ghes.map(ghe => ({
         ...ghe,
-        agentes: (ghe.agentes||[]).map(ag => ({
-          ...ag,
-          codigo_t24: codigoAgente(ag.nome),
-        }))
+        agentes: (ghe.agentes||[]).map(ag => ({ ...ag, codigo_t24: codigoAgente(ag.nome) }))
       }))
     }
   }

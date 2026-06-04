@@ -227,13 +227,14 @@ async function salvarDocumento(tipo, dados, empresaId) {
   }
   if (tipo === 'pcmso') {
     for (const prog of (dados.programas || [])) {
+      const gheNome = prog.ghe || prog.funcao || 'GHE sem nome'
       await supabase.from('pcmso_programa').upsert({
-        empresa_id: empresaId, funcao: prog.funcao, setor: prog.setor || null,
-        riscos: prog.riscos || [],
-        exames: (prog.exames || []).map(e => ({
-          nome: typeof e === 'string' ? e : e.nome,
-          periodicidade: e.periodicidade || 'Anual', obrigatorio: true,
-        })),
+        empresa_id: empresaId,
+        funcao: gheNome,
+        setor: prog.setor || gheNome,
+        funcoes: prog.funcoes || [],
+        riscos: prog.riscos || {},
+        exames: prog.exames || {},
         atualizado_em: new Date().toISOString(),
       }, { onConflict: 'empresa_id,funcao' })
     }
