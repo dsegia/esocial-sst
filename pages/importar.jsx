@@ -85,14 +85,14 @@ async function carregarPdfJs() {
     pdfJsLoading = new Promise((resolve, reject) => {
       const s = document.createElement('script')
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-      s.integrity = 'sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ=='
-      s.crossOrigin = 'anonymous'
+      // sem integrity — evita falha silenciosa se o CDN atualizar o hash
       s.onload = () => {
+        if (!window.pdfjsLib) { reject(new Error('PDF.js não carregou corretamente')); return }
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =
           'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
         resolve(window.pdfjsLib)
       }
-      s.onerror = reject
+      s.onerror = () => reject(new Error('Falha ao carregar leitor de PDF. Verifique sua conexão e tente novamente.'))
       document.head.appendChild(s)
     })
   }
@@ -102,7 +102,13 @@ async function carregarPdfJs() {
 // ── Extrai texto e chama API ──────────────────────────────
 async function processarArquivo(file, onProgresso, token) {
   onProgresso('Carregando PDF...')
-  const lib = await carregarPdfJs()
+  let lib
+  try {
+    lib = await carregarPdfJs()
+  } catch (err) {
+    pdfJsLoading = null // permite nova tentativa
+    throw err
+  }
   const arrayBuf = await file.arrayBuffer()
   const pdfDoc = await lib.getDocument({ data: arrayBuf.slice(0) }).promise
 
