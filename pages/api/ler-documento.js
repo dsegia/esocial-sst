@@ -135,28 +135,28 @@ REGRAS CRÍTICAS:
   "confianca": {"data_emissao": 95, "resp_nome": 95, "ghes": 90}
 }`
 
-const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento COMPLETO e retorne SOMENTE JSON válido, sem texto antes ou depois.
+const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento e retorne SOMENTE JSON válido, sem texto antes ou depois.
 
-PCMSO é organizado em GHEs (Grupos Homogêneos de Exposição). Cada GHE tem:
-- Nome/setor do grupo
-- Lista de funções/cargos daquele grupo
-- Riscos por categoria (acidentes, ergonômicos, físicos, biológicos, químicos)
-- Tabela de exames com colunas por tipo de consulta
+REGRA ABSOLUTA — ANTI-ALUCINAÇÃO:
+Extraia APENAS o que está EXPLICITAMENTE ESCRITO no documento.
+NÃO invente exames. NÃO use conhecimento geral sobre PCMSO para preencher campos.
+Se uma coluna estiver em branco ou ilegível, retorne array vazio [].
+Se não conseguir ler um GHE claramente, NÃO o inclua.
+É MELHOR retornar menos dados corretos do que dados inventados.
 
-TIPOS DE CONSULTA (colunas da tabela de exames):
-- "admissional" → coluna ADMISSIONAL
-- "periodico" → coluna PERIÓDICO / PERIÓDICA / ANUAL / SEMESTRAL
-- "retorno_trabalho" → coluna RETORNO AO TRABALHO
-- "mudanca_risco" → coluna MUDANÇA DE RISCO OCUPACIONAL / MUDANÇA DE FUNÇÃO
-- "demissional" → coluna DEMISSIONAL
+ESTRUTURA DO DOCUMENTO — PCMSO tem GHEs. Cada GHE tem:
+- Cabeçalho: nome do setor/grupo (ex: "Administrativo | Recepção", "Enfermagem")
+- Campo "Funções": lista de cargos separados por vírgula
+- Campos "Perigos de acidentes/ergonômicos/físicos/biológicos/químicos": riscos (ignore "N/A")
+- Tabela com colunas: ADMISSIONAL | PERIÓDICO | RETORNO AO TRABALHO | MUDANÇA DE RISCO OCUPACIONAL | DEMISSIONAL
 
 COMO EXTRAIR:
-1. CADA GHE/setor = 1 item em "programas"
-2. "funcoes": liste CADA cargo/função do GHE separadamente
-3. "riscos": extraia de "Perigos de acidentes", "Perigos ergonômicos", "Perigos físicos", "Perigos biológicos", "Perigos químicos" — ignore "N/A"
-4. "exames": objeto com chaves por tipo. Liste os exames de cada coluna exatamente como aparecem no documento
-5. Se não houver colunas distintas, use "periodico" como padrão para todos os exames
-6. NUNCA retorne programas = [] se o documento contiver exames ou funções
+1. CADA GHE = 1 item em "programas"
+2. "ghe": nome exato do cabeçalho do grupo
+3. "funcoes": cargos listados no campo "Funções" do GHE
+4. "riscos": apenas os que NÃO forem "N/A" ou vazios
+5. "exames": copie LITERALMENTE os nomes dos exames de cada coluna. Se a coluna estiver vazia → []
+6. Se programas = [] porque não conseguiu ler, retorne mesmo assim com array vazio
 
 {
   "dados_gerais": {
@@ -221,8 +221,8 @@ PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"
 PCMSO — REGRAS ESPECÍFICAS:
 - CADA GHE/setor = 1 item em "programas". "funcoes" lista todos os cargos do GHE
 - "exames" é um objeto com chaves: admissional, periodico, retorno_trabalho, mudanca_risco, demissional
-- Liste os exames de cada coluna/tipo exatamente como aparecem. Se não houver colunas, use "periodico" para todos
-- NUNCA retorne programas=[] se o documento contiver exames ou funções
+- Copie LITERALMENTE os nomes dos exames de cada coluna. Coluna vazia → []
+- NÃO invente exames. NÃO use conhecimento geral. Apenas o que está escrito no documento
 
 ASO → {"tipo":"aso","funcionario":{"nome":null,"cpf":null,"data_nasc":null,"data_adm":null,"matricula":null,"funcao":null,"setor":null},"aso":{"tipo_aso":"periodico","data_exame":null,"prox_exame":null,"conclusao":"apto","medico_nome":null,"medico_crm":null},"exames":[{"nome":"exame","resultado":"Normal"}],"riscos":["risco"],"confianca":{"nome":85,"cpf":85,"tipo_aso":80,"data_exame":90,"conclusao":85}}
 

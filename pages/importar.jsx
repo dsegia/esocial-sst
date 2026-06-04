@@ -104,11 +104,11 @@ async function extrairPaginas(pdfDoc, de, ate, onProgresso) {
   for (let i = de; i <= ate; i++) {
     if (onProgresso) onProgresso(`Convertendo página ${i - de + 1}/${ate - de + 1}...`)
     const page = await pdfDoc.getPage(i)
-    const vp = page.getViewport({ scale: 0.8 })
+    const vp = page.getViewport({ scale: 1.5 })
     const canvas = document.createElement('canvas')
     canvas.width = vp.width; canvas.height = vp.height
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
-    paginas.push(canvas.toDataURL('image/jpeg', 0.5).split(',')[1])
+    paginas.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1])
   }
   return paginas
 }
@@ -148,7 +148,7 @@ async function processarArquivo(file, onProgresso, token) {
     payload = { texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else {
     onProgresso('PDF escaneado — convertendo imagens...')
-    const paginas = await extrairPaginas(pdfDoc, 1, Math.min(pdfDoc.numPages, 10), onProgresso)
+    const paginas = await extrairPaginas(pdfDoc, 1, Math.min(pdfDoc.numPages, 6), onProgresso)
     payload = { paginas, texto_pdf: '', tipo: 'auto' }
   }
 
