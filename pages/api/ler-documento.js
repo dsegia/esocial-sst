@@ -135,25 +135,54 @@ REGRAS CRÍTICAS:
   "confianca": {"data_emissao": 95, "resp_nome": 95, "ghes": 90}
 }`
 
-const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento COMPLETO e retorne SOMENTE JSON válido.
+const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento COMPLETO e retorne SOMENTE JSON válido, sem texto antes ou depois.
 
-EXTRAIA:
-1. dados_gerais: médico coordenador (nome + CRM), data de elaboração, período de vigência
-2. Para CADA função/cargo listada no programa, os exames com periodicidade
+PCMSO é um Programa de Controle Médico de Saúde Ocupacional. Ele lista funções/cargos da empresa e para cada uma os exames médicos obrigatórios.
 
-REGRAS:
-- Datas: converter DD/MM/AAAA para AAAA-MM-DD
-- Para cada função, liste TODOS os exames previstos (admissional, periódico, etc.)
-- Periodicidade típica: "Anual", "Semestral", "Bienal", "A cada exame"
+COMO IDENTIFICAR AS SEÇÕES:
+- Médico coordenador: procure "Médico Coordenador", "Responsável Técnico", "CRM", "médico do trabalho"
+- Funções: procure tabelas ou seções com "Cargo", "Função", "Setor", "GHE", "Grupo Homogêneo"
+- Exames: procure "Exame", "Procedimento", "Avaliação", "Audiometria", "Espirometria", "Hemograma" etc.
+- Periodicidade: procure "Anual", "Semestral", "Bienal", "Admissional", "Demissional", "Periódico"
+- Riscos: procure "Agente", "Risco", "Exposição", "Ruído", "Químico", "Ergonômico", "Físico"
+
+REGRAS CRÍTICAS:
+1. Extraia CADA função/cargo como um item separado em "programas" — se o documento tiver 10 cargos, programas deve ter 10 itens
+2. Para cada função, extraia TODOS os exames listados, incluindo: Avaliação Clínica, Hemograma, Audiometria, Espirometria, Glicemia, Urina, etc.
+3. Se o documento usar uma tabela onde várias funções compartilham os mesmos exames, repita os exames para cada função
+4. "obrigatorio": true para todos os exames do PCMSO (são obrigatórios por definição)
+5. Periodicidade: "Anual" se não especificado. Outros valores: "Semestral", "Bienal", "A cada exame", "Admissional", "Demissional"
+6. Datas: converter DD/MM/AAAA para AAAA-MM-DD
+7. Se não encontrar funções específicas mas encontrar lista de exames, crie um programa com funcao="Todos os funcionários"
+8. NUNCA retorne programas = [] se o documento contiver qualquer lista de exames ou funções
 
 {
-  "dados_gerais": {"medico_nome": null, "medico_crm": null, "data_elaboracao": null, "vigencia": null},
+  "dados_gerais": {
+    "medico_nome": "Dr. Nome do médico coordenador",
+    "medico_crm": "CRM/SP 12345",
+    "data_elaboracao": "2026-01-15",
+    "vigencia": "2026-2027"
+  },
   "programas": [
     {
-      "funcao": "Nome da função",
-      "setor": null,
-      "riscos": ["Risco 1"],
-      "exames": [{"nome": "Avaliação clínica", "periodicidade": "Anual", "obrigatorio": true}]
+      "funcao": "Auxiliar Administrativo",
+      "setor": "Administrativo",
+      "riscos": ["Ergonômico", "Estresse"],
+      "exames": [
+        {"nome": "Avaliação clínica", "periodicidade": "Anual", "obrigatorio": true},
+        {"nome": "Acuidade visual", "periodicidade": "Anual", "obrigatorio": true},
+        {"nome": "Glicemia de jejum", "periodicidade": "Anual", "obrigatorio": true}
+      ]
+    },
+    {
+      "funcao": "Operador de Máquinas",
+      "setor": "Produção",
+      "riscos": ["Ruído", "Vibração"],
+      "exames": [
+        {"nome": "Avaliação clínica", "periodicidade": "Anual", "obrigatorio": true},
+        {"nome": "Audiometria tonal", "periodicidade": "Anual", "obrigatorio": true},
+        {"nome": "Hemograma completo", "periodicidade": "Anual", "obrigatorio": true}
+      ]
     }
   ],
   "confianca": {"medico": 90, "programas": 85}
@@ -170,7 +199,12 @@ PASSO 2 — Extraia os dados completos conforme o tipo:
 
 LTCAT → {"tipo":"ltcat","dados_gerais":{"data_emissao":"AAAA-MM-DD","data_vigencia":null,"prox_revisao":null,"resp_nome":"Nome do engenheiro/médico","resp_conselho":"CREA","resp_registro":"número do CREA/CRM"},"ghes":[{"nome":"GHE 01 - NOME","setor":"nome do setor","qtd_trabalhadores":1,"aposentadoria_especial":false,"funcoes":["Cargo 1","Cargo 2","Cargo 3"],"agentes":[{"tipo":"fis","nome":"Ruído contínuo","valor":null,"limite":null,"supera_lt":false}],"epc":[{"nome":"Extintor","eficaz":true}],"epi":[]}],"confianca":{"data_emissao":95,"resp_nome":95,"ghes":90}}
 
-PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"funcao":"Nome cargo","setor":null,"riscos":[],"exames":[{"nome":"Avaliação clínica","periodicidade":"Anual","obrigatorio":true}]}],"confianca":{"medico":90,"programas":85}}
+PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"funcao":"Nome do cargo","setor":null,"riscos":["Ergonômico"],"exames":[{"nome":"Avaliação clínica","periodicidade":"Anual","obrigatorio":true},{"nome":"Hemograma completo","periodicidade":"Anual","obrigatorio":true}]}],"confianca":{"medico":90,"programas":85}}
+PCMSO — REGRAS ESPECÍFICAS:
+- Extraia CADA cargo/função como item separado em "programas". Se o documento tiver 8 cargos = 8 itens no array
+- Para cada função extraia TODOS os exames listados (Avaliação Clínica, Audiometria, Hemograma, Espirometria, Glicemia, etc.)
+- Se não houver funções específicas mas houver lista de exames, use funcao="Todos os funcionários"
+- NUNCA retorne programas=[] se o documento contiver exames ou funções
 
 ASO → {"tipo":"aso","funcionario":{"nome":null,"cpf":null,"data_nasc":null,"data_adm":null,"matricula":null,"funcao":null,"setor":null},"aso":{"tipo_aso":"periodico","data_exame":null,"prox_exame":null,"conclusao":"apto","medico_nome":null,"medico_crm":null},"exames":[{"nome":"exame","resultado":"Normal"}],"riscos":["risco"],"confianca":{"nome":85,"cpf":85,"tipo_aso":80,"data_exame":90,"conclusao":85}}
 
@@ -423,7 +457,7 @@ REGRAS CRÍTICAS:
   "confianca":{"data_emissao":90,"resp_nome":90,"ghes":85}
 }`
 
-  const promptBase = tipo === 'ltcat' ? prompt_ltcat : tipo === 'auto' ? PROMPT_AUTO : tipo === 'pcmso' ? PROMPT_PCMSO : prompt_aso
+  const promptBase = tipo === 'ltcat' ? prompt_ltcat : tipo === 'pcmso' ? PROMPT_PCMSO : tipo === 'auto' ? PROMPT_AUTO : prompt_aso
   const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
 
   function extrairJSON(str) {
