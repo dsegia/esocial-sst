@@ -114,10 +114,12 @@ async function processarArquivo(file, onProgresso, token) {
 
   onProgresso('Extraindo texto...')
   let textoPdf = ''
-  for (let i = 1; i <= Math.min(pdfDoc.numPages, 10); i++) {
+  const maxPaginasTexto = Math.min(pdfDoc.numPages, 60)
+  for (let i = 1; i <= maxPaginasTexto; i++) {
     const page = await pdfDoc.getPage(i)
     const content = await page.getTextContent()
     textoPdf += content.items.map(it => it.str).join(' ') + '\n'
+    if (textoPdf.length > 80000) break
   }
   const temTexto = textoPdf.replace(/\s/g, '').length > 300
 
