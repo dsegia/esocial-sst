@@ -750,63 +750,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right — 3D Mockup */}
-          <div className="mockup-scene">
-            <div className="mockup-wrap" ref={tiltRef} style={{ position:'relative' }}>
-              {/* Float cards */}
-              <div className="float-card" style={{ top:-18, left:'-40px', zIndex:10 }}>
-                <div className="float-card-icon" style={{ background:'rgba(22,163,74,.1)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20,6 9,17 4,12"/></svg>
-                </div>
-                <span style={{ fontWeight:700, color:'#0f172a', fontSize:11 }}>S-2220 transmitido</span>
-                <span style={{ color:'#94a3b8', fontSize:10 }}>agora</span>
-              </div>
-              <div className="float-card float-card-2" style={{ bottom:-14, right:'-30px', zIndex:10 }}>
-                <div className="float-card-icon" style={{ background:'rgba(24,95,165,.1)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-                </div>
-                <span style={{ fontWeight:700, color:'#0f172a', fontSize:11 }}>IA extraindo PDF</span>
-                <span style={{ color:'#22c55e', fontSize:10, fontWeight:600 }}>● ativo</span>
-              </div>
-              <div className="mockup">
-                <div className="mockup-bar">
-                  <div className="mock-dot" style={{ background:'#f87171' }}></div>
-                  <div className="mock-dot" style={{ background:'#fbbf24' }}></div>
-                  <div className="mock-dot" style={{ background:'#4ade80' }}></div>
-                  <span className="mockup-title">eSocial SST — Dashboard</span>
-                </div>
-                <div className="mockup-body">
-                  <div className="mock-stats">
-                    <div className="mock-stat-card">
-                      <div className="mock-stat-num">47</div>
-                      <div className="mock-stat-label">Transmitidos</div>
-                    </div>
-                    <div className="mock-stat-card">
-                      <div className="mock-stat-num" style={{ color:'#ca8a04' }}>3</div>
-                      <div className="mock-stat-label">Pendentes</div>
-                    </div>
-                    <div className="mock-stat-card">
-                      <div className="mock-stat-num" style={{ color:'#16a34a' }}>12</div>
-                      <div className="mock-stat-label">Hoje</div>
-                    </div>
-                  </div>
-                  <div className="mock-table-header">
-                    <span>Funcionário</span><span>Evento</span><span>Status</span>
-                  </div>
-                  {MOCK_ROWS.map((row, i) => (
-                    <div key={i} className="mock-row">
-                      <span className="mock-nome">{row.nome}</span>
-                      <span className="mock-evento">{row.evento}</span>
-                      <span className={`mock-badge mock-badge-${row.status}`}>{row.label}</span>
-                    </div>
-                  ))}
-                  <div className="mock-ai-bar">
-                    <div className="mock-ai-dot"></div>
-                    IA aguardando próximo documento PDF...
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Right — Demo Interativa */}
+          <div style={{ animation:'slide-left .8s ease .2s both' }}>
+            <LiveDemo />
           </div>
         </div>
       </section>
@@ -1058,47 +1004,6 @@ export default function Home() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── DEMO INTERATIVA ── */}
-      <section className="demo-section">
-        <div className="section-wrap">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:64, alignItems:'center' }}>
-            <div className="reveal">
-              <div className="section-label">Demonstração ao vivo</div>
-              <h2 className="section-h2">
-                Veja como funciona<br /><span className="grad">em tempo real</span>
-              </h2>
-              <p style={{ fontSize:15, color:'#64748b', lineHeight:1.85, marginBottom:28 }}>
-                Do PDF ao recibo do governo em segundos. Clique em "Iniciar demo" ao lado e veja cada etapa do processo acontecendo na sua frente.
-              </p>
-              <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:14 }}>
-                {[
-                  { icon:'📄', title:'Upload do PDF', desc:'ASO, LTCAT ou PCMSO — qualquer formato' },
-                  { icon:'🤖', title:'IA extrai os dados', desc:'Claude lê e preenche todos os campos automaticamente' },
-                  { icon:'📡', title:'Transmissão ao gov.br', desc:'XML assinado enviado diretamente ao eSocial' },
-                  { icon:'✅', title:'Recibo salvo', desc:'Protocolo armazenado no histórico com 1 clique' },
-                ].map((item,i) => (
-                  <li key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
-                    <span style={{ fontSize:18, flexShrink:0, marginTop:1 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>{item.title}</div>
-                      <div style={{ fontSize:12, color:'#94a3b8', marginTop:1 }}>{item.desc}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div style={{ marginTop:32 }}>
-                <Link href="/cadastro" className="btn-hero-main" style={{ display:'inline-flex' }}>
-                  Testar grátis por 14 dias →
-                </Link>
-              </div>
-            </div>
-            <div className="reveal">
-              <LiveDemo />
-            </div>
           </div>
         </div>
       </section>
