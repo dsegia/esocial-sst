@@ -46,6 +46,8 @@ type Totais = {
   pendente: number
   erros: number
   funcionarios: number
+  mrr: number
+  trials_ativos: number
 }
 
 const PLANOS = ['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'cancelado']
@@ -474,13 +476,14 @@ export default function Admin() {
           <>
             {/* Cards de totais */}
             {totais && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
                 {[
-                  { label: 'Empresas ativas', valor: totais.empresas, cor: '#185FA5', bg: '#E6F1FB', icon: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z' },
-                  { label: 'Envios este mês', valor: totais.trans_mes, cor: '#27500A', bg: '#EAF3DE', icon: 'M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z' },
-                  { label: 'Pendentes', valor: totais.pendente, cor: '#633806', bg: '#FAEEDA', icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 6v6l4 2' },
-                  { label: 'Com erro', valor: totais.erros, cor: '#791F1F', bg: '#FCEBEB', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
-                  { label: 'Funcionários', valor: totais.funcionarios, cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
+                  { label: 'Empresas ativas', valor: totais.empresas.toLocaleString('pt-BR'), cor: '#185FA5', bg: '#E6F1FB', icon: 'M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z' },
+                  { label: 'MRR estimado', valor: `R$ ${totais.mrr.toLocaleString('pt-BR')}`, cor: '#27500A', bg: '#EAF3DE', icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+                  { label: 'Trials ativos', valor: totais.trials_ativos.toLocaleString('pt-BR'), cor: '#633806', bg: '#FAEEDA', icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 6v6l4 2' },
+                  { label: 'Envios este mês', valor: totais.trans_mes.toLocaleString('pt-BR'), cor: '#185FA5', bg: '#E6F1FB', icon: 'M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z' },
+                  { label: 'Com erro', valor: totais.erros.toLocaleString('pt-BR'), cor: '#791F1F', bg: '#FCEBEB', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
+                  { label: 'Funcionários', valor: totais.funcionarios.toLocaleString('pt-BR'), cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
                 ].map(c => (
                   <div key={c.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -491,7 +494,7 @@ export default function Admin() {
                         </svg>
                       </div>
                     </div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>{c.valor.toLocaleString('pt-BR')}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#111' }}>{c.valor}</div>
                   </div>
                 ))}
               </div>

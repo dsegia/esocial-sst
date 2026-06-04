@@ -45,6 +45,53 @@ const sbAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+async function enviarConfirmacaoTransmissao(sb, userId, empresaId, recibo, ambiente) {
+  if (!process.env.RESEND_API_KEY) return
+
+  const { data: usuario } = await sb.from('usuarios').select('nome').eq('id', userId).maybeSingle()
+  const { data: authUser } = await sb.auth.admin.getUserById(userId)
+  const email = authUser?.user?.email
+  if (!email) return
+
+  const { data: empresa } = await sb.from('empresas').select('razao_social').eq('id', empresaId).maybeSingle()
+
+  const nome = (usuario?.nome || '').split(' ')[0] || 'Olá'
+  const razao = empresa?.razao_social || 'sua empresa'
+  const ambienteLabel = ambiente === 'producao' ? 'Produção' : 'Homologação'
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: 'eSocial SST <noreply@esocialsst.com.br>',
+      to: email,
+      subject: `[eSocial SST] Transmissão enviada — Recibo ${recibo}`,
+      html: `
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:580px;margin:0 auto;color:#111">
+  <div style="background:#185FA5;padding:20px 24px;border-radius:8px 8px 0 0">
+    <h2 style="color:#fff;margin:0;font-size:18px;font-weight:700">Transmissão enviada com sucesso</h2>
+    <p style="color:#b3d4f0;margin:4px 0 0;font-size:13px">${razao}</p>
+  </div>
+  <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+    <p style="margin:0 0 16px;font-size:14px">Olá, <strong>${nome}</strong>!</p>
+    <p style="margin:0 0 16px;font-size:13px;color:#374151">Seu evento eSocial foi enviado ao Gov.br com sucesso.</p>
+    <div style="background:#EAF3DE;border-radius:8px;padding:16px;margin-bottom:20px">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:4px">Número do Recibo</div>
+      <div style="font-size:18px;font-weight:700;color:#27500A;letter-spacing:0.5px">${recibo}</div>
+      <div style="font-size:11px;color:#9ca3af;margin-top:6px">Ambiente: ${ambienteLabel} · ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</div>
+    </div>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/historico"
+      style="display:inline-block;padding:11px 22px;background:#185FA5;color:#fff;border-radius:7px;text-decoration:none;font-weight:500;font-size:13px">
+      Ver histórico de transmissões →
+    </a>
+    <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
+    <p style="font-size:11px;color:#9ca3af;margin:0">eSocial SST Transmissor · Guarde o número do recibo para seus registros.</p>
+  </div>
+</div>`,
+    }),
+  })
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
@@ -191,6 +238,9 @@ export default async function handler(req, res) {
     const ocorrencias = [...resBody.matchAll(/<dsMsg>([^<]+)<\/dsMsg>/g)].map(m => m[1])
 
     if (recibo) {
+      // Envia email de confirmação em background (sem bloquear resposta)
+      enviarConfirmacaoTransmissao(sbAdmin, user.id, empresaId, recibo, ambiente).catch(() => {})
+
       return res.status(200).json({
         sucesso: true,
         recibo,

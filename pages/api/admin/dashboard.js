@@ -175,14 +175,18 @@ export default async function handler(req, res) {
     }))
 
     const totalEmpresas = empresas?.length || 0
-    const totalTrans    = (transAtual || []).filter(t => t.status === 'enviado').length  // só efetivamente enviados
+    const totalTrans    = (transAtual || []).filter(t => t.status === 'enviado').length
     const totalPendente = (transAtual || []).filter(t => t.status === 'pendente').length
     const totalErros    = (transAtual || []).filter(t => t.status === 'rejeitado').length
     const totalFuncs    = Object.values(mapFuncs).reduce((a, b) => a + b, 0)
 
+    const PRECO_PLANO = { micro: 49, starter: 97, pro: 197, professional: 197, business: 497, enterprise: 997 }
+    const mrr = (empresas || []).reduce((acc, e) => acc + (PRECO_PLANO[e.plano] || 0), 0)
+    const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial').length
+
     return res.status(200).json({
       ok: true,
-      totais: { empresas: totalEmpresas, trans_mes: totalTrans, pendente: totalPendente, erros: totalErros, funcionarios: totalFuncs },
+      totais: { empresas: totalEmpresas, trans_mes: totalTrans, pendente: totalPendente, erros: totalErros, funcionarios: totalFuncs, mrr, trials_ativos: trialsAtivos },
       empresas: empresasEnriquecidas,
       recentes: recentesEnriquecidas,
     })

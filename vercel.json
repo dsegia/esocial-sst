@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/reset-creditos",
       "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/cron/alertas-trial",
+      "schedule": "0 9 * * *"
     }
   ]
 }
