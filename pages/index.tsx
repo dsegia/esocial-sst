@@ -197,16 +197,35 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .testi-name{font-size:13px;font-weight:700;color:#0f172a;}
 .testi-role{font-size:11px;color:#94a3b8;margin-top:2px;}
 
-/* ── VIDEO SECTION ── */
-.video-section{background:#fff;padding:80px 0;border-top:1px solid #f1f5f9;}
-.video-frame-wrap{}
-.video-frame{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;aspect-ratio:16/9;position:relative;box-shadow:0 16px 60px rgba(15,23,42,.1);}
-.video-frame iframe{width:100%;height:100%;border:none;}
-.video-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(145deg,#f8fafc,#e8f0fa);position:relative;}
-.video-play-btn{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#185FA5,#3b82f6);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(24,95,165,.35);cursor:pointer;transition:transform .15s,box-shadow .15s;padding-left:4px;}
-.video-play-btn:hover{transform:scale(1.08);box-shadow:0 12px 36px rgba(24,95,165,.45);}
+/* ── DEMO SECTION ── */
+.demo-section{background:#fff;padding:80px 0;border-top:1px solid #f1f5f9;}
+@keyframes progress-bar{from{width:0}to{width:100%}}
+@keyframes typing-cursor{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes check-in{from{transform:scale(0) rotate(-45deg);opacity:0}to{transform:scale(1) rotate(0deg);opacity:1}}
+@keyframes field-appear{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+@keyframes send-pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 14px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+@keyframes slide-up-fade{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.demo-panel{background:#f8fafc;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 12px 48px rgba(15,23,42,.09);}
+.demo-panel-bar{background:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;}
+.demo-panel-body{padding:20px;min-height:360px;display:flex;flex-direction:column;gap:12px;}
+.demo-step-tabs{display:flex;gap:4px;margin-bottom:4px;}
+.demo-tab{flex:1;padding:6px 4px;border-radius:8px;font-size:10px;font-weight:700;text-align:center;transition:background .3s,color .3s;color:#94a3b8;background:transparent;border:none;cursor:default;}
+.demo-tab.active{background:linear-gradient(135deg,#185FA5,#3b82f6);color:#fff;}
+.demo-tab.done{background:rgba(22,163,74,.1);color:#16a34a;}
+.demo-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(15,23,42,.04);}
+.demo-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#185FA5;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.demo-field{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94a3b8;padding:4px 0;border-bottom:1px solid #f8fafc;}
+.demo-field:last-child{border:none;}
+.demo-field-val{color:#0f172a;font-weight:600;font-size:11px;}
+.demo-progress-wrap{background:#f1f5f9;border-radius:99px;height:6px;overflow:hidden;margin:6px 0;}
+.demo-progress-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#185FA5,#3b82f6);}
+.demo-upload-zone{border:2px dashed #e2e8f0;border-radius:12px;padding:24px;text-align:center;transition:border-color .3s,background .3s;}
+.demo-upload-zone.active{border-color:#185FA5;background:rgba(24,95,165,.04);}
+.demo-success-bar{display:flex;align-items:center;gap:10px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:10px;padding:12px 14px;font-size:12px;color:#16a34a;font-weight:600;}
+.demo-restart-btn{width:100%;padding:10px;border:1.5px solid rgba(24,95,165,.2);background:transparent;border-radius:10px;font-size:12px;font-weight:600;color:#185FA5;cursor:pointer;transition:background .15s,border-color .15s;margin-top:4px;}
+.demo-restart-btn:hover{background:rgba(24,95,165,.05);border-color:#185FA5;}
 @media(max-width:860px){
-  .video-section .section-wrap>div{grid-template-columns:1fr !important;gap:36px !important;}
+  .demo-section .section-wrap>div{grid-template-columns:1fr !important;gap:36px !important;}
 }
 
 /* ── BLOG STRIP ── */
@@ -370,6 +389,228 @@ function useReveal() {
     els.forEach(el => obs.observe(el))
     return () => obs.disconnect()
   }, [])
+}
+
+// ─── LIVE DEMO ───────────────────────────────────────────────────────────────
+const DEMO_FIELDS = [
+  { label:'Funcionário', value:'João Silva Santos' },
+  { label:'CPF', value:'123.456.789-00' },
+  { label:'Tipo', value:'ASO Admissional' },
+  { label:'Médico', value:'Dr. Roberto Lima' },
+  { label:'CRM', value:'SP-42891' },
+  { label:'Data', value:'04/06/2026' },
+  { label:'Resultado', value:'Apto', green:true },
+]
+
+function LiveDemo() {
+  // step: 0=idle, 1=uploading, 2=extracting, 3=review, 4=transmitting, 5=done
+  const [step, setStep] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const [visibleFields, setVisibleFields] = useState(0)
+  const [txProgress, setTxProgress] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function clear() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+  }
+
+  function delay(ms: number) {
+    return new Promise<void>(resolve => { timerRef.current = setTimeout(resolve, ms) })
+  }
+
+  async function runDemo() {
+    clear()
+    setStep(1); setProgress(0); setVisibleFields(0); setTxProgress(0)
+    // upload progress
+    for (let p = 0; p <= 100; p += 5) {
+      await delay(60)
+      setProgress(p)
+    }
+    await delay(300)
+    setStep(2); setProgress(0)
+    // AI extraction progress
+    for (let p = 0; p <= 100; p += 3) {
+      await delay(50)
+      setProgress(p)
+    }
+    await delay(200)
+    setStep(3)
+    // reveal fields one by one
+    for (let i = 1; i <= DEMO_FIELDS.length; i++) {
+      await delay(220)
+      setVisibleFields(i)
+    }
+    await delay(800)
+    setStep(4); setTxProgress(0)
+    for (let p = 0; p <= 100; p += 4) {
+      await delay(55)
+      setTxProgress(p)
+    }
+    await delay(300)
+    setStep(5)
+  }
+
+  function reset() {
+    clear(); setStep(0); setProgress(0); setVisibleFields(0); setTxProgress(0)
+  }
+
+  const tabs = ['Upload', 'IA Extrai', 'Revisão', 'Transmitindo', 'Concluído']
+  const activeTab = step === 0 ? -1 : step <= 1 ? 0 : step === 2 ? 1 : step === 3 ? 2 : step === 4 ? 3 : 4
+
+  return (
+    <div className="demo-panel">
+      <div className="demo-panel-bar">
+        <div style={{ width:10, height:10, borderRadius:'50%', background:'#f87171' }} />
+        <div style={{ width:10, height:10, borderRadius:'50%', background:'#fbbf24' }} />
+        <div style={{ width:10, height:10, borderRadius:'50%', background:'#4ade80' }} />
+        <span style={{ marginLeft:8, fontSize:11, color:'#94a3b8', fontFamily:'monospace', fontWeight:500 }}>
+          eSocial SST · demo interativa
+        </span>
+      </div>
+      <div className="demo-panel-body">
+        {/* tabs */}
+        <div className="demo-step-tabs">
+          {tabs.map((t, i) => (
+            <div key={t} className={`demo-tab${activeTab === i ? ' active' : activeTab > i ? ' done' : ''}`}>
+              {activeTab > i ? '✓' : t}
+            </div>
+          ))}
+        </div>
+
+        {/* IDLE */}
+        {step === 0 && (
+          <div className="demo-upload-zone" style={{ marginTop:8 }}>
+            <div style={{ fontSize:28, marginBottom:10 }}>📄</div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>ASO_joao_silva.pdf</div>
+            <div style={{ fontSize:11, color:'#94a3b8', marginBottom:16 }}>248 KB · PDF · ASO Admissional</div>
+            <button
+              onClick={runDemo}
+              style={{ padding:'10px 24px', background:'linear-gradient(135deg,#185FA5,#3b82f6)', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 16px rgba(24,95,165,.3)' }}
+            >
+              ▶ Iniciar demonstração
+            </button>
+          </div>
+        )}
+
+        {/* STEP 1 — upload */}
+        {step === 1 && (
+          <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
+            <div className="demo-card-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+              Recebendo arquivo...
+            </div>
+            <div className="demo-field"><span>Arquivo</span><span className="demo-field-val">ASO_joao_silva.pdf</span></div>
+            <div className="demo-field"><span>Tamanho</span><span className="demo-field-val">248 KB</span></div>
+            <div className="demo-field"><span>Tipo detectado</span><span className="demo-field-val" style={{ color:'#185FA5' }}>PDF · eSocial S-2220</span></div>
+            <div style={{ marginTop:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#94a3b8', marginBottom:4 }}>
+                <span>Enviando...</span><span>{progress}%</span>
+              </div>
+              <div className="demo-progress-wrap">
+                <div className="demo-progress-bar" style={{ width:`${progress}%`, transition:'width .05s linear' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2 — AI extracting */}
+        {step === 2 && (
+          <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
+            <div className="demo-card-title">
+              <span style={{ animation:'spin-slow 1.5s linear infinite', display:'inline-block' }}>⚙️</span>
+              Claude IA processando...
+            </div>
+            <div style={{ fontSize:12, color:'#64748b', marginBottom:12 }}>Lendo documento e identificando campos do ASO...</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {['Identificando tipo de exame...','Extraindo dados do trabalhador...','Localizando CRM e médico...','Verificando resultado do exame...'].map((msg, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, color: progress > i*25 ? '#16a34a' : '#94a3b8', transition:'color .3s' }}>
+                  <span style={{ fontSize:10 }}>{progress > i*25 ? '✓' : '○'}</span>{msg}
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop:12 }}>
+              <div className="demo-progress-wrap">
+                <div className="demo-progress-bar" style={{ width:`${progress}%`, transition:'width .05s linear', background:'linear-gradient(90deg,#7c3aed,#3b82f6)' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3 — review */}
+        {step === 3 && (
+          <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
+            <div className="demo-card-title">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><polyline points="20,6 9,17 4,12"/></svg>
+              Dados extraídos pela IA
+            </div>
+            {DEMO_FIELDS.slice(0, visibleFields).map((f, i) => (
+              <div key={i} className="demo-field" style={{ animation:'field-appear .25s ease' }}>
+                <span>{f.label}</span>
+                <span className="demo-field-val" style={f.green ? { color:'#16a34a' } : {}}>{f.value}</span>
+              </div>
+            ))}
+            {visibleFields < DEMO_FIELDS.length && (
+              <div style={{ height:20, display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite', display:'inline-block' }} />
+                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite .2s', display:'inline-block' }} />
+                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite .4s', display:'inline-block' }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 4 — transmitting */}
+        {step === 4 && (
+          <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
+            <div className="demo-card-title">
+              <span>📡</span> Transmitindo ao eSocial gov.br...
+            </div>
+            <div className="demo-field"><span>Evento</span><span className="demo-field-val">S-2220</span></div>
+            <div className="demo-field"><span>Ambiente</span><span className="demo-field-val">Produção</span></div>
+            <div className="demo-field"><span>Assinatura</span><span className="demo-field-val" style={{ color:'#16a34a' }}>ICP-Brasil ✓</span></div>
+            <div style={{ marginTop:12 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#94a3b8', marginBottom:4 }}>
+                <span>Enviando XML ao servidor...</span><span>{txProgress}%</span>
+              </div>
+              <div className="demo-progress-wrap">
+                <div className="demo-progress-bar" style={{ width:`${txProgress}%`, transition:'width .05s linear', background:'linear-gradient(90deg,#16a34a,#22c55e)' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5 — done */}
+        {step === 5 && (
+          <div style={{ animation:'slide-up-fade .4s ease', display:'flex', flexDirection:'column', gap:10 }}>
+            <div className="demo-success-bar" style={{ animation:'send-pulse .6s ease' }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'rgba(22,163,74,.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" style={{ animation:'check-in .4s ease' }}><polyline points="20,6 9,17 4,12"/></svg>
+              </div>
+              <div>
+                <div style={{ fontWeight:700 }}>S-2220 transmitido com sucesso!</div>
+                <div style={{ fontSize:10, color:'#4ade80', fontWeight:400, marginTop:1 }}>Recibo: 1-2b3c4d5e · {new Date().toLocaleDateString('pt-BR')}</div>
+              </div>
+            </div>
+            <div className="demo-card" style={{ padding:'10px 14px' }}>
+              <div style={{ fontSize:10, color:'#94a3b8', marginBottom:6, fontWeight:700, textTransform:'uppercase', letterSpacing:'1px' }}>Resumo do envio</div>
+              {[
+                { l:'Funcionário', v:'João Silva Santos' },
+                { l:'Evento', v:'S-2220 · ASO Admissional' },
+                { l:'Status eSocial', v:'Processado', c:'#16a34a' },
+                { l:'XML salvo', v:'✓ Disponível para download' },
+              ].map((f,i) => (
+                <div key={i} className="demo-field">
+                  <span>{f.l}</span>
+                  <span className="demo-field-val" style={f.c ? { color:f.c } : {}}>{f.v}</span>
+                </div>
+              ))}
+            </div>
+            <button className="demo-restart-btn" onClick={reset}>↺ Ver demonstração novamente</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
@@ -821,64 +1062,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── VIDEO AVATAR ── */}
-      <section className="video-section">
+      {/* ── DEMO INTERATIVA ── */}
+      <section className="demo-section">
         <div className="section-wrap">
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:64, alignItems:'center' }}>
             <div className="reveal">
-              <div className="section-label">Conheça o sistema</div>
+              <div className="section-label">Demonstração ao vivo</div>
               <h2 className="section-h2">
-                Veja como é simples<br /><span className="grad">transmitir o eSocial SST</span>
+                Veja como funciona<br /><span className="grad">em tempo real</span>
               </h2>
               <p style={{ fontSize:15, color:'#64748b', lineHeight:1.85, marginBottom:28 }}>
-                Em menos de 2 minutos veja como importar um PDF de ASO, deixar a IA extrair os dados e transmitir o evento S-2220 diretamente ao governo — sem digitar nada.
+                Do PDF ao recibo do governo em segundos. Clique em "Iniciar demo" ao lado e veja cada etapa do processo acontecendo na sua frente.
               </p>
-              <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:12 }}>
+              <ul style={{ listStyle:'none', display:'flex', flexDirection:'column', gap:14 }}>
                 {[
-                  '📄 Upload do PDF em 1 clique',
-                  '🤖 IA extrai dados em segundos',
-                  '✅ Revisão e transmissão ao gov.br',
-                  '📥 Recibo salvo automaticamente',
+                  { icon:'📄', title:'Upload do PDF', desc:'ASO, LTCAT ou PCMSO — qualquer formato' },
+                  { icon:'🤖', title:'IA extrai os dados', desc:'Claude lê e preenche todos os campos automaticamente' },
+                  { icon:'📡', title:'Transmissão ao gov.br', desc:'XML assinado enviado diretamente ao eSocial' },
+                  { icon:'✅', title:'Recibo salvo', desc:'Protocolo armazenado no histórico com 1 clique' },
                 ].map((item,i) => (
-                  <li key={i} style={{ display:'flex', alignItems:'center', gap:10, fontSize:14, color:'#334155', fontWeight:500 }}>
-                    {item}
+                  <li key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+                    <span style={{ fontSize:18, flexShrink:0, marginTop:1 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>{item.title}</div>
+                      <div style={{ fontSize:12, color:'#94a3b8', marginTop:1 }}>{item.desc}</div>
+                    </div>
                   </li>
                 ))}
               </ul>
-              <div style={{ marginTop:28 }}>
+              <div style={{ marginTop:32 }}>
                 <Link href="/cadastro" className="btn-hero-main" style={{ display:'inline-flex' }}>
                   Testar grátis por 14 dias →
                 </Link>
               </div>
             </div>
-            <div className="video-frame-wrap reveal">
-              <div className="video-frame">
-                {/* Substitua o src abaixo pelo embed do HeyGen/YouTube quando tiver o vídeo */}
-                <div className="video-placeholder">
-                  <div className="video-play-btn">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="5,3 19,12 5,21"/></svg>
-                  </div>
-                  <div style={{ marginTop:20, textAlign:'center' }}>
-                    <div style={{ fontWeight:700, color:'#0f172a', fontSize:15, marginBottom:6 }}>Demonstração do sistema</div>
-                    <div style={{ fontSize:12, color:'#94a3b8' }}>Vídeo em breve</div>
-                  </div>
-                  <div style={{ position:'absolute', top:16, left:16 }}>
-                    <img src="/logo-completa.png" alt="DSEG" style={{ height:32, width:'auto', opacity:.7 }} />
-                  </div>
-                </div>
-              </div>
-              <div style={{ display:'flex', justifyContent:'center', gap:16, marginTop:16 }}>
-                {[
-                  { val:'< 2min', label:'Duração' },
-                  { val:'100%', label:'Gratuito' },
-                  { val:'HD', label:'Qualidade' },
-                ].map(({ val, label }) => (
-                  <div key={label} style={{ textAlign:'center' }}>
-                    <div style={{ fontSize:16, fontWeight:800, color:'#185FA5' }}>{val}</div>
-                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>{label}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="reveal">
+              <LiveDemo />
             </div>
           </div>
         </div>
