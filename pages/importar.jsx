@@ -105,11 +105,11 @@ async function extrairPaginas(pdfDoc, pagNums, onProgresso) {
     const i = pagNums[idx]
     if (onProgresso) onProgresso(`Convertendo página ${i} (${idx + 1}/${pagNums.length})...`)
     const page = await pdfDoc.getPage(i)
-    const vp = page.getViewport({ scale: 1.5 })
+    const vp = page.getViewport({ scale: 1.2 })
     const canvas = document.createElement('canvas')
     canvas.width = vp.width; canvas.height = vp.height
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise
-    paginas.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1])
+    paginas.push(canvas.toDataURL('image/jpeg', 0.75).split(',')[1])
   }
   return paginas
 }
@@ -157,10 +157,10 @@ async function processarArquivo(file, onProgresso, token) {
     // Estratégia: primeiras 2 págs (cabeçalho/médico) + últimas 8 págs (grade de exames)
     onProgresso('PDF escaneado — selecionando páginas relevantes...')
     const total = pdfDoc.numPages
-    const inicioPags = [1, 2].filter(p => p <= total)
-    const fimInicio = Math.max(3, total - 7)
-    const fimPags = Array.from({ length: total - fimInicio + 1 }, (_, i) => fimInicio + i).filter(p => p <= total)
-    const pagsSelecionadas = [...new Set([...inicioPags, ...fimPags])].sort((a, b) => a - b).slice(0, 10)
+    // Primeiras 1 + últimas 4 páginas = 5 máximo (~3MB base64, dentro do limite Vercel)
+    const pags = new Set([1])
+    for (let p = Math.max(2, total - 3); p <= total; p++) pags.add(p)
+    const pagsSelecionadas = [...pags].sort((a, b) => a - b)
     const paginas = await extrairPaginas(pdfDoc, pagsSelecionadas, onProgresso)
     payload = { paginas, texto_pdf: '', tipo: 'auto' }
   }
