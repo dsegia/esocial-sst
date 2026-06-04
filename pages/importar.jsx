@@ -262,7 +262,10 @@ async function salvarDocumento(tipo, dados, empresaId) {
 function resumoDocumento(tipo, dados) {
   if (tipo === 'aso')   return `${dados.funcionario?.nome || '—'} · ${dados.aso?.tipo_aso || '—'}`
   if (tipo === 'ltcat') return `${dados.ghes?.length || 0} GHEs · ${dados.dados_gerais?.resp_nome || '—'}`
-  if (tipo === 'pcmso') return `${dados.programas?.length || 0} programas`
+  if (tipo === 'pcmso') {
+    const n = dados.programas?.length || 0
+    return n > 0 ? `${n} programa${n > 1 ? 's' : ''}` : '0 programas'
+  }
   return ''
 }
 
@@ -366,6 +369,15 @@ export default function Importar() {
           })
         }
       } else {
+        // PCMSO sem programas = extração falhou (PDF escaneado complexo ou estrutura não reconhecida)
+        if (tipo_detectado === 'pcmso' && (dados.programas?.length ?? 0) === 0) {
+          atualizarItem(item.id, {
+            estado: 'erro',
+            erro: 'Não foi possível identificar os programas deste PCMSO. O PDF pode ser escaneado ou ter uma estrutura incomum. Entre em contato com o suporte enviando este arquivo.',
+            progresso: null,
+          })
+          return
+        }
         atualizarItem(item.id, { progresso: 'Salvando...' })
         await salvarDocumento(tipo_detectado, dados, empId)
         atualizarItem(item.id, {
