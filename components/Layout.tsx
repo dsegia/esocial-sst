@@ -229,26 +229,29 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
         </nav>
 
         {/* Saldo de envios (assinantes ativos) */}
-        {creditos && !['trial','cancelado'].includes(plano) && (
+        {creditos && !['trial','cancelado'].includes(plano) && (() => {
+          const usados = creditos.incluidos - creditos.restantes
+          const pct = creditos.incluidos > 0 ? Math.min(100, Math.round(usados / creditos.incluidos * 100)) : 0
+          const cor = creditos.restantes === 0 ? '#dc2626' : creditos.restantes <= Math.round(creditos.incluidos * 0.15) ? '#EF9F27' : '#27a048'
+          return (
           <div style={{ padding:'0 .75rem', marginBottom:'.5rem' }}>
             <a href="/planos" style={{ display:'block', padding:'8px 10px', borderRadius:8, background:'#f9fafb', border:'0.5px solid #e5e7eb', textDecoration:'none' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                 <span style={{ fontSize:10, color:'#6b7280' }}>Envios este mês</span>
-                <span style={{ fontSize:11, fontWeight:700, color: creditos.restantes === 0 ? '#dc2626' : creditos.restantes <= Math.round(creditos.incluidos * 0.15) ? '#EF9F27' : '#27a048' }}>
-                  {creditos.restantes}/{creditos.incluidos}
+                <span style={{ fontSize:11, fontWeight:700, color: cor }}>
+                  {usados}/{creditos.incluidos}
                 </span>
               </div>
               <div style={{ height:4, background:'#e5e7eb', borderRadius:99, overflow:'hidden' }}>
-                <div style={{
-                  height:'100%', borderRadius:99,
-                  width: creditos.incluidos > 0 ? `${Math.min(100, Math.round(creditos.restantes / creditos.incluidos * 100))}%` : '0%',
-                  background: creditos.restantes === 0 ? '#dc2626' : creditos.restantes <= Math.round(creditos.incluidos * 0.15) ? '#EF9F27' : '#27a048',
-                  transition:'width .3s',
-                }} />
+                <div style={{ height:'100%', borderRadius:99, width:`${pct}%`, background: cor, transition:'width .3s' }} />
               </div>
+              {creditos.restantes <= Math.round(creditos.incluidos * 0.3) && creditos.restantes > 0 && (
+                <div style={{ fontSize:9, color:'#9ca3af', marginTop:3 }}>{creditos.restantes} restante{creditos.restantes !== 1 ? 's' : ''}</div>
+              )}
             </a>
           </div>
-        )}
+          )
+        })()}
 
         {/* Banner trial / upgrade */}
         {(plano === 'trial' || plano === 'cancelado') && (
