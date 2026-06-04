@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 /* ── NAV ── */
 nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(226,232,240,.8);transition:box-shadow .2s;}
 nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
-.nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:80px;display:flex;align-items:center;justify-content:space-between;}
+.nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:96px;display:flex;align-items:center;justify-content:space-between;}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .nav-logo-mark{width:36px;height:36px;background:linear-gradient(135deg,#185FA5,#3b82f6);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(24,95,165,.3);}
 .nav-logo-text{font-size:15px;font-weight:800;color:#0f172a;letter-spacing:-.3px;}
@@ -392,68 +392,95 @@ function useReveal() {
 }
 
 // ─── LIVE DEMO ───────────────────────────────────────────────────────────────
-const DEMO_FIELDS = [
-  { label:'Funcionário', value:'João Silva Santos' },
-  { label:'CPF', value:'123.456.789-00' },
-  { label:'Tipo', value:'ASO Admissional' },
-  { label:'Médico', value:'Dr. Roberto Lima' },
-  { label:'CRM', value:'SP-42891' },
-  { label:'Data', value:'04/06/2026' },
-  { label:'Resultado', value:'Apto', green:true },
-]
+type DocType = 'aso' | 'ltcat' | 'pcmso'
+
+const DOCS: Record<DocType, {
+  label: string; file: string; size: string; evento: string; eventoLabel: string
+  aiChecks: string[]; fields: { label: string; value: string; green?: boolean }[]
+  successMsg: string; successSub: string
+}> = {
+  aso: {
+    label:'ASO', file:'ASO_joao_silva.pdf', size:'248 KB',
+    evento:'S-2220', eventoLabel:'S-2220 · ASO Admissional',
+    aiChecks:['Identificando tipo de exame...','Extraindo dados do trabalhador...','Localizando CRM e médico responsável...','Verificando resultado e aptidão...'],
+    fields:[
+      { label:'Funcionário', value:'João Silva Santos' },
+      { label:'CPF', value:'123.456.789-00' },
+      { label:'Tipo', value:'ASO Admissional' },
+      { label:'Médico', value:'Dr. Roberto Lima' },
+      { label:'CRM', value:'SP-42891' },
+      { label:'Data do exame', value:'04/06/2026' },
+      { label:'Resultado', value:'Apto', green:true },
+    ],
+    successMsg:'S-2220 transmitido com sucesso!',
+    successSub:'Recibo: 1-2b3c4d5e · ASO salvo no histórico',
+  },
+  ltcat: {
+    label:'LTCAT', file:'LTCAT_industria_abc.pdf', size:'1.2 MB',
+    evento:'S-2240', eventoLabel:'S-2240 · Condições Ambientais',
+    aiChecks:['Identificando agentes nocivos...','Extraindo dados da empresa e função...','Localizando EPIs e EPCs declarados...','Verificando intensidade de exposição...'],
+    fields:[
+      { label:'Empresa', value:'Indústria ABC Ltda' },
+      { label:'CNPJ', value:'12.345.678/0001-90' },
+      { label:'Função', value:'Operador de Máquinas' },
+      { label:'Agente nocivo', value:'Ruído — 87 dB(A)' },
+      { label:'EPI fornecido', value:'Protetor auricular CA-1234' },
+      { label:'Responsável', value:'Eng. Carlos Souza' },
+      { label:'Aposentadoria esp.', value:'Sim — 25 anos', green:true },
+    ],
+    successMsg:'S-2240 transmitido com sucesso!',
+    successSub:'Recibo: 5-6f7g8h9i · LTCAT vinculado ao cargo',
+  },
+  pcmso: {
+    label:'PCMSO', file:'PCMSO_2026_clinica.pdf', size:'876 KB',
+    evento:'S-2220', eventoLabel:'S-2220 · Exame Periódico',
+    aiChecks:['Identificando programa e vigência...','Extraindo responsável técnico e CRM...','Localizando exames complementares previstos...','Verificando periodicidade por função...'],
+    fields:[
+      { label:'Empresa', value:'Clínica Saúde Total' },
+      { label:'Vigência', value:'01/01/2026 – 31/12/2026' },
+      { label:'Médico coord.', value:'Dra. Ana Ferreira' },
+      { label:'CRM', value:'MG-98765' },
+      { label:'Exames previstos', value:'Hemograma, Audiometria' },
+      { label:'Periodicidade', value:'Anual' },
+      { label:'Status', value:'Aprovado pelo SESMT', green:true },
+    ],
+    successMsg:'S-2220 (PCMSO) transmitido!',
+    successSub:'Recibo: 9-k1l2m3n4 · Programa registrado',
+  },
+}
 
 function LiveDemo() {
-  // step: 0=idle, 1=uploading, 2=extracting, 3=review, 4=transmitting, 5=done
+  const [docType, setDocType] = useState<DocType>('aso')
   const [step, setStep] = useState(0)
   const [progress, setProgress] = useState(0)
   const [visibleFields, setVisibleFields] = useState(0)
   const [txProgress, setTxProgress] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function clear() {
-    if (timerRef.current) clearTimeout(timerRef.current)
-  }
-
-  function delay(ms: number) {
-    return new Promise<void>(resolve => { timerRef.current = setTimeout(resolve, ms) })
-  }
+  function clear() { if (timerRef.current) clearTimeout(timerRef.current) }
+  function delay(ms: number) { return new Promise<void>(r => { timerRef.current = setTimeout(r, ms) }) }
 
   async function runDemo() {
     clear()
+    const doc = DOCS[docType]
     setStep(1); setProgress(0); setVisibleFields(0); setTxProgress(0)
-    // upload progress
-    for (let p = 0; p <= 100; p += 5) {
-      await delay(60)
-      setProgress(p)
-    }
-    await delay(300)
+    for (let p = 0; p <= 100; p += 5) { await delay(55); setProgress(p) }
+    await delay(250)
     setStep(2); setProgress(0)
-    // AI extraction progress
-    for (let p = 0; p <= 100; p += 3) {
-      await delay(50)
-      setProgress(p)
-    }
+    for (let p = 0; p <= 100; p += 3) { await delay(45); setProgress(p) }
     await delay(200)
     setStep(3)
-    // reveal fields one by one
-    for (let i = 1; i <= DEMO_FIELDS.length; i++) {
-      await delay(220)
-      setVisibleFields(i)
-    }
-    await delay(800)
+    for (let i = 1; i <= doc.fields.length; i++) { await delay(200); setVisibleFields(i) }
+    await delay(700)
     setStep(4); setTxProgress(0)
-    for (let p = 0; p <= 100; p += 4) {
-      await delay(55)
-      setTxProgress(p)
-    }
+    for (let p = 0; p <= 100; p += 4) { await delay(50); setTxProgress(p) }
     await delay(300)
     setStep(5)
   }
 
-  function reset() {
-    clear(); setStep(0); setProgress(0); setVisibleFields(0); setTxProgress(0)
-  }
+  function reset() { clear(); setStep(0); setProgress(0); setVisibleFields(0); setTxProgress(0) }
 
+  const doc = DOCS[docType]
   const tabs = ['Upload', 'IA Extrai', 'Revisão', 'Transmitindo', 'Concluído']
   const activeTab = step === 0 ? -1 : step <= 1 ? 0 : step === 2 ? 1 : step === 3 ? 2 : step === 4 ? 3 : 4
 
@@ -468,7 +495,7 @@ function LiveDemo() {
         </span>
       </div>
       <div className="demo-panel-body">
-        {/* tabs */}
+        {/* tabs de progresso */}
         <div className="demo-step-tabs">
           {tabs.map((t, i) => (
             <div key={t} className={`demo-tab${activeTab === i ? ' active' : activeTab > i ? ' done' : ''}`}>
@@ -477,18 +504,41 @@ function LiveDemo() {
           ))}
         </div>
 
-        {/* IDLE */}
+        {/* IDLE — seletor de documento */}
         {step === 0 && (
-          <div className="demo-upload-zone" style={{ marginTop:8 }}>
-            <div style={{ fontSize:28, marginBottom:10 }}>📄</div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#0f172a', marginBottom:4 }}>ASO_joao_silva.pdf</div>
-            <div style={{ fontSize:11, color:'#94a3b8', marginBottom:16 }}>248 KB · PDF · ASO Admissional</div>
-            <button
-              onClick={runDemo}
-              style={{ padding:'10px 24px', background:'linear-gradient(135deg,#185FA5,#3b82f6)', color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 16px rgba(24,95,165,.3)' }}
-            >
-              ▶ Iniciar demonstração
-            </button>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, animation:'slide-up-fade .3s ease' }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'1px', marginBottom:2 }}>
+              Escolha o documento:
+            </div>
+            <div style={{ display:'flex', gap:6 }}>
+              {(['aso','ltcat','pcmso'] as DocType[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => { if (step === 0) setDocType(t) }}
+                  style={{
+                    flex:1, padding:'8px 4px', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer',
+                    border: docType === t ? 'none' : '1.5px solid #e2e8f0',
+                    background: docType === t ? 'linear-gradient(135deg,#185FA5,#3b82f6)' : '#fff',
+                    color: docType === t ? '#fff' : '#64748b',
+                    boxShadow: docType === t ? '0 3px 12px rgba(24,95,165,.25)' : 'none',
+                    transition:'all .15s',
+                  }}
+                >
+                  {DOCS[t].label}
+                </button>
+              ))}
+            </div>
+            <div className="demo-upload-zone active" style={{ marginTop:2 }}>
+              <div style={{ fontSize:26, marginBottom:8 }}>📄</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#0f172a', marginBottom:3 }}>{doc.file}</div>
+              <div style={{ fontSize:10, color:'#94a3b8', marginBottom:14 }}>{doc.size} · PDF · {doc.label}</div>
+              <button
+                onClick={runDemo}
+                style={{ padding:'9px 22px', background:'linear-gradient(135deg,#185FA5,#3b82f6)', color:'#fff', border:'none', borderRadius:9, fontSize:13, fontWeight:700, cursor:'pointer', boxShadow:'0 4px 14px rgba(24,95,165,.3)' }}
+              >
+                ▶ Iniciar demonstração
+              </button>
+            </div>
           </div>
         )}
 
@@ -499,9 +549,9 @@ function LiveDemo() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
               Recebendo arquivo...
             </div>
-            <div className="demo-field"><span>Arquivo</span><span className="demo-field-val">ASO_joao_silva.pdf</span></div>
-            <div className="demo-field"><span>Tamanho</span><span className="demo-field-val">248 KB</span></div>
-            <div className="demo-field"><span>Tipo detectado</span><span className="demo-field-val" style={{ color:'#185FA5' }}>PDF · eSocial S-2220</span></div>
+            <div className="demo-field"><span>Arquivo</span><span className="demo-field-val">{doc.file}</span></div>
+            <div className="demo-field"><span>Tamanho</span><span className="demo-field-val">{doc.size}</span></div>
+            <div className="demo-field"><span>Tipo detectado</span><span className="demo-field-val" style={{ color:'#185FA5' }}>PDF · {doc.label}</span></div>
             <div style={{ marginTop:12 }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#94a3b8', marginBottom:4 }}>
                 <span>Enviando...</span><span>{progress}%</span>
@@ -518,17 +568,17 @@ function LiveDemo() {
           <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
             <div className="demo-card-title">
               <span style={{ animation:'spin-slow 1.5s linear infinite', display:'inline-block' }}>⚙️</span>
-              Claude IA processando...
+              Claude IA processando {doc.label}...
             </div>
-            <div style={{ fontSize:12, color:'#64748b', marginBottom:12 }}>Lendo documento e identificando campos do ASO...</div>
+            <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>Lendo documento e extraindo dados...</div>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              {['Identificando tipo de exame...','Extraindo dados do trabalhador...','Localizando CRM e médico...','Verificando resultado do exame...'].map((msg, i) => (
+              {doc.aiChecks.map((msg, i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, color: progress > i*25 ? '#16a34a' : '#94a3b8', transition:'color .3s' }}>
                   <span style={{ fontSize:10 }}>{progress > i*25 ? '✓' : '○'}</span>{msg}
                 </div>
               ))}
             </div>
-            <div style={{ marginTop:12 }}>
+            <div style={{ marginTop:10 }}>
               <div className="demo-progress-wrap">
                 <div className="demo-progress-bar" style={{ width:`${progress}%`, transition:'width .05s linear', background:'linear-gradient(90deg,#7c3aed,#3b82f6)' }} />
               </div>
@@ -541,19 +591,19 @@ function LiveDemo() {
           <div className="demo-card" style={{ animation:'slide-up-fade .3s ease' }}>
             <div className="demo-card-title">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><polyline points="20,6 9,17 4,12"/></svg>
-              Dados extraídos pela IA
+              Dados extraídos — {doc.label}
             </div>
-            {DEMO_FIELDS.slice(0, visibleFields).map((f, i) => (
+            {doc.fields.slice(0, visibleFields).map((f, i) => (
               <div key={i} className="demo-field" style={{ animation:'field-appear .25s ease' }}>
                 <span>{f.label}</span>
                 <span className="demo-field-val" style={f.green ? { color:'#16a34a' } : {}}>{f.value}</span>
               </div>
             ))}
-            {visibleFields < DEMO_FIELDS.length && (
-              <div style={{ height:20, display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite', display:'inline-block' }} />
-                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite .2s', display:'inline-block' }} />
-                <span style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:'pulse-dot .8s infinite .4s', display:'inline-block' }} />
+            {visibleFields < doc.fields.length && (
+              <div style={{ height:18, display:'flex', alignItems:'center', gap:4, marginTop:4 }}>
+                {[0,.2,.4].map(d => (
+                  <span key={d} style={{ width:6, height:6, borderRadius:'50%', background:'#185FA5', animation:`pulse-dot .8s infinite ${d}s`, display:'inline-block' }} />
+                ))}
               </div>
             )}
           </div>
@@ -565,9 +615,9 @@ function LiveDemo() {
             <div className="demo-card-title">
               <span>📡</span> Transmitindo ao eSocial gov.br...
             </div>
-            <div className="demo-field"><span>Evento</span><span className="demo-field-val">S-2220</span></div>
+            <div className="demo-field"><span>Evento</span><span className="demo-field-val">{doc.eventoLabel}</span></div>
             <div className="demo-field"><span>Ambiente</span><span className="demo-field-val">Produção</span></div>
-            <div className="demo-field"><span>Assinatura</span><span className="demo-field-val" style={{ color:'#16a34a' }}>ICP-Brasil ✓</span></div>
+            <div className="demo-field"><span>Assinatura digital</span><span className="demo-field-val" style={{ color:'#16a34a' }}>ICP-Brasil ✓</span></div>
             <div style={{ marginTop:12 }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#94a3b8', marginBottom:4 }}>
                 <span>Enviando XML ao servidor...</span><span>{txProgress}%</span>
@@ -587,16 +637,16 @@ function LiveDemo() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" style={{ animation:'check-in .4s ease' }}><polyline points="20,6 9,17 4,12"/></svg>
               </div>
               <div>
-                <div style={{ fontWeight:700 }}>S-2220 transmitido com sucesso!</div>
-                <div style={{ fontSize:10, color:'#4ade80', fontWeight:400, marginTop:1 }}>Recibo: 1-2b3c4d5e · {new Date().toLocaleDateString('pt-BR')}</div>
+                <div style={{ fontWeight:700 }}>{doc.successMsg}</div>
+                <div style={{ fontSize:10, color:'#4ade80', fontWeight:400, marginTop:1 }}>{doc.successSub}</div>
               </div>
             </div>
             <div className="demo-card" style={{ padding:'10px 14px' }}>
-              <div style={{ fontSize:10, color:'#94a3b8', marginBottom:6, fontWeight:700, textTransform:'uppercase', letterSpacing:'1px' }}>Resumo do envio</div>
+              <div style={{ fontSize:10, color:'#94a3b8', marginBottom:6, fontWeight:700, textTransform:'uppercase', letterSpacing:'1px' }}>Resumo</div>
               {[
-                { l:'Funcionário', v:'João Silva Santos' },
-                { l:'Evento', v:'S-2220 · ASO Admissional' },
-                { l:'Status eSocial', v:'Processado', c:'#16a34a' },
+                { l:'Documento', v:doc.label },
+                { l:'Evento', v:doc.eventoLabel },
+                { l:'Status eSocial', v:'Processado com sucesso', c:'#16a34a' },
                 { l:'XML salvo', v:'✓ Disponível para download' },
               ].map((f,i) => (
                 <div key={i} className="demo-field">
@@ -605,7 +655,7 @@ function LiveDemo() {
                 </div>
               ))}
             </div>
-            <button className="demo-restart-btn" onClick={reset}>↺ Ver demonstração novamente</button>
+            <button className="demo-restart-btn" onClick={reset}>↺ Testar outro documento</button>
           </div>
         )}
       </div>
@@ -663,7 +713,7 @@ export default function Home() {
       <nav className={scrolled ? 'scrolled' : ''}>
         <div className="nav-inner">
           <a href="#" className="nav-logo">
-            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:72, width:'auto' }} />
+            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:90, width:'auto' }} />
           </a>
           <div className="nav-links">
             <a href="#eventos">Eventos SST</a>
