@@ -25,8 +25,15 @@ const TABELA27 = {
   'eletrocardiograma':'0080','ecg':'0080',
   'rx coluna':'0091','coluna lombar':'0091',
   'avaliacao dermatologica':'0100','dermatologica':'0100',
-  'hepatite b':'0110','hbsag':'0110',
+  'hepatite b':'0110','hbsag':'0110','anti-hbs':'0110','antihbs':'0110','hbs ag':'0110',
   'toxicologico':'0120','exame toxicologico':'0120',
+  'vdrl':'0031','sifilis':'0031',
+  'antihcv':'0032','anti-hcv':'0032','hepatite c':'0032',
+  'anti-hiv':'0033','antihiv':'0033',
+  'eletrolitos':'0021','sodio':'0022','potassio':'0023',
+  'ferritina':'0024','ferro serico':'0025',
+  'tsh':'0026','t4':'0027',
+  'parasitologico':'0028','coproparasitologico':'0028',
 }
 
 // ─── TABELA 24 — Agentes Nocivos ──────────────────────
@@ -487,11 +494,13 @@ REGRAS CRÍTICAS:
 }`
 
   const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
-  // Para imagens: usa PROMPT_PCMSO focado se nome sugere PCMSO (mais preciso que PROMPT_AUTO)
-  const eImagens = paginas?.length > 0 && !pdfBase64Efetivo && !usandoTexto
+  // eImagens: PDF escaneado em modo auto (sem base64 pequeno, sem texto)
+  const eImagens = tipo === 'auto' && paginas?.length > 0 && !pdfBase64Efetivo && !usandoTexto
+  // Para imagens auto: PROMPT_PCMSO focado (PCMSO é o tipo escaneado mais comum)
+  // LTCAT e ASO raramente chegam escaneados; se chegarem, o usuário verá erro claro
   const promptBase = tipo === 'ltcat' ? prompt_ltcat
     : tipo === 'pcmso' ? PROMPT_PCMSO
-    : tipo === 'auto' && eImagens ? PROMPT_PCMSO  // imagens auto → tenta PCMSO focado primeiro
+    : eImagens ? PROMPT_PCMSO
     : tipo === 'auto' ? PROMPT_AUTO
     : prompt_aso
 

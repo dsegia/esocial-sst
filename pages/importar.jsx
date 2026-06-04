@@ -152,7 +152,7 @@ async function processarArquivo(file, onProgresso, token) {
   // ── Roteamento:
   // PDF pequeno (≤3MB) → base64 nativo Claude (qualquer tipo)
   // PDF grande COM texto → Gemini via texto (LTCAT, ASO, PCMSO editável)
-  // PDF grande SEM texto (escaneado) → Storage URL → Claude lê nativo completo
+  // PDF grande SEM texto (escaneado) → imagens das páginas-chave → Gemini + Claude
   let payload
 
   if (file.size <= LIMITE_BASE64) {
@@ -252,7 +252,7 @@ async function salvarDocumento(tipo, dados, empresaId) {
   if (tipo === 'pcmso') {
     for (const prog of (dados.programas || [])) {
       const gheNome = prog.ghe || prog.funcao || 'GHE sem nome'
-      await supabase.from('pcmso_programa').upsert({
+      const { error } = await supabase.from('pcmso_programa').upsert({
         empresa_id: empresaId,
         funcao: gheNome,
         setor: prog.setor || gheNome,
@@ -261,6 +261,7 @@ async function salvarDocumento(tipo, dados, empresaId) {
         exames: prog.exames || {},
         atualizado_em: new Date().toISOString(),
       }, { onConflict: 'empresa_id,funcao' })
+      if (error) throw new Error(error.message)
     }
     return
   }
