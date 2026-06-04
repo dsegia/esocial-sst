@@ -137,24 +137,22 @@ REGRAS CRÍTICAS:
 
 const PROMPT_PCMSO = `Você é especialista em PCMSO brasileiro (NR-7). Analise o documento COMPLETO e retorne SOMENTE JSON válido, sem texto antes ou depois.
 
-PCMSO é um Programa de Controle Médico de Saúde Ocupacional. Ele lista funções/cargos da empresa e para cada uma os exames médicos obrigatórios.
+PCMSO lista funções/cargos e para cada uma os exames médicos obrigatórios separados por TIPO DE CONSULTA.
 
-COMO IDENTIFICAR AS SEÇÕES:
-- Médico coordenador: procure "Médico Coordenador", "Responsável Técnico", "CRM", "médico do trabalho"
-- Funções: procure tabelas ou seções com "Cargo", "Função", "Setor", "GHE", "Grupo Homogêneo"
-- Exames: procure "Exame", "Procedimento", "Avaliação", "Audiometria", "Espirometria", "Hemograma" etc.
-- Periodicidade: procure "Anual", "Semestral", "Bienal", "Admissional", "Demissional", "Periódico"
-- Riscos: procure "Agente", "Risco", "Exposição", "Ruído", "Químico", "Ergonômico", "Físico"
+TIPOS DE CONSULTA (colunas comuns no documento):
+- "admissional" → coluna ADMISSIONAL
+- "periodico" → coluna PERIÓDICO / PERIÓDICA / ANUAL / SEMESTRAL
+- "retorno_trabalho" → coluna RETORNO AO TRABALHO
+- "mudanca_risco" → coluna MUDANÇA DE RISCO OCUPACIONAL / MUDANÇA DE FUNÇÃO
+- "demissional" → coluna DEMISSIONAL
 
-REGRAS CRÍTICAS:
-1. Extraia CADA função/cargo como um item separado em "programas" — se o documento tiver 10 cargos, programas deve ter 10 itens
-2. Para cada função, extraia TODOS os exames listados, incluindo: Avaliação Clínica, Hemograma, Audiometria, Espirometria, Glicemia, Urina, etc.
-3. Se o documento usar uma tabela onde várias funções compartilham os mesmos exames, repita os exames para cada função
-4. "obrigatorio": true para todos os exames do PCMSO (são obrigatórios por definição)
-5. Periodicidade: "Anual" se não especificado. Outros valores: "Semestral", "Bienal", "A cada exame", "Admissional", "Demissional"
-6. Datas: converter DD/MM/AAAA para AAAA-MM-DD
-7. Se não encontrar funções específicas mas encontrar lista de exames, crie um programa com funcao="Todos os funcionários"
-8. NUNCA retorne programas = [] se o documento contiver qualquer lista de exames ou funções
+COMO EXTRAIR:
+1. Para cada função/cargo: identifique quais exames aparecem em cada coluna/tipo
+2. Cada exame recebe um array "tipos" com os tipos em que aparece. Ex: Exame clínico que está em Admissional e Periódico → "tipos": ["admissional","periodico"]
+3. Riscos: extraia dos campos "Perigos de acidentes", "Perigos ergonômicos", "Perigos físicos", "Perigos biológicos", "Perigos químicos" — ignore "N/A"
+4. Se o documento tiver tabela com colunas de tipo, extraia cada exame com seus tipos. Se não tiver colunas, use "tipos": ["periodico"] como padrão
+5. CADA função/cargo = 1 item em "programas". Se o documento tiver 8 cargos = 8 itens
+6. NUNCA retorne programas = [] se houver qualquer lista de exames ou funções
 
 {
   "dados_gerais": {
@@ -166,22 +164,22 @@ REGRAS CRÍTICAS:
   "programas": [
     {
       "funcao": "Auxiliar Administrativo",
-      "setor": "Administrativo",
-      "riscos": ["Ergonômico", "Estresse"],
+      "setor": "Administrativo | Recepção",
+      "riscos": ["Quedas do mesmo nível", "Postura inadequada", "Movimentos repetitivos"],
       "exames": [
-        {"nome": "Avaliação clínica", "periodicidade": "Anual", "obrigatorio": true},
-        {"nome": "Acuidade visual", "periodicidade": "Anual", "obrigatorio": true},
-        {"nome": "Glicemia de jejum", "periodicidade": "Anual", "obrigatorio": true}
+        {"nome": "Exame clínico", "tipos": ["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"], "obrigatorio": true},
+        {"nome": "Acuidade visual", "tipos": ["admissional","periodico"], "obrigatorio": true}
       ]
     },
     {
-      "funcao": "Operador de Máquinas",
-      "setor": "Produção",
-      "riscos": ["Ruído", "Vibração"],
+      "funcao": "Auxiliar de Enfermagem",
+      "setor": "Enfermagem",
+      "riscos": ["Vírus", "Bactérias", "Fungos", "Exposição a fluidos biológicos", "Medicamentos"],
       "exames": [
-        {"nome": "Avaliação clínica", "periodicidade": "Anual", "obrigatorio": true},
-        {"nome": "Audiometria tonal", "periodicidade": "Anual", "obrigatorio": true},
-        {"nome": "Hemograma completo", "periodicidade": "Anual", "obrigatorio": true}
+        {"nome": "Exame clínico", "tipos": ["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"], "obrigatorio": true},
+        {"nome": "Hemograma completo", "tipos": ["admissional","periodico"], "obrigatorio": true},
+        {"nome": "Anti-HBS", "tipos": ["admissional","periodico"], "obrigatorio": true},
+        {"nome": "HbsAG", "tipos": ["admissional","periodico"], "obrigatorio": true}
       ]
     }
   ],
@@ -199,11 +197,12 @@ PASSO 2 — Extraia os dados completos conforme o tipo:
 
 LTCAT → {"tipo":"ltcat","dados_gerais":{"data_emissao":"AAAA-MM-DD","data_vigencia":null,"prox_revisao":null,"resp_nome":"Nome do engenheiro/médico","resp_conselho":"CREA","resp_registro":"número do CREA/CRM"},"ghes":[{"nome":"GHE 01 - NOME","setor":"nome do setor","qtd_trabalhadores":1,"aposentadoria_especial":false,"funcoes":["Cargo 1","Cargo 2","Cargo 3"],"agentes":[{"tipo":"fis","nome":"Ruído contínuo","valor":null,"limite":null,"supera_lt":false}],"epc":[{"nome":"Extintor","eficaz":true}],"epi":[]}],"confianca":{"data_emissao":95,"resp_nome":95,"ghes":90}}
 
-PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"funcao":"Nome do cargo","setor":null,"riscos":["Ergonômico"],"exames":[{"nome":"Avaliação clínica","periodicidade":"Anual","obrigatorio":true},{"nome":"Hemograma completo","periodicidade":"Anual","obrigatorio":true}]}],"confianca":{"medico":90,"programas":85}}
+PCMSO → {"tipo":"pcmso","dados_gerais":{"medico_nome":null,"medico_crm":null,"data_elaboracao":null,"vigencia":null},"programas":[{"funcao":"Nome do cargo","setor":null,"riscos":["Ergonômico"],"exames":[{"nome":"Exame clínico","tipos":["admissional","periodico","retorno_trabalho","mudanca_risco","demissional"],"obrigatorio":true},{"nome":"Acuidade visual","tipos":["admissional","periodico"],"obrigatorio":true}]}],"confianca":{"medico":90,"programas":85}}
 PCMSO — REGRAS ESPECÍFICAS:
 - Extraia CADA cargo/função como item separado em "programas". Se o documento tiver 8 cargos = 8 itens no array
-- Para cada função extraia TODOS os exames listados (Avaliação Clínica, Audiometria, Hemograma, Espirometria, Glicemia, etc.)
-- Se não houver funções específicas mas houver lista de exames, use funcao="Todos os funcionários"
+- Para cada exame, "tipos" lista os tipos de consulta em que ele aparece: "admissional","periodico","retorno_trabalho","mudanca_risco","demissional"
+- Se o documento tiver colunas por tipo de consulta, extraia cada exame com seus tipos corretos
+- Se não houver distinção, use "tipos":["periodico"] como padrão
 - NUNCA retorne programas=[] se o documento contiver exames ou funções
 
 ASO → {"tipo":"aso","funcionario":{"nome":null,"cpf":null,"data_nasc":null,"data_adm":null,"matricula":null,"funcao":null,"setor":null},"aso":{"tipo_aso":"periodico","data_exame":null,"prox_exame":null,"conclusao":"apto","medico_nome":null,"medico_crm":null},"exames":[{"nome":"exame","resultado":"Normal"}],"riscos":["risco"],"confianca":{"nome":85,"cpf":85,"tipo_aso":80,"data_exame":90,"conclusao":85}}

@@ -19,7 +19,25 @@ const EXAMES_POR_RISCO = {
   erg: ['Avaliação clínica','Avaliação psicossocial','Rx coluna lombar'],
 }
 
-const PERIODICIDADES = ['Anual','Semestral','Bienal','Admissional','Demissional','Retorno','Mudança de função']
+const TIPOS_CONSULTA = [
+  { key:'admissional',    label:'Admissional',  cor:'#1D9E75', bg:'#EAF3DE' },
+  { key:'periodico',      label:'Periódico',    cor:'#185FA5', bg:'#E6F1FB' },
+  { key:'retorno_trabalho',label:'Retorno',     cor:'#7C3AED', bg:'#EDE9FE' },
+  { key:'mudanca_risco',  label:'Mudança',      cor:'#D97706', bg:'#FEF3C7' },
+  { key:'demissional',    label:'Demissional',  cor:'#DC2626', bg:'#FEE2E2' },
+]
+function tiposExame(ex) {
+  if (ex.tipos?.length) return ex.tipos
+  if (ex.periodicidade) {
+    const p = ex.periodicidade.toLowerCase()
+    if (p.includes('admissional')) return ['admissional']
+    if (p.includes('demissional')) return ['demissional']
+    if (p.includes('retorno')) return ['retorno_trabalho']
+    if (p.includes('mudança') || p.includes('mudanca')) return ['mudanca_risco']
+    return ['periodico']
+  }
+  return ['periodico']
+}
 
 const EXAMES_COMUNS = [
   'Avaliação clínica','Hemograma completo','Glicemia de jejum','Urina rotina',
@@ -49,7 +67,7 @@ export default function PCMSO() {
   const [formFunc, setFormFunc] = useState({
     funcao: '', setor: '', riscos: [], exames: []
   })
-  const [novoExame, setNovoExame] = useState({ nome:'', periodicidade:'Anual', obrigatorio:true })
+  const [novoExame, setNovoExame] = useState({ nome:'', tipos:['periodico'], obrigatorio:true })
   const [salvandoProg, setSalvandoProg] = useState(false)
 
   useEffect(() => { init() }, [])
@@ -121,7 +139,7 @@ export default function PCMSO() {
       funcao: func.funcao || '',
       setor: func.setor || '',
       riscos: agentes.map(a => a.nome),
-      exames: progExistente?.exames || examesRec.map(e => ({ nome:e, periodicidade:'Anual', obrigatorio:true }))
+      exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true }))
     })
     setAba('novo')
   }
@@ -291,9 +309,14 @@ export default function PCMSO() {
                   <div>
                     <div style={s.secLabel}>Exames obrigatórios ({prog.exames?.length || 0})</div>
                     {(prog.exames||[]).slice(0,4).map((ex,i) => (
-                      <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#374151', padding:'3px 0', borderBottom:'0.5px solid #f3f4f6' }}>
-                        <span>• {ex.nome}</span>
-                        <span style={{ color:'#9ca3af', fontSize:11 }}>{ex.periodicidade}</span>
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12, color:'#374151', padding:'4px 0', borderBottom:'0.5px solid #f3f4f6', gap:6 }}>
+                        <span style={{ flex:1 }}>• {ex.nome}</span>
+                        <div style={{ display:'flex', gap:2, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                          {tiposExame(ex).map(t => {
+                            const info = TIPOS_CONSULTA.find(tc=>tc.key===t)
+                            return info ? <span key={t} style={{ padding:'1px 5px', borderRadius:99, fontSize:9, fontWeight:600, background:info.bg, color:info.cor, whiteSpace:'nowrap' }}>{info.label}</span> : null
+                          })}
+                        </div>
                       </div>
                     ))}
                     {(prog.exames||[]).length > 4 && (
@@ -448,21 +471,32 @@ export default function PCMSO() {
               <label style={s.label}>Exames obrigatórios ({formFunc.exames.length})</label>
             </div>
 
-            {formFunc.exames.map((ex,i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 0', borderBottom:'0.5px solid #f3f4f6' }}>
-                <div style={{ flex:1, fontSize:13, color:'#111' }}>{ex.nome}</div>
-                <select style={{ ...s.input, width:130 }} value={ex.periodicidade}
-                  onChange={e => setFormFunc(p=>({...p, exames:p.exames.map((x,idx)=>idx===i?{...x,periodicidade:e.target.value}:x)}))}>
-                  {PERIODICIDADES.map(p => <option key={p}>{p}</option>)}
-                </select>
-                <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:'#374151', whiteSpace:'nowrap' }}>
-                  <input type="checkbox" checked={ex.obrigatorio}
-                    onChange={e => setFormFunc(p=>({...p, exames:p.exames.map((x,idx)=>idx===i?{...x,obrigatorio:e.target.checked}:x)}))}/>
-                  Obrigatório
-                </label>
-                <button onClick={() => removerExame(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18 }}>×</button>
-              </div>
-            ))}
+            {formFunc.exames.map((ex,i) => {
+              const tipos = tiposExame(ex)
+              return (
+                <div key={i} style={{ padding:'7px 0', borderBottom:'0.5px solid #f3f4f6' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                    <div style={{ flex:1, fontSize:13, color:'#111', fontWeight:500 }}>{ex.nome}</div>
+                    <button onClick={() => removerExame(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, lineHeight:1 }}>×</button>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {TIPOS_CONSULTA.map(tc => {
+                      const ativo = tipos.includes(tc.key)
+                      return (
+                        <label key={tc.key} style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:ativo?600:400, background:ativo?tc.bg:'#f3f4f6', color:ativo?tc.cor:'#9ca3af', border:`1px solid ${ativo?tc.cor:'transparent'}` }}>
+                          <input type="checkbox" checked={ativo} style={{ display:'none' }}
+                            onChange={e => {
+                              const novos = e.target.checked ? [...tipos, tc.key] : tipos.filter(t=>t!==tc.key)
+                              setFormFunc(p=>({...p, exames:p.exames.map((x,idx)=>idx===i?{...x,tipos:novos}:x)}))
+                            }}/>
+                          {tc.label}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
 
             {/* Adicionar exame */}
             <div style={{ marginTop:10, padding:'12px', background:'#f9fafb', borderRadius:8 }}>
@@ -476,17 +510,28 @@ export default function PCMSO() {
                     {EXAMES_COMUNS.map(e => <option key={e} value={e}/>)}
                   </datalist>
                 </div>
-                <select style={{ ...s.input, width:130 }} value={novoExame.periodicidade}
-                  onChange={e => setNovoExame({...novoExame, periodicidade:e.target.value})}>
-                  {PERIODICIDADES.map(p => <option key={p}>{p}</option>)}
-                </select>
                 <button style={s.btnOutline} onClick={addExame}>+ Adicionar</button>
+              </div>
+              <div style={{ marginTop:8, display:'flex', gap:6, flexWrap:'wrap' }}>
+                {TIPOS_CONSULTA.map(tc => {
+                  const ativo = novoExame.tipos?.includes(tc.key)
+                  return (
+                    <label key={tc.key} style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:ativo?600:400, background:ativo?tc.bg:'#f3f4f6', color:ativo?tc.cor:'#9ca3af', border:`1px solid ${ativo?tc.cor:'transparent'}` }}>
+                      <input type="checkbox" checked={!!ativo} style={{ display:'none' }}
+                        onChange={e => {
+                          const ts = novoExame.tipos || []
+                          setNovoExame({...novoExame, tipos: e.target.checked ? [...ts,tc.key] : ts.filter(t=>t!==tc.key)})
+                        }}/>
+                      {tc.label}
+                    </label>
+                  )
+                })}
               </div>
               {/* Sugestões rápidas */}
               <div style={{ marginTop:8, display:'flex', flexWrap:'wrap', gap:4 }}>
                 {EXAMES_COMUNS.filter(e => !formFunc.exames.find(ex=>ex.nome===e)).slice(0,6).map(e => (
                   <button key={e} onClick={() => {
-                    setFormFunc(p => ({ ...p, exames: [...p.exames, { nome:e, periodicidade:'Anual', obrigatorio:true }] }))
+                    setFormFunc(p => ({ ...p, exames: [...p.exames, { nome:e, tipos:['admissional','periodico'], obrigatorio:true }] }))
                   }} style={{ padding:'2px 8px', fontSize:11, background:'#E6F1FB', color:'#0C447C', border:'none', borderRadius:99, cursor:'pointer' }}>
                     + {e}
                   </button>
