@@ -54,12 +54,15 @@ export default async function handler(req, res) {
       return res.status(409).json({ erro: 'Este e-mail já possui cadastro no sistema' })
     }
 
+    const creditos = CREDITOS_POR_PLANO[plano] ?? 0
     // Cria empresa
     const { data: empresa, error: empErr } = await sb.from('empresas').insert({
       razao_social: razao_social.trim(),
       cnpj: cnpj?.trim() || null,
       plano,
       trial_inicio: plano === 'trial' ? new Date().toISOString() : null,
+      creditos_incluidos: creditos,
+      creditos_restantes: creditos,
     }).select().single()
 
     if (empErr) throw new Error('Erro ao criar empresa: ' + empErr.message)
