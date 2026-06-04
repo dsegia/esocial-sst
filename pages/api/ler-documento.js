@@ -550,31 +550,8 @@ REGRAS CRÍTICAS:
             const tipoDetectado = resultado.tipo ||
               (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
             if (!tipoDetectado) continue
-            // Se PCMSO veio com programas vazio, faz retry com prompt dedicado
-            if (tipoDetectado === 'pcmso' && Array.isArray(resultado.programas) && resultado.programas.length === 0) {
-              console.error('[ler-doc] Gemini retornou PCMSO com 0 programas, retry com prompt dedicado')
-              const partsRetry = pdfBase64Efetivo
-                ? [{ inlineData: { mimeType: 'application/pdf', data: pdfBase64Efetivo } }, { text: PROMPT_PCMSO }]
-                : usandoTexto
-                  ? [{ text: `${PROMPT_PCMSO}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0, 20000)}` }]
-                  : parts
-              const _t0retry = Date.now()
-              try {
-                const rRetry = await fetch(
-                  `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
-                  { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': geminiKey },
-                    body: JSON.stringify({ contents:[{parts: partsRetry}], generationConfig:{temperature:0,maxOutputTokens:8192} }) }
-                )
-                if (rRetry.ok) {
-                  const dRetry = await rRetry.json()
-                  const tRetry = (dRetry.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('')
-                  const resRetry = parseRobusto(tRetry)
-                  if (resRetry && Array.isArray(resRetry.programas) && resRetry.programas.length > 0) {
-                    logIA('gemini', modelo, 'ok', Date.now() - _t0retry, 'pcmso-retry')
-                    return res.status(200).json({ sucesso:true, tipo_detectado: 'pcmso', dados: enriquecer(resRetry, 'pcmso'), modo: usandoTexto?'texto':'imagem', modelo })
-                  }
-                }
-              } catch {}
+            if (tipoDetectado === 'pcmso') {
+              console.error('[ler-doc] Gemini PCMSO programas:', JSON.stringify(resultado.programas || []).substring(0, 300))
             }
             const { tipo: _, ...dadosSemTipo } = resultado
             return res.status(200).json({ sucesso:true, tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo: usandoTexto?'texto':'imagem', modelo })
@@ -603,7 +580,7 @@ REGRAS CRÍTICAS:
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'x-api-key': anthropicKey, 'anthropic-version':'2023-06-01' },
-        body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:4000, messages:[{role:'user',content}] })
+        body: JSON.stringify({ model:'claude-haiku-4-5-20251022', max_tokens:4000, messages:[{role:'user',content}] })
       })
       if (!response.ok) {
         const errBody = await response.text()
@@ -626,7 +603,7 @@ REGRAS CRÍTICAS:
       }
     } catch (err) {
       logIA('claude', 'claude-haiku-fallback', 'erro', Date.now() - _t0haiku, tipo, err.message)
-      return res.status(500).json({ erro: 'Erro ao processar documento. Tente novamente.' })
+      console.error('[ler-doc] Haiku fallback erro:', err.message.substring(0, 150))
     }
   }
 
