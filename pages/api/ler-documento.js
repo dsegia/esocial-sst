@@ -155,12 +155,20 @@ function codigoAgente(nome) {
 }
 
 // ── Logger de IA (fire-and-forget, nunca quebra o fluxo) ─────────────
-function logIA(servico, modelo, status, duracao_ms, tipo, erro) {
+function logIA(servico, modelo, status, duracao_ms, tipo, erro, tokens_entrada, tokens_saida, empresa_id, usuario_id) {
   const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   fetch(`${base}/api/internal/log-ia`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_API_SECRET || '' },
-    body: JSON.stringify({ servico, modelo, status, duracao_ms: Math.round(duracao_ms || 0), tipo, erro: erro?.substring(0, 200) }),
+    body: JSON.stringify({
+      servico, modelo, status,
+      duracao_ms: Math.round(duracao_ms || 0),
+      tipo, erro: erro?.substring(0, 200),
+      tokens_entrada: tokens_entrada || null,
+      tokens_saida:   tokens_saida   || null,
+      empresa_id:     empresa_id     || null,
+      usuario_id:     usuario_id     || null,
+    }),
   }).catch(() => {})
 }
 
@@ -416,6 +424,8 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
     }
     const data = await response.json()
     const texto = data.content?.[0]?.text || ''
+    const tokens_entrada = data.usage?.input_tokens  || null
+    const tokens_saida   = data.usage?.output_tokens || null
     const resultado = parseRobusto(texto)
     if (resultado) {
       const modo = pdf_base64 ? 'pdf-nativo' : paginas?.length > 0 ? 'imagem' : 'texto'
@@ -426,9 +436,9 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
           (Array.isArray(resultado.ghes) ? 'ltcat' : Array.isArray(resultado.programas) ? 'pcmso' : resultado.aso ? 'aso' : null)
         if (!tipoDetectado) throw new Error('Tipo de documento não identificado pelo Claude')
         const { tipo: _, ...dadosSemTipo } = resultado
-        return { tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo, modelo: 'claude-sonnet' }
+        return { tipo_detectado: tipoDetectado, dados: enriquecer(dadosSemTipo, tipoDetectado), modo, modelo: 'claude-sonnet', tokens_entrada, tokens_saida }
       }
-      return { dados: enriquecer(resultado, tipo), modo, modelo: 'claude-sonnet' }
+      return { dados: enriquecer(resultado, tipo), modo, modelo: 'claude-sonnet', tokens_entrada, tokens_saida }
     }
     throw new Error('JSON inválido na resposta do Claude')
   } catch (err) {
@@ -475,14 +485,16 @@ export default async function handler(req, res) {
     }
   }
 
-  // Verifica plano — impede consumo de créditos de IA por empresas canceladas
+  // Verifica plano e coleta empresa_id para logging
+  let empresaId = null
   if (userId) {
     try {
       const { createClient: cc } = require('@supabase/supabase-js')
       const sbAdmin = cc(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } })
       const { data: usuarioDb } = await sbAdmin.from('usuarios').select('empresa_id').eq('id', userId).single()
       if (usuarioDb?.empresa_id) {
-        const { data: emp } = await sbAdmin.from('empresas').select('plano').eq('id', usuarioDb.empresa_id).single()
+        empresaId = usuarioDb.empresa_id
+        const { data: emp } = await sbAdmin.from('empresas').select('plano').eq('id', empresaId).single()
         if (emp?.plano === 'cancelado') {
           return res.status(403).json({ erro: 'Assinatura cancelada. Acesse /planos para reativar.' })
         }
@@ -508,10 +520,12 @@ export default async function handler(req, res) {
     const _t0claude = Date.now()
     const claudeResult = await lerComClaude(pdfBase64Efetivo, texto_pdf, null, tipo, anthropicKey)
     if (claudeResult) {
-      logIA('claude', 'claude-sonnet', 'ok', Date.now() - _t0claude, tipo)
-      return res.status(200).json({ sucesso: true, ...claudeResult })
+      logIA('claude', 'claude-sonnet', 'ok', Date.now() - _t0claude, tipo, null,
+        claudeResult.tokens_entrada, claudeResult.tokens_saida, empresaId, userId)
+      const { tokens_entrada: _ti, tokens_saida: _ts, ...dadosSemTokens } = claudeResult
+      return res.status(200).json({ sucesso: true, ...dadosSemTokens })
     }
-    logIA('claude', 'claude-sonnet', 'fallback', Date.now() - _t0claude, tipo)
+    logIA('claude', 'claude-sonnet', 'fallback', Date.now() - _t0claude, tipo, null, null, null, empresaId, userId)
     console.error(`[ler-doc] Claude falhou para ${tipo.toUpperCase()}, tentando Gemini`)
   }
 
@@ -654,9 +668,11 @@ REGRAS CRÍTICAS:
         }
         const data = await response.json()
         const texto = (data.candidates?.[0]?.content?.parts||[]).filter(p=>p.text).map(p=>p.text).join('')
+        const tkEnt = data.usageMetadata?.promptTokenCount     || null
+        const tkSai = data.usageMetadata?.candidatesTokenCount || null
         const resultado = parseRobusto(texto)
         if (resultado) {
-          logIA('gemini', modelo, 'ok', Date.now() - _t0gem, tipo)
+          logIA('gemini', modelo, 'ok', Date.now() - _t0gem, tipo, null, tkEnt, tkSai, empresaId, userId)
           const modo = usandoTexto ? 'texto' : 'imagem'
           if (tipo === 'auto' || eImagens) {
             // Para imagens com PROMPT_PCMSO, tipo_detectado é sempre 'pcmso'
@@ -679,7 +695,7 @@ REGRAS CRÍTICAS:
           return res.status(200).json({ sucesso:true, dados: enriquecer(resultado, tipo), modo, modelo })
         }
       } catch (err) {
-        logIA('gemini', modelo, 'erro', Date.now() - _t0gem, tipo, err.message)
+        logIA('gemini', modelo, 'erro', Date.now() - _t0gem, tipo, err.message, null, null, empresaId, userId)
         console.error(`[ler-doc] Erro ${modelo}:`, err.message); continue
       }
     }
@@ -708,9 +724,11 @@ REGRAS CRÍTICAS:
         throw new Error('Falha na API de processamento')
       }
       const data = await response.json()
+      const tkEnt = data.usage?.input_tokens  || null
+      const tkSai = data.usage?.output_tokens || null
       const resultado = parseRobusto(data.content?.[0]?.text || '')
       if (resultado) {
-        logIA('claude', 'claude-haiku-fallback', 'ok', Date.now() - _t0haiku, tipo)
+        logIA('claude', 'claude-haiku-fallback', 'ok', Date.now() - _t0haiku, tipo, null, tkEnt, tkSai, empresaId, userId)
         if (tipo === 'auto') {
           const tipoDetectado = resultado.tipo ||
             (resultado.ghes ? 'ltcat' : resultado.programas ? 'pcmso' : resultado.aso ? 'aso' : null)
@@ -722,7 +740,7 @@ REGRAS CRÍTICAS:
         return res.status(200).json({ sucesso:true, dados: enriquecer(resultado, tipo), modo: usandoTexto?'texto':'imagem', modelo:'claude-fallback' })
       }
     } catch (err) {
-      logIA('claude', 'claude-haiku-fallback', 'erro', Date.now() - _t0haiku, tipo, err.message)
+      logIA('claude', 'claude-haiku-fallback', 'erro', Date.now() - _t0haiku, tipo, err.message, null, null, empresaId, userId)
       console.error('[ler-doc] Haiku fallback erro:', err.message.substring(0, 150))
     }
   }
