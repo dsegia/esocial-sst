@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (!user) return
 
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 30 })
+  const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 30 })
   if (limited) {
     res.setHeader('Retry-After', String(retryAfter))
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })

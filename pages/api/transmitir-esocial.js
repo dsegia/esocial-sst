@@ -99,11 +99,11 @@ export default async function handler(req, res) {
   if (!user) return
 
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   // Rate limit adicional por usuário (5 transmissões/minuto)
-  const { limited: limitedUser, retryAfter: retryUser } = checkRateLimit(`tx:${user.id}`, { windowMs: 60_000, max: 5 })
+  const { limited: limitedUser, retryAfter: retryUser } = await checkRateLimit(`tx:${user.id}`, { windowMs: 60_000, max: 5 })
   if (limitedUser) return res.status(429).json({ erro: 'Limite de transmissões por minuto atingido. Aguarde alguns segundos.', retryAfter: retryUser })
 
   // Resolve empresa_id — prioriza empresa_id enviado no body (seleção do UI)
@@ -179,10 +179,21 @@ export default async function handler(req, res) {
   // Rejeita qualquer conteúdo que tente escapar do elemento <evento>.
   const xmlTrimmed = xml_assinado.trim()
   const startsCorrectly = xmlTrimmed.startsWith('<?xml') || xmlTrimmed.startsWith('<eSocial')
-  // Proíbe qualquer tentativa de fechar o elemento pai <evento> ou injetar novos elementos SOAP
-  const FORBIDDEN = [/<\/evento\s*>/i, /<\/eventos\s*>/i, /<\/loteEventos\s*>/i, /<soapenv:/i, /<soap:/i, /<!ENTITY/i, /<!DOCTYPE/i]
+  // Bloqueia injeção de elementos SOAP, fechamento prematuro de tags pai e XXE
+  // Inclui variantes dentro de CDATA e comentários XML
+  const FORBIDDEN = [
+    /<\/evento\s*>/i, /<\/eventos\s*>/i, /<\/loteEventos\s*>/i,
+    /<soapenv:/i, /<soap:/i,
+    /<!DOCTYPE/i, /<!ENTITY/i,
+    /SYSTEM\s*["']/i, /PUBLIC\s*["']/i,
+    /\bfile:\/\//i, /\bhttp:\/\//i, /\bftp:\/\//i,
+  ]
   if (!startsCorrectly || FORBIDDEN.some(re => re.test(xmlTrimmed))) {
     return res.status(400).json({ erro: 'XML inválido.' })
+  }
+  // Tamanho máximo: 512 KB — previne ataques de payload gigante (Billion Laughs)
+  if (Buffer.byteLength(xmlTrimmed, 'utf8') > 512 * 1024) {
+    return res.status(400).json({ erro: 'XML excede o tamanho máximo permitido.' })
   }
 
   const endpoint = ENDPOINTS[ambiente]

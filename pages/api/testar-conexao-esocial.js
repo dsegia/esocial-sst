@@ -64,7 +64,7 @@ export default async function handler(req, res) {
   if (!user) return
 
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
+  const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 5 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições.', retryAfter })
 
   const { pfx: pfxBase64, cert_senha } = req.body || {}

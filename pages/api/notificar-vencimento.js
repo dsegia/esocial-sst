@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
 
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 5 })
+  const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 5 })
   if (limited) {
     res.setHeader('Retry-After', String(retryAfter))
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })

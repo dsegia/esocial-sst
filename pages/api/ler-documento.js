@@ -445,7 +445,7 @@ export default async function handler(req, res) {
 
   // Rate limit por IP (proteção contra bots)
   const ip = getClientIP(req)
-  const { limited: limitedIp, retryAfter: retryIp } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  const { limited: limitedIp, retryAfter: retryIp } = await checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limitedIp) {
     res.setHeader('Retry-After', String(retryIp))
     return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.' })
@@ -468,7 +468,7 @@ export default async function handler(req, res) {
 
   // Rate limit por usuário — 20 leituras/hora (protege quotas de IA)
   if (userId) {
-    const { limited: limitedUser, retryAfter: retryUser } = checkRateLimit(`user:${userId}`, { windowMs: 3_600_000, max: 20 })
+    const { limited: limitedUser, retryAfter: retryUser } = await checkRateLimit(`user:${userId}`, { windowMs: 3_600_000, max: 20 })
     if (limitedUser) {
       res.setHeader('Retry-After', String(retryUser))
       return res.status(429).json({ erro: 'Limite de leituras por hora atingido (20/hora). Tente novamente mais tarde.' })

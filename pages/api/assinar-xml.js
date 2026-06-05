@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   if (!user) return
 
   const ip = getClientIP(req)
-  const { limited, retryAfter } = checkRateLimit(ip, { windowMs: 60_000, max: 10 })
+  const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
   const { xml, pfx, senha, tagAssinatura } = req.body
@@ -172,12 +172,19 @@ export default async function handler(req, res) {
     const tag = tagAssinatura || 'eSocial'
     const xmlAssinado = xmlLimpo.replace(`</${tag}>`, `${signatureBlock}</${tag}>`)
 
-    return res.status(200).json({
+    const resultado = {
       sucesso: true,
       xml_assinado: xmlAssinado,
       titular: cert.subject.attributes.find(a => a.shortName === 'CN')?.value,
       validade: cert.validity.notAfter.toISOString().split('T')[0],
-    })
+    }
+
+    // Remover referências à chave privada para liberar para GC o mais cedo possível
+    if (keyBag) keyBag.key = null
+    privateKey.n = null; privateKey.e = null; privateKey.d = null
+    privateKey.p = null; privateKey.q = null
+
+    return res.status(200).json(resultado)
 
   } catch (err) {
     console.error('[assinar-xml]', err)
