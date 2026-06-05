@@ -85,7 +85,8 @@ async function carregarPdfJs() {
     pdfJsLoading = new Promise((resolve, reject) => {
       const s = document.createElement('script')
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-      // sem integrity — evita falha silenciosa se o CDN atualizar o hash
+      s.integrity = 'sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ=='
+      s.crossOrigin = 'anonymous'
       s.onload = () => {
         if (!window.pdfjsLib) { reject(new Error('PDF.js não carregou corretamente')); return }
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =

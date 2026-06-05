@@ -86,7 +86,7 @@ export default function Dashboard() {
     funcs.forEach(f => {
       const aso = ultimoAso(f.id)
       if (!aso) { semAso.push(f); return }
-      if (!aso.prox_exame) { asoVence60.push({ func: f, aso }); return }
+      if (!aso.prox_exame) { asoEmDia.push({ func: f, aso }); return }
       const prox = new Date(aso.prox_exame)
       if (prox < hoje)   { asoVencidos.push({ func: f, aso }); return }
       if (prox <= em30)  { asoVence30.push({ func: f, aso }); return }
