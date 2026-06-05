@@ -59,6 +59,7 @@ export default function Admin() {
   const [totais, setTotais] = useState<Totais | null>(null)
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [recentes, setRecentes] = useState<Transmissao[]>([])
+  const [iaUso, setIaUso] = useState<any>(null)
   const [busca, setBusca] = useState('')
   const [ordenar, setOrdenar] = useState<'trans_mes' | 'razao_social' | 'created_at' | 'trans_erro'>('trans_mes')
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null)
@@ -127,6 +128,7 @@ export default function Admin() {
       setTotais(json.totais)
       setEmpresas(json.empresas)
       setRecentes(json.recentes)
+      setIaUso(json.ia_uso || null)
       setAtualizadoEm(new Date())
     } catch (e: any) {
       setErro(e.message)
@@ -432,6 +434,77 @@ export default function Admin() {
                 ))}
               </div>
             )}
+
+            {/* Seção IA & Custos */}
+            <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>IA & Custos</span>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>leitura de documentos via Anthropic / Gemini</span>
+                </div>
+                {iaUso && !iaUso.log_ativo && (
+                  <span style={{ fontSize: 11, padding: '3px 10px', background: '#FAEEDA', color: '#633806', borderRadius: 99, fontWeight: 500 }}>
+                    ⚠ Configure INTERNAL_API_SECRET no Vercel para ativar o log
+                  </span>
+                )}
+              </div>
+
+              {!iaUso || !iaUso.tem_dados ? (
+                <div style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: '1rem 0' }}>
+                  {!iaUso?.log_ativo
+                    ? 'Sem dados — adicione a variável INTERNAL_API_SECRET no painel do Vercel para começar a registrar uso e custo.'
+                    : 'Nenhuma leitura de documento registrada ainda. Importe um ASO para começar.'}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                  {/* Custo este mês */}
+                  <div style={{ background: '#f9fafb', borderRadius: 10, padding: '0.75rem 1rem' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Custo este mês</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>
+                      ${(iaUso.mes_atual.custo_usd || 0).toFixed(4)}
+                    </div>
+                    {iaUso.mes_passado.custo_usd > 0 && (
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>
+                        mês passado: ${(iaUso.mes_passado.custo_usd || 0).toFixed(4)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Chamadas */}
+                  <div style={{ background: '#f9fafb', borderRadius: 10, padding: '0.75rem 1rem' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Chamadas este mês</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>
+                      {(iaUso.mes_atual.chamadas || 0).toLocaleString('pt-BR')}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>leituras de documentos</div>
+                  </div>
+
+                  {/* Tokens */}
+                  <div style={{ background: '#f9fafb', borderRadius: 10, padding: '0.75rem 1rem' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Tokens consumidos</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>
+                      {((iaUso.mes_atual.tokens_entrada || 0) + (iaUso.mes_atual.tokens_saida || 0)).toLocaleString('pt-BR')}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>
+                      entrada: {(iaUso.mes_atual.tokens_entrada || 0).toLocaleString('pt-BR')} · saída: {(iaUso.mes_atual.tokens_saida || 0).toLocaleString('pt-BR')}
+                    </div>
+                  </div>
+
+                  {/* Por modelo */}
+                  <div style={{ background: '#f9fafb', borderRadius: 10, padding: '0.75rem 1rem' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>Por modelo (este mês)</div>
+                    {(iaUso.por_modelo || []).length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#9ca3af' }}>—</div>
+                    ) : (iaUso.por_modelo || []).sort((a: any, b: any) => b.custo_usd - a.custo_usd).map((m: any) => (
+                      <div key={m.modelo} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: '#374151', fontWeight: 500 }}>{m.modelo}</span>
+                        <span style={{ fontSize: 11, color: '#111', fontWeight: 600 }}>${(m.custo_usd || 0).toFixed(4)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
 

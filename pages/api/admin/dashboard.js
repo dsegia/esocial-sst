@@ -186,11 +186,57 @@ export default async function handler(req, res) {
       .reduce((acc, e) => acc + (PRECO_PLANO[e.plano] || 0), 0)
     const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial' && e.id !== adminEmpresaId).length
 
+    // AI usage/cost — mês atual e mês passado, agrupado por modelo
+    const inicio30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: logsAtual } = await sb
+      .from('api_logs')
+      .select('modelo, status, tokens_entrada, tokens_saida, custo_usd, criado_em')
+      .gte('criado_em', inicioMes)
+
+    const { data: logsPassado } = await sb
+      .from('api_logs')
+      .select('custo_usd')
+      .gte('criado_em', inicioMesPassado)
+      .lt('criado_em', inicioMes)
+
+    const logAtualArr = logsAtual || []
+    const logPassadoArr = logsPassado || []
+
+    // Agrupamento por modelo
+    const porModelo = {}
+    for (const l of logAtualArr) {
+      const m = l.modelo || 'desconhecido'
+      if (!porModelo[m]) porModelo[m] = { chamadas: 0, sucesso: 0, tokens_entrada: 0, tokens_saida: 0, custo_usd: 0 }
+      porModelo[m].chamadas++
+      if (l.status === 'ok' || l.status === 'fallback') porModelo[m].sucesso++
+      porModelo[m].tokens_entrada += l.tokens_entrada || 0
+      porModelo[m].tokens_saida  += l.tokens_saida  || 0
+      porModelo[m].custo_usd     += l.custo_usd     || 0
+    }
+
+    const custoMesAtual   = logAtualArr.reduce((s, l) => s + (l.custo_usd || 0), 0)
+    const custoMesPassado = logPassadoArr.reduce((s, l) => s + (l.custo_usd || 0), 0)
+    const logAtivo        = !!process.env.INTERNAL_API_SECRET
+
     return res.status(200).json({
       ok: true,
       totais: { empresas: totalEmpresas, trans_mes: totalTrans, pendente: totalPendente, erros: totalErros, funcionarios: totalFuncs, mrr, trials_ativos: trialsAtivos },
       empresas: empresasEnriquecidas,
       recentes: recentesEnriquecidas,
+      ia_uso: {
+        log_ativo: logAtivo,
+        tem_dados: logAtualArr.length > 0 || logPassadoArr.length > 0,
+        mes_atual: {
+          chamadas:      logAtualArr.length,
+          tokens_entrada: logAtualArr.reduce((s, l) => s + (l.tokens_entrada || 0), 0),
+          tokens_saida:   logAtualArr.reduce((s, l) => s + (l.tokens_saida   || 0), 0),
+          custo_usd:      custoMesAtual,
+        },
+        mes_passado: {
+          custo_usd: custoMesPassado,
+        },
+        por_modelo: Object.entries(porModelo).map(([modelo, d]) => ({ modelo, ...d })),
+      },
     })
   } catch (err) {
     console.error('[admin/dashboard]', err)
