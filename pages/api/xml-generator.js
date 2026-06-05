@@ -87,6 +87,20 @@ function extrairUfCrm(crm) {
   return ufMatch ? ufMatch[1] : 'SP'
 }
 
+// Normaliza tipo ASO para chave canônica (espelha importar.jsx)
+function normalizarTipoAso(valor) {
+  if (!valor) return 'periodico'
+  const v = valor.toString().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '')
+  if (v.includes('admiss'))  return 'admissional'
+  if (v.includes('demiss'))  return 'demissional'
+  if (v.includes('retorn'))  return 'retorno'
+  if (v.includes('mudan') || v.includes('funcao') || v.includes('cargo')) return 'mudanca'
+  if (v.includes('monitor')) return 'monitoracao'
+  if (v.includes('period') || v.includes('anual') || v.includes('bienal')) return 'periodico'
+  return 'periodico'
+}
+
 // Mapa de tipo ASO → código eSocial
 const TIPO_ASO = {
   admissional: '0', periodico: '1', retorno: '2',
@@ -162,7 +176,7 @@ function gerarS2220(aso, empresa, tpAmb, funcionario = {}) {
     </ideVinculo>
     <aso>
       <dtAso>${data(dadosAso.data_exame)}</dtAso>
-      <tpAso>${TIPO_ASO[dadosAso.tipo_aso] || '1'}</tpAso>
+      <tpAso>${TIPO_ASO[normalizarTipoAso(dadosAso.tipo_aso)] || '1'}</tpAso>
       ${examesXML}
       <medico>
         <nmMed>${escapeXml(dadosAso.medico_nome)}</nmMed>

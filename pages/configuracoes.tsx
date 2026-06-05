@@ -14,6 +14,8 @@ interface CertInfo {
   validade: string
   tipo: string
   titular: string
+  tipo_certificado?: string
+  aviso?: string
 }
 
 export default function Configuracoes() {
@@ -129,6 +131,10 @@ export default function Configuracoes() {
 
   async function salvarCertificado() {
     if (!certInfo) { setErro('Leia o certificado primeiro.'); return }
+    if ((certInfo as any).tipo_certificado === 'e-CPF') {
+      setErro('Certificado e-CPF não é aceito para transmissão ao eSocial. É necessário um e-CNPJ (certificado de pessoa jurídica) correspondente ao CNPJ da empresa.')
+      return
+    }
     setSalvando(true); setErro(''); setSucesso('')
     try {
       // Salva metadados (NUNCA a chave privada em texto puro)

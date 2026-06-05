@@ -48,21 +48,23 @@ export default function Dashboard() {
     const em60 = new Date(hoje); em60.setDate(em60.getDate() + 60)
     const em90 = new Date(hoje); em90.setDate(em90.getDate() + 90)
 
-    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes] = await Promise.all([
-      supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId).limit(2000),
+    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes] = await Promise.all([
+      supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId).eq('ativo', true).limit(2000),
       supabase.from('asos').select('id, funcionario_id, tipo_aso, data_exame, prox_exame, conclusao').eq('empresa_id', empresaId).order('data_exame', { ascending: false }).limit(5000),
       supabase.from('transmissoes').select('id, evento, status, criado_em, recibo, dt_envio, funcionario_id, funcionarios(nome)').eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(1000),
       supabase.from('ltcats').select('id, data_emissao, prox_revisao, ativo, ghes').eq('empresa_id', empresaId).eq('ativo', true).limit(1).maybeSingle(),
-      supabase.from('cats').select('id, criado_em').eq('empresa_id', empresaId).limit(500),
+      supabase.from('cats').select('id, criado_em', { count: 'exact', head: true }).eq('empresa_id', empresaId),
       supabase.from('pcmso_programa').select('id, funcao, atualizado_em').eq('empresa_id', empresaId).order('atualizado_em', { ascending: false }).limit(200),
-    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { data: [] }, { data: [] }] })
+      supabase.from('funcionarios').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId).eq('ativo', true),
+    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }] })
 
-    const funcs    = (funcsRes.data || []).filter(f => f.ativo)
+    const funcs    = funcsRes.data || []
     const asos     = asosRes.data || []
     const txs      = txRes.data || []
     const ltcat    = (ltcatRes.data as any) || null
-    const cats     = catsRes.data || []
     const pcmso    = pcmsoRes.data || []
+    // totalFunc usa count exato do banco — não fica limitado pelos 2000 da query de detalhes
+    const totalFuncReal = (funcsCountRes as any)?.count ?? funcs.length
 
     // Último ASO por funcionário
     const ultimoAso = (funcId: string) => asos.filter((a: any) => a.funcionario_id === funcId)
@@ -107,9 +109,9 @@ export default function Dashboard() {
     const ltcatVence30 = ltcat?.prox_revisao && new Date(ltcat.prox_revisao) <= em30 && new Date(ltcat.prox_revisao) >= hoje
 
     // Conformidade geral — null quando sem funcionários (sem dado real para calcular)
-    const totalFunc = funcs.length
+    const totalFunc = totalFuncReal
     const conformidade = totalFunc > 0
-      ? Math.round((asoEmDia.length / totalFunc) * 100)
+      ? Math.round((asoEmDia.length / Math.min(funcs.length, totalFunc)) * 100)
       : null
 
     // Montar alertas ordenados por criticidade
