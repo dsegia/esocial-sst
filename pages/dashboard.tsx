@@ -62,6 +62,7 @@ export default function Dashboard() {
     const asos     = asosRes.data || []
     const txs      = txRes.data || []
     const ltcat    = (ltcatRes.data as any) || null
+    const catsCount = (catsRes as any)?.count ?? 0
     const pcmso    = pcmsoRes.data || []
     // totalFunc usa count exato do banco — não fica limitado pelos 2000 da query de detalhes
     const totalFuncReal = (funcsCountRes as any)?.count ?? funcs.length
@@ -182,7 +183,7 @@ export default function Dashboard() {
       txEnviadas: txEnviadas.length, txHoje: txHoje.length,
       ltcat, ltcatVencido, ltcatVence30,
       ghes: ltcat?.ghes?.length || 0,
-      cats: cats.length,
+      cats: catsCount,
       pcmso, pcmsoProgramas: pcmso.length,
       pcmsoAtualizado: pcmso[0]?.atualizado_em || null,
     })
