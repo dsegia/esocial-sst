@@ -173,7 +173,7 @@ export default function Configuracoes() {
 
   async function carregarUsuarios(empId: string) {
     setLoadingUsers(true)
-    const { data } = await supabase.from('usuarios').select('id, nome, perfil, email, criado_em')
+    const { data } = await supabase.from('usuarios').select('id, nome, perfil, criado_em')
       .eq('empresa_id', empId).order('criado_em', { ascending: true })
     setUsuarios(data || [])
     setLoadingUsers(false)
@@ -463,14 +463,14 @@ export default function Configuracoes() {
                   }}>
                     <div style={{ width:32, height:32, borderRadius:'50%', background:'#E6F1FB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                       <span style={{ fontSize:14, color:'#185FA5', fontWeight:600 }}>
-                        {(u.nome || u.email || '?')[0].toUpperCase()}
+                        {(u.nome || '?')[0].toUpperCase()}
                       </span>
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:13, fontWeight:500, color:'#111' }}>
                         {u.nome || <span style={{ color:'#9ca3af' }}>Sem nome</span>}
                       </div>
-                      <div style={{ fontSize:11, color:'#6b7280' }}>{u.email}</div>
+                      <div style={{ fontSize:11, color:'#6b7280' }}>{u.perfil || 'operador'}</div>
                     </div>
                     <span style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:pbg, color:ptxt, flexShrink:0 }}>
                       {u.perfil || 'operador'}

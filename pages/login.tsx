@@ -69,23 +69,11 @@ export default function Login() {
 
       setNomeUser(usuario.nome)
 
-      const { data: minhasEmpresas } = await supabase.rpc('get_minhas_empresas')
-
-      if (minhasEmpresas && minhasEmpresas.length > 1) {
-        setMultiEmpresa(true)
-        setEmpresas(minhasEmpresas)
-        setCarregando(false)
-        setInfo('')
-        setEtapa('selecionar')
-      } else {
-        const empresaId = (minhasEmpresas && minhasEmpresas.length === 1)
-          ? minhasEmpresas[0].empresa_id
-          : usuario.empresa_id
-        setMultiEmpresa(false)
-        setEmpresaId(empresaId)
-        setInfo('Tudo certo! Redirecionando...')
-        router.push('/dashboard')
-      }
+      const empresaId = usuario.empresa_id
+      setMultiEmpresa(false)
+      setEmpresaId(empresaId)
+      setInfo('Tudo certo! Redirecionando...')
+      router.push('/dashboard')
 
     } catch (err: any) {
       setInfo(''); setErro('Erro inesperado: ' + err.message); setCarregando(false)

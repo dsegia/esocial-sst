@@ -51,39 +51,15 @@ export default function Empresas() {
   }
 
   async function carregar(uid: string) {
-    // Tenta via RPC get_minhas_empresas (multi-empresa)
-    const { data: rpcData } = await supabase.rpc('get_minhas_empresas')
-    if (rpcData && rpcData.length > 0) {
-      // Busca detalhes extras de cada empresa
-      const ids = rpcData.map((e: any) => e.empresa_id)
-      const { data: detalhes } = await supabase
-        .from('empresas')
+    const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', uid).single()
+    if (user?.empresa_id) {
+      const { data: emp } = await supabase.from('empresas')
         .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
-        .in('id', ids)
-      const { data: funcCounts } = await supabase
-        .from('funcionarios')
-        .select('empresa_id')
-        .in('empresa_id', ids)
-        .eq('ativo', true)
-      const contagemMap: Record<string, number> = {}
-      funcCounts?.forEach((f: any) => { contagemMap[f.empresa_id] = (contagemMap[f.empresa_id] || 0) + 1 })
-      const mescladas = rpcData.map((r: any) => {
-        const d = detalhes?.find((x: any) => x.id === r.empresa_id) || {}
-        return { ...d, id: r.empresa_id, ...r, funcionarios_count: contagemMap[r.empresa_id] || 0 }
-      })
-      setEmpresas(mescladas)
-    } else {
-      // Fallback: empresa única do usuário
-      const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', uid).single()
-      if (user?.empresa_id) {
-        const { data: emp } = await supabase.from('empresas')
-          .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
-          .eq('id', user.empresa_id).single()
-        if (emp) {
-          const { data: funcs } = await supabase.from('funcionarios').select('id').eq('empresa_id', emp.id).eq('ativo', true)
-          setEmpresas([{ ...emp, perfil: 'admin', funcionarios_count: funcs?.length || 0 }])
-          setEmpresaAtualId(emp.id)
-        }
+        .eq('id', user.empresa_id).single()
+      if (emp) {
+        const { data: funcs } = await supabase.from('funcionarios').select('id').eq('empresa_id', emp.id).eq('ativo', true)
+        setEmpresas([{ ...emp, perfil: 'admin', funcionarios_count: funcs?.length || 0 }])
+        setEmpresaAtualId(emp.id)
       }
     }
   }
