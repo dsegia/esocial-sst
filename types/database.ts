@@ -38,6 +38,8 @@ export type Database = {
           cert_configurado_em: string | null
           ecac_cnpj_procurador: string | null
           ecac_nome_procurador: string | null
+          cert_pfx_path: string | null
+          cert_senha_enc: string | null
         }
         Insert: Omit<Database['public']['Tables']['empresas']['Row'], 'id' | 'criado_em' | 'atualizado_em'>
         Update: Partial<Database['public']['Tables']['empresas']['Insert']>

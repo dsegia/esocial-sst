@@ -1,10 +1,18 @@
 // pages/api/assinar-xml.js
 // Assina XML com XMLDSig ICP-Brasil usando certificado A1
-// O .pfx e a senha NUNCA são armazenados — usados apenas em memória
 
 import forge from 'node-forge'
+import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
+import { decryptSenha } from '../../lib/cert-crypto'
+import { downloadCertR2 } from '../../lib/cert-store'
+
+const sbAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
 
 // Extrai o elemento a ser assinado e propaga namespaces do pai (<eSocial>).
 // O XMLDSig Reference URI="#id" exige que o digest cubra apenas esse elemento
@@ -65,22 +73,42 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
-  const { xml, pfx, senha, tagAssinatura } = req.body
-  // tagAssinatura = elemento que será referenciado na assinatura (ex: 'evtMonit', 'evtExpRisco', 'evtCAT')
+  const { xml, pfx, senha, tagAssinatura, empresa_id: empresaIdBody } = req.body
 
-  if (!xml || !pfx || !senha) {
-    return res.status(400).json({ erro: 'XML, certificado e senha são obrigatórios' })
-  }
+  if (!xml) return res.status(400).json({ erro: 'XML é obrigatório' })
 
   try {
-    // 1. Carregar o certificado .pfx
-    const pfxBuf = Buffer.from(pfx, 'base64')
+    // 1. Carregar o certificado .pfx — do body ou do R2 (cert armazenado da empresa)
+    let pfxBuf
+    let senhaResolvida = senha
+
+    if (pfx && senha) {
+      pfxBuf = Buffer.from(pfx, 'base64')
+    } else {
+      // Buscar cert armazenado da empresa
+      const { data: usuarioDb } = await sbAdmin
+        .from('usuarios').select('empresa_id').eq('id', user.id).single()
+      let empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
+      if (empresaIdBody) {
+        const { data: vinculo } = await sbAdmin
+          .from('usuario_empresas').select('empresa_id')
+          .eq('usuario_id', user.id).eq('empresa_id', empresaIdBody).single()
+        if (vinculo) empresaId = empresaIdBody
+      }
+      const { data: empresa } = await sbAdmin
+        .from('empresas').select('cert_pfx_path, cert_senha_enc').eq('id', empresaId).single()
+      if (!empresa?.cert_pfx_path || !empresa?.cert_senha_enc) {
+        return res.status(400).json({ erro: 'Certificado digital não configurado. Acesse Configurações para fazer o upload.' })
+      }
+      pfxBuf = await downloadCertR2(empresa.cert_pfx_path)
+      senhaResolvida = decryptSenha(empresa.cert_senha_enc)
+    }
     const pfxDer = forge.util.createBuffer(pfxBuf.toString('binary'))
     const pfxAsn1 = forge.asn1.fromDer(pfxDer)
 
     let p12
     try {
-      p12 = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, senha)
+      p12 = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, senhaResolvida)
     } catch {
       return res.status(400).json({ erro: 'Senha do certificado incorreta.' })
     }

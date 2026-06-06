@@ -46,12 +46,17 @@ export default function TransmissaoManual() {
     if (!session) { router.push('/login'); return }
     setSessionToken(session.access_token)
     const { data: user } = await supabase.from('usuarios')
-      .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, plano)')
+      .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, cert_pfx_path, plano, tipo_acesso, ecac_cnpj_procurador)')
       .eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
     setEmpresa(user.empresas)
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
+
+    // Se a empresa já tem certificado armazenado, pular etapa de upload
+    if ((user.empresas as any)?.cert_pfx_path) {
+      setEtapa('selecionar')
+    }
 
     const { data: txs } = await supabase.from('transmissoes')
       .select('id, evento, status, criado_em, funcionarios(nome, matricula_esocial)')
@@ -67,8 +72,9 @@ export default function TransmissaoManual() {
   }
 
   async function testarConexao() {
-    if (!pfxBase64 || !certSenha) {
-      setTesteResult({ ok: false, msg: 'Carregue e valide o certificado digital antes de testar a conexão.' })
+    const temCertArmazenado = !!(empresa as any)?.cert_pfx_path
+    if (!temCertArmazenado && (!pfxBase64 || !certSenha)) {
+      setTesteResult({ ok: false, msg: 'Carregue o certificado digital ou configure-o em Configurações.' })
       return
     }
     setTestando(true)
@@ -126,7 +132,8 @@ export default function TransmissaoManual() {
   async function transmitirSelecionados() {
     if (processando) return  // Guard contra duplo clique antes do estado atualizar
     if (!selecionados.length) { setErro('Selecione ao menos uma transmissão.'); return }
-    if (!pfxBase64 || !certSenha) { setErro('Certificado não carregado.'); return }
+    const usandoCertArmazenado = !!(empresa as any)?.cert_pfx_path && !pfxBase64
+    if (!usandoCertArmazenado && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
 
     // Período de teste: limitar 1 transmissão enviada por tipo de evento
     if (empresa?.plano === 'trial') {
@@ -209,34 +216,35 @@ export default function TransmissaoManual() {
 
         // 3. Assinar XML
         const TAG_MAP: Record<string, string> = { 'S-2220':'evtMonit', 'S-2240':'evtExpRisco', 'S-2210':'evtCAT', 'S-2221':'evtToxic' }
+        const assinarBody: Record<string, string> = {
+          xml: xmlData.xml,
+          tagAssinatura: TAG_MAP[txCompleta.evento] || 'eSocial',
+          empresa_id: empresaId,
+        }
+        if (pfxBase64 && certSenha) { assinarBody.pfx = pfxBase64; assinarBody.senha = certSenha }
         const assinarResp = await fetch('/api/assinar-xml', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({
-            xml: xmlData.xml,
-            pfx: pfxBase64,
-            senha: certSenha,
-            tagAssinatura: TAG_MAP[txCompleta.evento] || 'eSocial'
-          })
+          body: JSON.stringify(assinarBody)
         })
         const assinarData = await assinarResp.json()
         if (!assinarData.sucesso) throw new Error('Erro na assinatura: ' + assinarData.erro)
 
         setEtapa('transmitir')
 
-        // 4. Transmitir ao Gov.br (com mTLS quando pfx disponível)
+        // 4. Transmitir ao Gov.br
+        const transmitirBody: Record<string, string> = {
+          xml_assinado: assinarData.xml_assinado,
+          cnpj_empregador: (empresa as any).cnpj,
+          empresa_id: empresaId,
+          ambiente,
+          transmissao_id: txId,
+        }
+        if (pfxBase64 && certSenha) { transmitirBody.pfx = pfxBase64; transmitirBody.cert_senha = certSenha }
         const transmitirResp = await fetch('/api/transmitir-esocial', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader },
-          body: JSON.stringify({
-            xml_assinado: assinarData.xml_assinado,
-            cnpj_empregador: empresa.cnpj,
-            empresa_id: empresaId,
-            ambiente,
-            transmissao_id: txId,
-            pfx: pfxBase64,
-            cert_senha: certSenha,
-          })
+          body: JSON.stringify(transmitirBody)
         })
         const transmitirData = await transmitirResp.json()
 
@@ -358,14 +366,31 @@ export default function TransmissaoManual() {
       {/* ETAPA 1: Certificado */}
       {etapa === 'certificado' && (
         <div style={s.card}>
-          <div style={s.cardTit}>🔐 Etapa 1 — Carregar certificado digital A1</div>
-          <div style={{ fontSize:12, color:'#6b7280', marginBottom:14, lineHeight:1.7 }}>
-            O certificado é usado apenas para assinar os XMLs nesta sessão. Não é armazenado.
-          </div>
+          <div style={s.cardTit}>🔐 Etapa 1 — Certificado digital A1</div>
 
-          {empresa?.cert_digital_validade && (
-            <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:12, marginBottom:14 }}>
-              Certificado configurado: <strong>{empresa.cert_titular}</strong> · Válido até {new Date(empresa.cert_digital_validade).toLocaleDateString('pt-BR')}
+          {(empresa as any)?.cert_pfx_path ? (
+            <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:8, padding:'12px 16px', marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'#27500A', marginBottom:4 }}>✅ Certificado armazenado</div>
+              <div style={{ fontSize:12, color:'#374151' }}>
+                <strong>{empresa?.cert_titular}</strong> · Válido até {empresa?.cert_digital_validade ? new Date(empresa.cert_digital_validade).toLocaleDateString('pt-BR') : '—'}
+              </div>
+              <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}>
+                As transmissões usarão este certificado automaticamente.
+                {empresa?.tipo_acesso === 'terceiro' && empresa?.ecac_cnpj_procurador && (
+                  <span> · Transmitindo como procurador: CNPJ {empresa.ecac_cnpj_procurador}</span>
+                )}
+              </div>
+              <button onClick={() => setEtapa('selecionar')} style={{ ...s.btnPrimary, marginTop:12, fontSize:12 }}>
+                Continuar para seleção de eventos →
+              </button>
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:8 }}>
+                Ou carregue um certificado diferente abaixo para sobrescrever nesta sessão:
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize:12, color:'#6b7280', marginBottom:14, lineHeight:1.7 }}>
+              Selecione o arquivo <code>.pfx</code> e informe a senha para assinar os XMLs.
+              Configure o certificado em <strong>Configurações</strong> para não precisar reenviar a cada sessão.
             </div>
           )}
 

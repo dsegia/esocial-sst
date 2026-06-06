@@ -6,6 +6,8 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
+import { decryptSenha } from '../../lib/cert-crypto'
+import { downloadCertR2 } from '../../lib/cert-store'
 
 // Envia SOAP com mTLS (certificado A1 do cliente)
 function postSoap(url, headers, body, pfxBuffer, passphrase) {
@@ -128,7 +130,7 @@ export default async function handler(req, res) {
   // Verifica e consome crédito de envio
   const { data: empresa } = await sbAdmin
     .from('empresas')
-    .select('id, plano, creditos_restantes, stripe_customer_id')
+    .select('id, cnpj, plano, creditos_restantes, stripe_customer_id, tipo_acesso, ecac_cnpj_procurador, cert_pfx_path, cert_senha_enc')
     .eq('id', empresaId).single()
 
   if (!empresa) return res.status(403).json({ erro: 'Empresa não encontrada' })
@@ -200,7 +202,20 @@ export default async function handler(req, res) {
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   try {
-    const pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
+    // Resolver certificado: body (override manual) ou R2 (cert armazenado)
+    let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
+    let certSenhaResolvida = cert_senha || null
+
+    if (!pfxBuffer && empresa.cert_pfx_path && empresa.cert_senha_enc) {
+      pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
+      certSenhaResolvida = decryptSenha(empresa.cert_senha_enc)
+    }
+
+    // Resolver CNPJ do transmissor conforme tipo de acesso
+    const cnpjTransmissor = empresa.tipo_acesso === 'terceiro' && empresa.ecac_cnpj_procurador
+      ? empresa.ecac_cnpj_procurador.replace(/\D/g, '')
+      : cnpj_empregador.replace(/\D/g, '')
+
     const _nrLote = Date.now().toString()
     const dataHoraTransmissao = new Date().toISOString()
 
@@ -220,7 +235,7 @@ export default async function handler(req, res) {
             </ideEmpregador>
             <ideTransmissor>
               <tpInsc>1</tpInsc>
-              <nrInsc>${cnpj_empregador.replace(/\D/g,'')}</nrInsc>
+              <nrInsc>${cnpjTransmissor}</nrInsc>
             </ideTransmissor>
             <eventos>
               <evento Id="ev1">
@@ -240,7 +255,7 @@ export default async function handler(req, res) {
       'Content-Length': Buffer.byteLength(soapEnvelope, 'utf8'),
     }
 
-    const response = await postSoap(endpoint, soapHeaders, soapEnvelope, pfxBuffer, cert_senha)
+    const response = await postSoap(endpoint, soapHeaders, soapEnvelope, pfxBuffer, certSenhaResolvida)
     const resBody = response.body
 
     const recibo    = resBody.match(/<nrRec>([^<]+)<\/nrRec>/)?.[1]

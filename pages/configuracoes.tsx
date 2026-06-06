@@ -132,20 +132,27 @@ export default function Configuracoes() {
   async function salvarCertificado() {
     if (!certInfo) { setErro('Leia o certificado primeiro.'); return }
     if ((certInfo as any).tipo_certificado === 'e-CPF') {
-      setErro('Certificado e-CPF não é aceito para transmissão ao eSocial. É necessário um e-CNPJ (certificado de pessoa jurídica) correspondente ao CNPJ da empresa.')
+      setErro('Certificado e-CPF não é aceito. É necessário e-CNPJ correspondente ao CNPJ da empresa.')
       return
     }
+    if (!certArquivo || !certSenha) { setErro('Selecione o arquivo e informe a senha.'); return }
     setSalvando(true); setErro(''); setSucesso('')
     try {
-      // Salva metadados (NUNCA a chave privada em texto puro)
-      const { error } = await supabase.from('empresas').update({
-        cert_tipo: certInfo.tipo || 'A1',
-        cert_titular: certInfo.titular,
-        cert_digital_validade: certInfo.validade,
-        cert_configurado_em: new Date().toISOString(),
-      }).eq('id', empresaId)
-      if (error) throw error
-      setSucesso('Certificado configurado com sucesso!')
+      const base64 = await new Promise<string>(resolve => {
+        const reader = new FileReader()
+        reader.onload = (e: ProgressEvent<FileReader>) => resolve((e.target!.result as string).split(',')[1])
+        reader.readAsDataURL(certArquivo!)
+      })
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/cert/salvar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ pfx: base64, senha: certSenha, empresa_id: empresaId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao salvar certificado')
+      setCertInfo(json.info)
+      setSucesso('Certificado salvo com segurança! Próximas transmissões usarão automaticamente.')
     } catch (err: any) {
       setErro('Erro ao salvar: ' + err.message)
     }
@@ -263,7 +270,7 @@ export default function Configuracoes() {
           <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
             O certificado A1 é um arquivo <code>.pfx</code> ou <code>.p12</code> emitido por uma Autoridade Certificadora ICP-Brasil.
             Ele é necessário para assinar e transmitir os eventos ao Gov.br.<br/>
-            <strong>Importante:</strong> o arquivo nunca é armazenado no servidor — apenas os metadados (validade, titular).
+            <strong>Segurança:</strong> o arquivo <code>.pfx</code> é armazenado criptografado (AES-256) em storage privado. A senha é criptografada separadamente e nunca fica exposta. Uma vez salvo, as transmissões ocorrem automaticamente sem precisar reenviar o arquivo.
           </div>
 
           {/* Status atual */}
