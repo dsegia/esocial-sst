@@ -139,11 +139,6 @@ export function gerarXML_S2240(
       <infoAtiv>
         <dscAtivDes>${ghe.nome}</dscAtivDes>
         ${agentesXML}
-        <respReg>
-          <ideResponsavel>
-            <cpfResponsavel>${ltcat.resp_registro || ''}</cpfResponsavel>
-          </ideResponsavel>
-        </respReg>
       </infoAtiv>`
   }).join('')
 
@@ -218,7 +213,7 @@ export function gerarXML_S2210(
       <ideLocalAcidente>
         <dscLocal>${cat.agente_causador || ''}</dscLocal>
       </ideLocalAcidente>
-      ${cat.houve_morte ? '<infoObito><dtObito>9999-12-31</dtObito></infoObito>' : ''}
+      ${cat.houve_morte && cat.dt_obito ? `<infoObito><dtObito>${dataESocial(cat.dt_obito)}</dtObito></infoObito>` : ''}
       ${cat.dias_afastamento ? `<infoAfastamento><dtIniAfast>${dataESocial(cat.dt_acidente)}</dtIniAfast></infoAfastamento>` : ''}
       <atendimento>
         <dtAtendimento>${atend.data ? dataESocial(atend.data) : dataESocial(cat.dt_acidente)}</dtAtendimento>

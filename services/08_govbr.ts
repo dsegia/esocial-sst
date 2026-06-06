@@ -2,7 +2,7 @@ import https from 'https'
 import { atualizarTransmissao } from './09_sst'
 
 const ESOCIAL_URL = {
-  producao: 'https://esocial.gov.br/services/rest',
+  producao: 'https://integracao.esocial.gov.br/services/soap',
 }
 
 export type AmbienteESocial = 'producao'
@@ -73,7 +73,7 @@ function montarEnvelopeSOAP(cnpj: string, xmlEvento: string): string {
               <nrInsc>${cnpjRaw}</nrInsc>
             </ideEmpregador>
             <ideTransmissor>
-              <nrCPFTrans>${cnpjRaw.substring(0, 11)}</nrCPFTrans>
+              <nrInscTrans>${cnpjRaw}</nrInscTrans>
             </ideTransmissor>
             <eventos>
               <evento Id="evt001">

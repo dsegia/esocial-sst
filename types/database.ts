@@ -119,6 +119,7 @@ export type Database = {
           agente_causador: string | null
           descricao: string | null
           houve_morte: boolean
+          dt_obito: string | null
           dias_afastamento: number | null
           atendimento: AtendimentoCAT
           testemunhas: Testemunha[]
