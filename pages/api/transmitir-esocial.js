@@ -180,17 +180,29 @@ export default async function handler(req, res) {
   // a declaração XML ou com a tag <eSocial e conter a assinatura digital.
   // Rejeita qualquer conteúdo que tente escapar do elemento <evento>.
   const xmlTrimmed = xml_assinado.trim()
-  const startsCorrectly = xmlTrimmed.startsWith('<?xml') || xmlTrimmed.startsWith('<eSocial')
-  // Bloqueia injeção de elementos SOAP, fechamento prematuro de tags pai e XXE
-  // Inclui variantes dentro de CDATA e comentários XML
+
+  // Validação estrutural com parser real (mais seguro que regex)
+  try {
+    const { DOMParser } = require('@xmldom/xmldom')
+    const doc = new DOMParser({
+      errorHandler: { error: () => { throw new Error('parse error') }, fatalError: () => { throw new Error('parse error') } },
+    }).parseFromString(xmlTrimmed, 'text/xml')
+    const root = doc.documentElement?.tagName
+    if (!root || !root.includes('eSocial')) {
+      return res.status(400).json({ erro: 'XML inválido: elemento raiz deve ser eSocial.' })
+    }
+  } catch {
+    return res.status(400).json({ erro: 'XML malformado.' })
+  }
+
+  // Bloqueia XXE e conteúdo claramente fora do escopo eSocial
   const FORBIDDEN = [
-    /<\/evento\s*>/i, /<\/eventos\s*>/i, /<\/loteEventos\s*>/i,
-    /<soapenv:/i, /<soap:/i,
     /<!DOCTYPE/i, /<!ENTITY/i,
     /SYSTEM\s*["']/i, /PUBLIC\s*["']/i,
-    /\bfile:\/\//i, /\bhttp:\/\//i, /\bftp:\/\//i,
+    /\bfile:\/\//i,
+    /<soapenv:/i, /<soap:/i,
   ]
-  if (!startsCorrectly || FORBIDDEN.some(re => re.test(xmlTrimmed))) {
+  if (FORBIDDEN.some(re => re.test(xmlTrimmed))) {
     return res.status(400).json({ erro: 'XML inválido.' })
   }
   // Tamanho máximo: 512 KB — previne ataques de payload gigante (Billion Laughs)

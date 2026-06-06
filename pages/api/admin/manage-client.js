@@ -34,6 +34,13 @@ export default async function handler(req, res) {
   // ── EXCLUIR EMPRESA ──────────────────────────────────
   if (acao === 'excluir') {
     try {
+      await sb.from('admin_audit_log').insert({
+        acao: 'excluir_empresa',
+        empresa_id,
+        executado_por: user.id,
+        ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || null,
+      })
+
       // Busca usuários vinculados para remover do Auth também
       const { data: vinculos } = await sb
         .from('usuario_empresas')

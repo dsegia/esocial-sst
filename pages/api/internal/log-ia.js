@@ -1,6 +1,7 @@
 // pages/api/internal/log-ia.js
 // Endpoint interno para logging não-bloqueante de chamadas às IAs
 
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 // Custo por 1M tokens em USD (preços aproximados, atualizar conforme pricing)
@@ -24,9 +25,12 @@ export default async function handler(req, res) {
   // Sempre retorna 200 para não quebrar o caller
   if (req.method !== 'POST') return res.status(200).end()
 
-  const secret = req.headers['x-internal-secret']
-  const expectedSecret = process.env.INTERNAL_API_SECRET
-  if (!expectedSecret || secret !== expectedSecret) return res.status(200).end()
+  const secret = req.headers['x-internal-secret'] || ''
+  const expectedSecret = process.env.INTERNAL_API_SECRET || ''
+  const match = expectedSecret.length > 0 &&
+    secret.length === expectedSecret.length &&
+    crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expectedSecret))
+  if (!match) return res.status(401).end()
 
   try {
     const { servico, modelo, status, duracao_ms, tipo, erro, tokens_entrada, tokens_saida, empresa_id, usuario_id } = req.body
