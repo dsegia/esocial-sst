@@ -120,7 +120,6 @@ export default async function handler(req, res) {
 
     const processado = situacao === '2' || (cdRespLote && parseInt(cdRespLote) === 201)
     const aguardando = situacao === '1' || cdRespLote === '101'
-    const erro       = !processado && !aguardando
 
     // Atualiza status da transmissão no banco se transmissao_id fornecido
     if (transmissao_id && processado) {

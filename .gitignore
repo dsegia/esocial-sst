@@ -40,3 +40,8 @@ Thumbs.db
 *.crt
 
 .vercel
+
+# Temporários e cache de build
+tsconfig.tsbuildinfo
+temp_*.pdf
+*dev-server.log

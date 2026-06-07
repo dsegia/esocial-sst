@@ -36,7 +36,6 @@ export default async function handler(req, res) {
 
     if (error) throw new Error(error.message)
 
-    console.log(`[renovar-creditos] ${emp.razao_social} (${emp.plano}): ${emp.creditos_incluidos} créditos renovados`)
     return res.status(200).json({ ok: true, creditos_incluidos: emp.creditos_incluidos })
   } catch (err) {
     return res.status(500).json({ erro: err.message })

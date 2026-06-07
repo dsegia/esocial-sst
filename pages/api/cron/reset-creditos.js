@@ -31,9 +31,6 @@ export default async function handler(req, res) {
 
     if (error) throw new Error(error.message)
 
-    console.log(`[reset-creditos] ${(data || []).length} empresa(s) renovadas:`,
-      (data || []).map(e => `${e.razao_social} (${e.plano}: ${e.creditos_incluidos})`).join(', '))
-
     return res.status(200).json({ ok: true, renovadas: (data || []).length, empresas: data })
   } catch (err) {
     console.error('[reset-creditos] Erro:', err.message)

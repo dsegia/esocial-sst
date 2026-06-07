@@ -187,7 +187,6 @@ export default async function handler(req, res) {
     const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial' && e.id !== adminEmpresaId).length
 
     // AI usage/cost — mês atual e mês passado, agrupado por modelo
-    const inicio30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const { data: logsAtual } = await sb
       .from('api_logs')
       .select('modelo, status, tokens_entrada, tokens_saida, custo_usd, criado_em')
