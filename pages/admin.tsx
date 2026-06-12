@@ -93,6 +93,11 @@ export default function Admin() {
   const [erroSistema, setErroSistema] = useState('')
   const [marcandoErro, setMarcandoErro] = useState<string | null>(null)
 
+  // Diagnóstico completo (1 clique)
+  const [diag, setDiag] = useState<any>(null)
+  const [rodandoDiag, setRodandoDiag] = useState(false)
+  const [erroDiag, setErroDiag] = useState('')
+
   useEffect(() => {
     carregar()
 
@@ -167,6 +172,24 @@ export default function Admin() {
       if (resp.ok) carregarSistema()
     } finally {
       setMarcandoErro(null)
+    }
+  }
+
+  async function rodarDiagnostico() {
+    setRodandoDiag(true)
+    setErroDiag('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/admin/diagnostico', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao rodar diagnóstico')
+      setDiag(json)
+    } catch (e: any) {
+      setErroDiag(e.message)
+    } finally {
+      setRodandoDiag(false)
     }
   }
 
@@ -895,6 +918,73 @@ export default function Admin() {
               >
                 {carregandoSistema ? 'Verificando...' : '↻ Atualizar agora'}
               </button>
+            </div>
+
+            {/* ===== DIAGNÓSTICO COMPLETO (1 clique) ===== */}
+            <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1.25rem', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>🔍 Diagnóstico completo do sistema</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>
+                    Verifica em 1 clique: configuração, banco, segurança, transmissão (Gov.br), IA, certificados e dados.
+                  </div>
+                </div>
+                <button
+                  onClick={rodarDiagnostico}
+                  disabled={rodandoDiag}
+                  style={{ padding: '10px 18px', background: rodandoDiag ? '#9ca3af' : '#185FA5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: rodandoDiag ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  {rodandoDiag ? 'Analisando…' : diag ? '↻ Rodar novamente' : '▶ Analisar tudo'}
+                </button>
+              </div>
+
+              {erroDiag && (
+                <div style={{ background: '#FCEBEB', color: '#791F1F', borderRadius: 8, padding: '10px 14px', fontSize: 12, marginTop: 14 }}>{erroDiag}</div>
+              )}
+
+              {diag && (() => {
+                const cores: Record<string, string> = { ok: '#27a048', aviso: '#EF9F27', erro: '#dc2626', info: '#6b7280' }
+                const bgs: Record<string, string> = { ok: '#EAF3DE', aviso: '#FAEEDA', erro: '#FCEBEB', info: '#f3f4f6' }
+                const saudeMap: Record<string, { label: string; cor: string; bg: string }> = {
+                  saudavel: { label: '✓ Sistema saudável', cor: '#27500A', bg: '#EAF3DE' },
+                  atencao:  { label: '⚠ Requer atenção', cor: '#633806', bg: '#FAEEDA' },
+                  critico:  { label: '✕ Problemas críticos', cor: '#791F1F', bg: '#FCEBEB' },
+                }
+                const s = saudeMap[diag.resumo.saude] || saudeMap.atencao
+                return (
+                  <div style={{ marginTop: 16 }}>
+                    {/* Resumo */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                      <span style={{ padding: '5px 12px', background: s.bg, color: s.cor, borderRadius: 99, fontSize: 12, fontWeight: 700 }}>{s.label}</span>
+                      <span style={{ fontSize: 12, color: '#27a048', fontWeight: 600 }}>{diag.resumo.ok} OK</span>
+                      <span style={{ fontSize: 12, color: '#EF9F27', fontWeight: 600 }}>{diag.resumo.aviso} aviso(s)</span>
+                      <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>{diag.resumo.erro} erro(s)</span>
+                      <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>
+                        {new Date(diag.gerado_em).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+
+                    {/* Categorias */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
+                      {Object.entries(diag.categorias).map(([cat, checks]: [string, any]) => (
+                        <div key={cat} style={{ border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
+                          <div style={{ padding: '8px 12px', background: '#f9fafb', borderBottom: '0.5px solid #e5e7eb', fontSize: 12, fontWeight: 700, color: '#374151' }}>{cat}</div>
+                          {(checks as any[]).map((c, i) => (
+                            <div key={i} style={{ padding: '8px 12px', borderBottom: i < checks.length - 1 ? '0.5px solid #f3f4f6' : 'none', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: cores[c.status] || '#9ca3af', flexShrink: 0, marginTop: 4 }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>{c.nome}</div>
+                                <div style={{ fontSize: 11, color: cores[c.status] === '#6b7280' ? '#6b7280' : cores[c.status], marginTop: 1 }}>{c.detalhe}</div>
+                              </div>
+                              <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', padding: '2px 6px', borderRadius: 5, background: bgs[c.status] || '#f3f4f6', color: cores[c.status] || '#6b7280', flexShrink: 0 }}>{c.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {erroSistema && (
