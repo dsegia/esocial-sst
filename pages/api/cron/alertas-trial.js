@@ -23,8 +23,9 @@ async function enviarEmail(to, subject, html) {
 }
 
 export default async function handler(req, res) {
+  // Fail-closed: sem CRON_SECRET configurado o endpoint é negado.
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && req.headers.authorization !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ erro: 'Não autorizado' })
   }
 

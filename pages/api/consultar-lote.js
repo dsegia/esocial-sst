@@ -63,6 +63,28 @@ export default async function handler(req, res) {
   const endpoint = ENDPOINTS[ambiente]
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
+  // Se transmissao_id foi informado, valida que o usuário tem acesso à empresa
+  // dona da transmissão antes de permitir atualizar o status (evita IDOR).
+  let transmissaoAutorizada = false
+  if (transmissao_id) {
+    const { data: tx } = await sbAdmin
+      .from('transmissoes').select('empresa_id').eq('id', transmissao_id).single()
+    if (tx) {
+      const { data: usuarioDb } = await sbAdmin
+        .from('usuarios').select('empresa_id').eq('id', user.id).single()
+      const { data: vinculos } = await sbAdmin
+        .from('usuario_empresas').select('empresa_id').eq('usuario_id', user.id)
+      const empresasPermitidas = [
+        ...(usuarioDb?.empresa_id ? [usuarioDb.empresa_id] : []),
+        ...((vinculos || []).map(v => v.empresa_id)),
+      ]
+      if (!empresasPermitidas.includes(tx.empresa_id)) {
+        return res.status(403).json({ erro: 'Acesso não autorizado a esta transmissão' })
+      }
+      transmissaoAutorizada = true
+    }
+  }
+
   const cnpjLimpo = cnpj_empregador.replace(/\D/g, '')
 
   const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
@@ -121,8 +143,8 @@ export default async function handler(req, res) {
     const processado = situacao === '2' || (cdRespLote && parseInt(cdRespLote) === 201)
     const aguardando = situacao === '1' || cdRespLote === '101'
 
-    // Atualiza status da transmissão no banco se transmissao_id fornecido
-    if (transmissao_id && processado) {
+    // Atualiza status da transmissão no banco se transmissao_id fornecido e autorizado
+    if (transmissao_id && transmissaoAutorizada && processado) {
       const sucesso = eventos.every(e => parseInt(e.cdResp) === 201 || parseInt(e.cdResp) === 202)
       await sbAdmin.from('transmissoes').update({
         status: sucesso ? 'enviado' : 'rejeitado',
