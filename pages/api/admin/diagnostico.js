@@ -88,8 +88,13 @@ export default async function handler(req, res) {
   const r2ok = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY', 'R2_SECRET_KEY', 'R2_BUCKET'].every(envConfigurada)
   configChecks.push(check('Storage de certificado (R2)', r2ok ? 'ok' : 'aviso',
     r2ok ? 'Configurado' : 'R2 incompleto — armazenamento de certificado por empresa indisponível'))
-  configChecks.push(check('URL pública do app', envConfigurada('NEXT_PUBLIC_APP_URL') ? 'ok' : 'aviso',
-    envConfigurada('NEXT_PUBLIC_APP_URL') ? process.env.NEXT_PUBLIC_APP_URL : 'Ausente — links em e-mails podem quebrar'))
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim()
+  const urlPlaceholder = /seu[-_ ]?app|your[-_ ]?app|example\.|changeme|localhost/i.test(appUrl)
+  configChecks.push(check('URL pública do app',
+    !appUrl ? 'aviso' : urlPlaceholder ? 'aviso' : 'ok',
+    !appUrl ? 'Ausente — links em e-mails podem quebrar'
+      : urlPlaceholder ? `Valor parece placeholder (${appUrl}) — defina o domínio real, senão os links de e-mail quebram`
+      : appUrl))
   configChecks.push(check('Rate-limit distribuído (Upstash)',
     envConfigurada('UPSTASH_REDIS_REST_URL') && envConfigurada('UPSTASH_REDIS_REST_TOKEN') ? 'ok' : 'info',
     envConfigurada('UPSTASH_REDIS_REST_URL') ? 'Redis ativo (entre workers)' : 'Usando fallback in-memory (ok para volume baixo)'))
