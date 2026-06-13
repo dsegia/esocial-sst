@@ -242,10 +242,12 @@ export default async function handler(req, res) {
   const txChecks = []
   const gov = val(pingGov)
   if (gov) {
-    txChecks.push(check('Webservice eSocial Gov.br', gov.acessivel ? 'ok' : 'erro',
-      gov.acessivel ? `Acessível · ${gov.latencia}ms (HTTP ${gov.status})` : `Inacessível (HTTP ${gov.status})`))
+    txChecks.push(check('Webservice eSocial Gov.br', gov.acessivel ? 'ok' : 'aviso',
+      gov.acessivel ? `Acessível · ${gov.latencia}ms (HTTP ${gov.status})` : `HTTP ${gov.status} ao HEAD — o webservice espera POST SOAP; transmissão real usa mTLS`))
   } else {
-    txChecks.push(check('Webservice eSocial Gov.br', 'erro', 'Sem resposta / timeout em 10s'))
+    // O endpoint do eSocial costuma ignorar HEAD; um timeout aqui NÃO confirma
+    // indisponibilidade da transmissão real (que é POST SOAP com mTLS).
+    txChecks.push(check('Webservice eSocial Gov.br', 'aviso', 'Sem resposta ao HEAD em 10s — não responde a HEAD; não indica necessariamente que a transmissão (POST mTLS) está fora'))
   }
   const stuckCount = transStuck.status === 'fulfilled' ? (transStuck.value.count ?? 0) : null
   txChecks.push(check('Transmissões presas', stuckCount === 0 ? 'ok' : stuckCount == null ? 'aviso' : 'aviso',
