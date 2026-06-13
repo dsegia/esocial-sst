@@ -162,8 +162,10 @@ export default async function handler(req, res) {
     }),
     // Vercel — estado do último deploy (requer VERCEL_TOKEN)
     probe('Vercel (deploy)', !envConfigurada('VERCEL_TOKEN'), async () => {
-      const projQS = envConfigurada('VERCEL_PROJECT_ID') ? `&projectId=${process.env.VERCEL_PROJECT_ID}` : ''
-      const r = await fetchTimeout(`https://api.vercel.com/v6/deployments?limit=1${projQS}`, {
+      const params = new URLSearchParams({ limit: '1' })
+      if (envConfigurada('VERCEL_PROJECT_ID')) params.set('projectId', process.env.VERCEL_PROJECT_ID)
+      if (envConfigurada('VERCEL_TEAM_ID')) params.set('teamId', process.env.VERCEL_TEAM_ID)
+      const r = await fetchTimeout(`https://api.vercel.com/v6/deployments?${params.toString()}`, {
         headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` },
       })
       if (!r.ok) return check('Vercel (deploy)', 'erro', r.status === 403 ? 'Token sem permissão (403)' : `Falha HTTP ${r.status}`)
