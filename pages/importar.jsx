@@ -26,7 +26,7 @@ function detectarIncompativel(nomeArquivo) {
 
 const LIMITE_ARQUIVOS  = 50
 const CONCORRENCIA     = 3
-const LIMITE_BASE64    = 18 * 1024 * 1024  // PDFs até 18MB são enviados nativos ao Claude/Gemini
+const LIMITE_BASE64    = 3 * 1024 * 1024   // PDFs até 3MB enviados como base64 nativo (limite Vercel ~4.5MB)
 const LIMITE_TAMANHO   = 50 * 1024 * 1024
 
 // ── Utilitários ──────────────────────────────────────────
