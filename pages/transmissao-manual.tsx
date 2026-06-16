@@ -31,7 +31,7 @@ export default function TransmissaoManual() {
   const ambiente = 'producao'
   const [testando, setTestando] = useState(false)
   const [testeResult, setTesteResult] = useState<null | { ok: boolean; msg: string; latencia?: number }>(null)
-  const [masterConfig, setMasterConfig] = useState<boolean | null>(null)
+  const [procStatus, setProcStatus] = useState<{ ativa: boolean; procuradorOk: boolean } | null>(null)
 
   // Certificado (nunca sai do estado do browser)
   const [certArquivo, setCertArquivo] = useState<any>(null)
@@ -46,8 +46,6 @@ export default function TransmissaoManual() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
     setSessionToken(session.access_token)
-    fetch('/api/cert/master-status', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      .then(r => r.json()).then(d => setMasterConfig(!!d.configurado)).catch(() => setMasterConfig(null))
     const { data: user } = await supabase.from('usuarios')
       .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, cert_pfx_path, plano, tipo_acesso, ecac_cnpj_procurador)')
       .eq('id', session.user.id).single()
@@ -55,6 +53,8 @@ export default function TransmissaoManual() {
     setEmpresa(user.empresas)
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
+    fetch(`/api/cert/procuracao-status?empresa_id=${empId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => r.json()).then(d => setProcStatus(d)).catch(() => setProcStatus(null))
 
     // Se a empresa já tem certificado armazenado ou procuração ativa, pular upload
     if ((user.empresas as any)?.cert_pfx_path || (user.empresas as any)?.ecac_cnpj_procurador) {
@@ -139,8 +139,8 @@ export default function TransmissaoManual() {
     const usandoCertArmazenado = !!(empresa as any)?.cert_pfx_path && !pfxBase64
     const usandoProcuracao = !!(empresa as any)?.ecac_cnpj_procurador && !pfxBase64
     if (!usandoCertArmazenado && !usandoProcuracao && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
-    if (usandoProcuracao && masterConfig === false) {
-      setErro('Transmissão via procuração indisponível: o certificado do procurador não está configurado no sistema. Contate o suporte ou suba um certificado próprio em Configurações.')
+    if (usandoProcuracao && procStatus && !procStatus.procuradorOk) {
+      setErro('Transmissão via procuração indisponível: nenhuma consultoria com este CNPJ e certificado configurado foi encontrada. Cadastre o certificado da consultoria ou suba um certificado próprio em Configurações.')
       return
     }
 
@@ -441,13 +441,13 @@ export default function TransmissaoManual() {
           </div>
 
           {!certInfo && !(empresa as any)?.cert_pfx_path && (empresa as any)?.ecac_cnpj_procurador && (
-            masterConfig === false ? (
+            procStatus && !procStatus.procuradorOk ? (
               <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
-                ⚠ <strong>Não é possível transmitir.</strong> A procuração está ativa, mas o certificado do procurador não está configurado no sistema. Contate o suporte ou suba um certificado próprio em Configurações.
+                ⚠ <strong>Não é possível transmitir.</strong> A procuração está ativa, mas nenhuma consultoria com este CNPJ e certificado foi encontrada na sua conta. Suba o certificado da consultoria ou um certificado próprio em Configurações.
               </div>
             ) : (
               <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
-                📋 Transmissão via <strong>procuração eCAC</strong> — usando o certificado do procurador. Não é necessário carregar certificado.
+                📋 Transmissão via <strong>procuração eCAC</strong> — usando o certificado da consultoria procuradora. Não é necessário carregar certificado.
               </div>
             )
           )}
@@ -481,7 +481,7 @@ export default function TransmissaoManual() {
                       {tx.evento}
                     </span>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontWeight:500 }}>{tx.funcionarios?.nome || '—'}</div>
+                      <div style={{ fontSize:13, fontWeight:500, color:'#111' }}>{tx.funcionarios?.nome || '—'}</div>
                       <div style={{ fontSize:11, color:'#6b7280' }}>
                         {new Date(tx.criado_em).toLocaleDateString('pt-BR')}
                       </div>

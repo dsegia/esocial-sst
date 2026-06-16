@@ -6,9 +6,7 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
-import { decryptSenha } from '../../lib/cert-crypto'
-import { downloadCertR2 } from '../../lib/cert-store'
-import { getMasterCert } from '../../lib/master-cert'
+import { resolverCertEmpresa } from '../../lib/resolve-cert'
 
 // Envia SOAP com mTLS (certificado A1 do cliente)
 function postSoap(url, headers, body, pfxBuffer, passphrase) {
@@ -215,31 +213,24 @@ export default async function handler(req, res) {
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   try {
-    // Resolver certificado e CNPJ do transmissor. Três caminhos:
+    // Resolver certificado e CNPJ do transmissor. Caminhos:
     //  1. pfx no body (override manual da sessão)  → transmissor = próprio empregador
-    //  2. cert próprio armazenado da empresa (R2)  → transmissor = próprio empregador
-    //  3. procuração eCAC (sem cert próprio)        → cert mestre do SaaS; transmissor = SaaS (procurador)
+    //  2. cert próprio / procuração (consultoria)  → resolverCertEmpresa
     let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
     let certSenhaResolvida = cert_senha || null
     let cnpjTransmissor = cnpj_empregador.replace(/\D/g, '')
 
     if (!pfxBuffer) {
-      if (empresa.cert_pfx_path && empresa.cert_senha_enc) {
-        pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
-        certSenhaResolvida = decryptSenha(empresa.cert_senha_enc)
-      } else if (empresa.ecac_cnpj_procurador) {
-        const master = getMasterCert()
-        if (!master) {
-          return res.status(503).json({ erro: 'Transmissão via procuração indisponível: certificado do procurador não está configurado no sistema. Contate o suporte.' })
-        }
-        pfxBuffer = master.pfxBuffer
-        certSenhaResolvida = master.senha
-        cnpjTransmissor = master.cnpj
+      const cred = await resolverCertEmpresa(empresaId, user.id)
+      if (cred) {
+        pfxBuffer = cred.pfxBuffer
+        certSenhaResolvida = cred.senha
+        cnpjTransmissor = cred.cnpjTransmissor
       }
     }
 
     if (!pfxBuffer || !certSenhaResolvida) {
-      return res.status(400).json({ erro: 'Nenhum certificado digital ou procuração eCAC configurado. Acesse Configurações para habilitar a transmissão.' })
+      return res.status(400).json({ erro: 'Nenhum certificado disponível. Suba um certificado próprio ou configure a procuração para uma consultoria que tenha certificado no sistema.' })
     }
 
     const _nrLote = Date.now().toString()

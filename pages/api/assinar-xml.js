@@ -5,9 +5,7 @@ import forge from 'node-forge'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
-import { decryptSenha } from '../../lib/cert-crypto'
-import { downloadCertR2 } from '../../lib/cert-store'
-import { getMasterCert } from '../../lib/master-cert'
+import { resolverCertEmpresa } from '../../lib/resolve-cert'
 
 const sbAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -86,7 +84,7 @@ export default async function handler(req, res) {
     if (pfx && senha) {
       pfxBuf = Buffer.from(pfx, 'base64')
     } else {
-      // Buscar cert armazenado da empresa
+      // Resolver empresa-alvo e certificado (próprio ou da consultoria procuradora)
       const { data: usuarioDb } = await sbAdmin
         .from('usuarios').select('empresa_id').eq('id', user.id).single()
       let empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
@@ -96,23 +94,13 @@ export default async function handler(req, res) {
           .eq('usuario_id', user.id).eq('empresa_id', empresaIdBody).single()
         if (vinculo) empresaId = empresaIdBody
       }
-      const { data: empresa } = await sbAdmin
-        .from('empresas').select('cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador').eq('id', empresaId).single()
 
-      if (empresa?.cert_pfx_path && empresa?.cert_senha_enc) {
-        pfxBuf = await downloadCertR2(empresa.cert_pfx_path)
-        senhaResolvida = decryptSenha(empresa.cert_senha_enc)
-      } else if (empresa?.ecac_cnpj_procurador) {
-        // Procuração eCAC: assina com o certificado mestre do SaaS (procurador)
-        const master = getMasterCert()
-        if (!master) {
-          return res.status(503).json({ erro: 'Procuração ativa, mas o certificado do procurador não está configurado no sistema.' })
-        }
-        pfxBuf = master.pfxBuffer
-        senhaResolvida = master.senha
-      } else {
-        return res.status(400).json({ erro: 'Certificado digital não configurado. Acesse Configurações para fazer o upload ou habilitar a procuração eCAC.' })
+      const cred = await resolverCertEmpresa(empresaId, user.id)
+      if (!cred) {
+        return res.status(400).json({ erro: 'Certificado não configurado. Suba um certificado próprio ou configure a procuração para uma consultoria que tenha certificado no sistema.' })
       }
+      pfxBuf = cred.pfxBuffer
+      senhaResolvida = cred.senha
     }
     const pfxDer = forge.util.createBuffer(pfxBuf.toString('binary'))
     const pfxAsn1 = forge.asn1.fromDer(pfxDer)

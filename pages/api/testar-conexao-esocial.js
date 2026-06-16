@@ -5,9 +5,7 @@ import https from 'node:https'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
-import { decryptSenha } from '../../lib/cert-crypto'
-import { downloadCertR2 } from '../../lib/cert-store'
-import { getMasterCert } from '../../lib/master-cert'
+import { resolverCertEmpresa } from '../../lib/resolve-cert'
 
 const sbAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -79,7 +77,7 @@ export default async function handler(req, res) {
 
   const { pfx: pfxBase64, cert_senha } = req.body || {}
 
-  // Resolver certificado: body (sessão) → cert próprio armazenado → procuração (cert mestre)
+  // Resolver certificado: body (sessão) → cert próprio / procuração (consultoria)
   let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
   let senha = cert_senha || null
 
@@ -88,15 +86,8 @@ export default async function handler(req, res) {
       .from('usuarios').select('empresa_id').eq('id', user.id).single()
     const empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
     if (empresaId) {
-      const { data: empresa } = await sbAdmin
-        .from('empresas').select('cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador').eq('id', empresaId).single()
-      if (empresa?.cert_pfx_path && empresa?.cert_senha_enc) {
-        pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
-        senha = decryptSenha(empresa.cert_senha_enc)
-      } else if (empresa?.ecac_cnpj_procurador) {
-        const master = getMasterCert()
-        if (master) { pfxBuffer = master.pfxBuffer; senha = master.senha }
-      }
+      const cred = await resolverCertEmpresa(empresaId, user.id)
+      if (cred) { pfxBuffer = cred.pfxBuffer; senha = cred.senha }
     }
   }
 

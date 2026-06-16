@@ -10,11 +10,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// CNPJ do SaaS (procurador). A empresa outorga procuração eSocial para este CNPJ
-// no eCAC e passa a transmitir sem precisar de certificado próprio.
-const SAAS_CNPJ = process.env.NEXT_PUBLIC_SAAS_CNPJ || ''
-const SAAS_NOME = process.env.NEXT_PUBLIC_SAAS_NOME || 'eSocial SST'
-
 function formatCnpj(cnpj: string) {
   const d = (cnpj || '').replace(/\D/g, '')
   if (d.length !== 14) return cnpj
@@ -60,7 +55,7 @@ export default function Configuracoes() {
   // eCAC
   const [ecacCnpjProcurador, setEcacCnpjProcurador] = useState('')
   const [ecacNomeProcurador, setEcacNomeProcurador] = useState('')
-  const [masterConfig, setMasterConfig] = useState<boolean | null>(null)
+  const [procStatus, setProcStatus] = useState<{ ativa: boolean; procuradorOk: boolean; titular?: string | null } | null>(null)
 
   // Empresa
   const [formEmpresa, setFormEmpresa] = useState({
@@ -75,11 +70,9 @@ export default function Configuracoes() {
     if (!session) { router.push('/login'); return }
     const { data:user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
-    // Verifica se o certificado mestre do procurador está configurado no servidor
-    fetch('/api/cert/master-status', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      .then(r => r.json()).then(d => setMasterConfig(!!d.configurado)).catch(() => setMasterConfig(null))
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
+    carregarProcStatus(empId, session.access_token)
     carregarUsuarios(empId)
     const { data:emp } = await supabase.from('empresas').select('*').eq('id', empId).single()
     if (emp) {
@@ -174,25 +167,33 @@ export default function Configuracoes() {
     setSalvando(false)
   }
 
-  async function ativarProcuracao() {
-    if (!SAAS_CNPJ) { setErro('CNPJ do procurador (SaaS) não configurado no sistema. Contate o suporte.'); return }
+  async function carregarProcStatus(empId: string, token: string) {
+    try {
+      const r = await fetch(`/api/cert/procuracao-status?empresa_id=${empId}`, { headers: { Authorization: `Bearer ${token}` } })
+      setProcStatus(await r.json())
+    } catch { setProcStatus(null) }
+  }
+
+  async function salvarEcac() {
+    const cnpjLimpo = ecacCnpjProcurador.replace(/\D/g, '')
+    if (cnpjLimpo.length !== 14) { setErro('Informe um CNPJ de procurador válido (14 dígitos).'); return }
     setSalvando(true); setErro(''); setSucesso('')
     const { error } = await supabase.from('empresas').update({
-      ecac_cnpj_procurador: SAAS_CNPJ.replace(/\D/g, ''),
-      ecac_nome_procurador: SAAS_NOME,
+      ecac_cnpj_procurador: cnpjLimpo,
+      ecac_nome_procurador: ecacNomeProcurador || null,
     }).eq('id', empresaId)
     if (error) { setErro('Erro: ' + error.message) }
     else {
-      setEcacCnpjProcurador(SAAS_CNPJ.replace(/\D/g, ''))
-      setEcacNomeProcurador(SAAS_NOME)
-      setEmpresa((e: any) => ({ ...e, ecac_cnpj_procurador: SAAS_CNPJ.replace(/\D/g, ''), ecac_nome_procurador: SAAS_NOME }))
-      setSucesso('Transmissão via procuração ativada! As próximas transmissões usarão o certificado do procurador automaticamente.')
+      setEmpresa((e: any) => ({ ...e, ecac_cnpj_procurador: cnpjLimpo, ecac_nome_procurador: ecacNomeProcurador || null }))
+      setSucesso('Procuração salva! As transmissões desta empresa usarão o certificado da consultoria procuradora.')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) carregarProcStatus(empresaId, session.access_token)
     }
     setSalvando(false)
   }
 
-  async function desativarProcuracao() {
-    if (!confirm('Desativar a transmissão via procuração? Você precisará de um certificado digital próprio para transmitir.')) return
+  async function removerEcac() {
+    if (!confirm('Remover a procuração? Esta empresa precisará de certificado próprio para transmitir.')) return
     setSalvando(true); setErro(''); setSucesso('')
     const { error } = await supabase.from('empresas').update({
       ecac_cnpj_procurador: null,
@@ -200,10 +201,10 @@ export default function Configuracoes() {
     }).eq('id', empresaId)
     if (error) { setErro('Erro: ' + error.message) }
     else {
-      setEcacCnpjProcurador('')
-      setEcacNomeProcurador('')
+      setEcacCnpjProcurador(''); setEcacNomeProcurador('')
       setEmpresa((e: any) => ({ ...e, ecac_cnpj_procurador: null, ecac_nome_procurador: null }))
-      setSucesso('Transmissão via procuração desativada.')
+      setProcStatus({ ativa: false, procuradorOk: false })
+      setSucesso('Procuração removida.')
     }
     setSalvando(false)
   }
@@ -389,60 +390,58 @@ export default function Configuracoes() {
         <div style={s.card}>
           <div style={s.cardTit}>Transmitir via Procuração eCAC</div>
           <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.8 }}>
-            <strong>Alternativa ao certificado digital próprio.</strong> Ao outorgar uma procuração eSocial para o nosso CNPJ no portal eCAC, a sua empresa transmite usando o certificado do procurador (o nosso) — você <strong>não precisa subir nenhum certificado</strong>.
+            <strong>Alternativa ao certificado próprio.</strong> Se uma consultoria/escritório transmite por esta empresa, informe o CNPJ do procurador. As transmissões passam a usar o <strong>certificado da consultoria</strong> — esta empresa não precisa de certificado próprio. A consultoria precisa ter o certificado dela cadastrado no sistema e a procuração do serviço <strong>eSocial</strong> ativa no eCAC.
           </div>
 
-          {empresa?.ecac_cnpj_procurador ? (
-            <>
+          {empresa?.ecac_cnpj_procurador && (
+            procStatus?.procuradorOk ? (
               <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'#27500A', marginBottom:4 }}>✅ Transmissão via procuração ativa</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'#27500A', marginBottom:4 }}>✅ Procuração ativa — certificado do procurador encontrado</div>
                 <div style={{ fontSize:12, color:'#374151' }}>
-                  Procurador: <strong>{empresa.ecac_nome_procurador || SAAS_NOME}</strong> · CNPJ {formatCnpj(empresa.ecac_cnpj_procurador)}
+                  Procurador: <strong>{empresa.ecac_nome_procurador || procStatus.titular || '—'}</strong> · CNPJ {formatCnpj(empresa.ecac_cnpj_procurador)}
                 </div>
                 <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}>
-                  As transmissões usam o certificado do procurador automaticamente. Confira que a procuração do serviço <strong>eSocial</strong> está ativa no eCAC para este CNPJ.
+                  Confirme que a procuração do serviço <strong>eSocial</strong> está ativa no eCAC para este CNPJ.
                 </div>
               </div>
-
-              {masterConfig === false && (
-                <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
-                  ⚠ <strong>Atenção:</strong> a procuração está ativa, mas o <strong>certificado do procurador ainda não está configurado no sistema</strong>. As transmissões vão falhar (erro 503) até que ele seja configurado. Contate o suporte para habilitar.
-                </div>
-              )}
-              <button style={s.btnOutline} onClick={desativarProcuracao} disabled={salvando}>
-                {salvando ? 'Processando...' : 'Desativar transmissão via procuração'}
-              </button>
-            </>
-          ) : (
-            <>
-              <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#0C447C', lineHeight:1.8 }}>
-                <strong>Passo a passo no eCAC:</strong><br/>
-                1. Acesse <strong>cav.receita.fazenda.gov.br</strong> com o certificado da sua empresa<br/>
-                2. Vá em <strong>Senhas e Procurações → Procuração eletrônica → Outorgar</strong><br/>
-                3. Selecione o serviço <strong>eSocial</strong><br/>
-                4. Informe o CNPJ do procurador abaixo<br/>
-                5. Volte aqui e clique em <strong>Ativar</strong>
+            ) : (
+              <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
+                ⚠ <strong>Procuração informada, mas não é possível transmitir ainda.</strong> Nenhuma empresa com o CNPJ {formatCnpj(empresa.ecac_cnpj_procurador)} e certificado configurado foi encontrada na sua conta. Cadastre a consultoria procuradora no sistema e suba o certificado dela na aba Certificado Digital.
               </div>
-
-              <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
-                <div style={{ fontSize:11, color:'#6b7280', textTransform:'uppercase', marginBottom:4 }}>Outorgue a procuração para este CNPJ</div>
-                {SAAS_CNPJ ? (
-                  <>
-                    <div style={{ fontSize:18, fontWeight:700, color:'#111', letterSpacing:0.5 }}>{formatCnpj(SAAS_CNPJ)}</div>
-                    <div style={{ fontSize:12, color:'#374151', marginTop:2 }}>{SAAS_NOME}</div>
-                  </>
-                ) : (
-                  <div style={{ fontSize:12, color:'#E24B4A' }}>
-                    CNPJ do procurador ainda não configurado no sistema. Contate o suporte para habilitar a transmissão via procuração.
-                  </div>
-                )}
-              </div>
-
-              <button style={s.btnPrimary} onClick={ativarProcuracao} disabled={salvando || !SAAS_CNPJ}>
-                {salvando ? 'Ativando...' : 'Já outorguei — ativar transmissão via procuração'}
-              </button>
-            </>
+            )
           )}
+
+          <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#0C447C', lineHeight:1.8 }}>
+            <strong>Como configurar no eCAC:</strong><br/>
+            1. Acesse <strong>cav.receita.fazenda.gov.br</strong> com o certificado desta empresa<br/>
+            2. Vá em <strong>Senhas e Procurações → Procuração eletrônica → Outorgar</strong><br/>
+            3. Selecione o serviço <strong>eSocial</strong><br/>
+            4. Informe o CNPJ da consultoria procuradora<br/>
+            5. Volte aqui e salve os dados do procurador abaixo
+          </div>
+
+          <div style={s.row2}>
+            <div>
+              <label style={s.label}>CNPJ do procurador (consultoria)</label>
+              <input style={s.input} placeholder="00.000.000/0001-00"
+                value={ecacCnpjProcurador} onChange={e => setEcacCnpjProcurador(e.target.value)} />
+            </div>
+            <div>
+              <label style={s.label}>Nome do procurador</label>
+              <input style={s.input} placeholder="Nome da consultoria/escritório"
+                value={ecacNomeProcurador} onChange={e => setEcacNomeProcurador(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button style={s.btnPrimary} onClick={salvarEcac} disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar procuração'}
+            </button>
+            {empresa?.ecac_cnpj_procurador && (
+              <button style={s.btnOutline} onClick={removerEcac} disabled={salvando}>
+                Remover procuração
+              </button>
+            )}
+          </div>
         </div>
       )}
 

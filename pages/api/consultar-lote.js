@@ -6,9 +6,7 @@ import https from 'node:https'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
-import { decryptSenha } from '../../lib/cert-crypto'
-import { downloadCertR2 } from '../../lib/cert-store'
-import { getMasterCert } from '../../lib/master-cert'
+import { resolverCertEmpresa } from '../../lib/resolve-cert'
 
 const ENDPOINTS = {
   producao: 'https://webservices.esocial.gov.br/servicos/empregador/consultaLoteEventos/consultarLoteEventos/v1_1_0/index.php',
@@ -115,7 +113,7 @@ export default async function handler(req, res) {
 </soapenv:Envelope>`
 
   try {
-    // Resolver certificado: body (sessão) → cert próprio armazenado → procuração (cert mestre)
+    // Resolver certificado: body (sessão) → cert próprio / procuração (consultoria)
     let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
     let certSenhaResolvida = cert_senha || null
 
@@ -129,17 +127,10 @@ export default async function handler(req, res) {
         if (tx?.empresa_id) empresaId = tx.empresa_id
       }
       if (empresaId) {
-        const { data: empresa } = await sbAdmin
-          .from('empresas').select('cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador').eq('id', empresaId).single()
-        if (empresa?.cert_pfx_path && empresa?.cert_senha_enc) {
-          pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
-          certSenhaResolvida = decryptSenha(empresa.cert_senha_enc)
-        } else if (empresa?.ecac_cnpj_procurador) {
-          const master = getMasterCert()
-          if (master) {
-            pfxBuffer = master.pfxBuffer
-            certSenhaResolvida = master.senha
-          }
+        const cred = await resolverCertEmpresa(empresaId, user.id)
+        if (cred) {
+          pfxBuffer = cred.pfxBuffer
+          certSenhaResolvida = cred.senha
         }
       }
     }
