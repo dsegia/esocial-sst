@@ -60,6 +60,7 @@ export default function Configuracoes() {
   // eCAC
   const [ecacCnpjProcurador, setEcacCnpjProcurador] = useState('')
   const [ecacNomeProcurador, setEcacNomeProcurador] = useState('')
+  const [masterConfig, setMasterConfig] = useState<boolean | null>(null)
 
   // Empresa
   const [formEmpresa, setFormEmpresa] = useState({
@@ -74,6 +75,9 @@ export default function Configuracoes() {
     if (!session) { router.push('/login'); return }
     const { data:user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
+    // Verifica se o certificado mestre do procurador está configurado no servidor
+    fetch('/api/cert/master-status', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => r.json()).then(d => setMasterConfig(!!d.configurado)).catch(() => setMasterConfig(null))
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
     carregarUsuarios(empId)
@@ -399,6 +403,12 @@ export default function Configuracoes() {
                   As transmissões usam o certificado do procurador automaticamente. Confira que a procuração do serviço <strong>eSocial</strong> está ativa no eCAC para este CNPJ.
                 </div>
               </div>
+
+              {masterConfig === false && (
+                <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
+                  ⚠ <strong>Atenção:</strong> a procuração está ativa, mas o <strong>certificado do procurador ainda não está configurado no sistema</strong>. As transmissões vão falhar (erro 503) até que ele seja configurado. Contate o suporte para habilitar.
+                </div>
+              )}
               <button style={s.btnOutline} onClick={desativarProcuracao} disabled={salvando}>
                 {salvando ? 'Processando...' : 'Desativar transmissão via procuração'}
               </button>

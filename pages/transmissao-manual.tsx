@@ -31,6 +31,7 @@ export default function TransmissaoManual() {
   const ambiente = 'producao'
   const [testando, setTestando] = useState(false)
   const [testeResult, setTesteResult] = useState<null | { ok: boolean; msg: string; latencia?: number }>(null)
+  const [masterConfig, setMasterConfig] = useState<boolean | null>(null)
 
   // Certificado (nunca sai do estado do browser)
   const [certArquivo, setCertArquivo] = useState<any>(null)
@@ -45,6 +46,8 @@ export default function TransmissaoManual() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
     setSessionToken(session.access_token)
+    fetch('/api/cert/master-status', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => r.json()).then(d => setMasterConfig(!!d.configurado)).catch(() => setMasterConfig(null))
     const { data: user } = await supabase.from('usuarios')
       .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, cert_pfx_path, plano, tipo_acesso, ecac_cnpj_procurador)')
       .eq('id', session.user.id).single()
@@ -136,6 +139,10 @@ export default function TransmissaoManual() {
     const usandoCertArmazenado = !!(empresa as any)?.cert_pfx_path && !pfxBase64
     const usandoProcuracao = !!(empresa as any)?.ecac_cnpj_procurador && !pfxBase64
     if (!usandoCertArmazenado && !usandoProcuracao && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
+    if (usandoProcuracao && masterConfig === false) {
+      setErro('Transmissão via procuração indisponível: o certificado do procurador não está configurado no sistema. Contate o suporte ou suba um certificado próprio em Configurações.')
+      return
+    }
 
     // Período de teste: limitar 1 transmissão enviada por tipo de evento
     if (empresa?.plano === 'trial') {
@@ -302,6 +309,10 @@ export default function TransmissaoManual() {
 
     setResultados(resultadosTx)
     setEtapa('resultado')
+    const falhas = resultadosTx.filter(r => !r.sucesso)
+    if (falhas.length > 0) {
+      setErro(`${falhas.length} evento(s) não transmitido(s). Motivo: ${falhas[0].descricao || 'erro desconhecido'}`)
+    }
     setProcessando(false)
     init() // recarregar pendentes
   }
@@ -430,9 +441,15 @@ export default function TransmissaoManual() {
           </div>
 
           {!certInfo && !(empresa as any)?.cert_pfx_path && (empresa as any)?.ecac_cnpj_procurador && (
-            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
-              📋 Transmissão via <strong>procuração eCAC</strong> — usando o certificado do procurador. Não é necessário carregar certificado.
-            </div>
+            masterConfig === false ? (
+              <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
+                ⚠ <strong>Não é possível transmitir.</strong> A procuração está ativa, mas o certificado do procurador não está configurado no sistema. Contate o suporte ou suba um certificado próprio em Configurações.
+              </div>
+            ) : (
+              <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
+                📋 Transmissão via <strong>procuração eCAC</strong> — usando o certificado do procurador. Não é necessário carregar certificado.
+              </div>
+            )
           )}
 
           {pendentes.length === 0 ? (
