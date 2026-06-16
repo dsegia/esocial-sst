@@ -139,10 +139,6 @@ export default function TransmissaoManual() {
     const usandoCertArmazenado = !!(empresa as any)?.cert_pfx_path && !pfxBase64
     const usandoProcuracao = !!(empresa as any)?.ecac_cnpj_procurador && !pfxBase64
     if (!usandoCertArmazenado && !usandoProcuracao && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
-    if (usandoProcuracao && procStatus && !procStatus.procuradorOk) {
-      setErro('Transmissão via procuração indisponível: nenhuma consultoria com este CNPJ e certificado configurado foi encontrada. Cadastre o certificado da consultoria ou suba um certificado próprio em Configurações.')
-      return
-    }
 
     // Período de teste: limitar 1 transmissão enviada por tipo de evento
     if (empresa?.plano === 'trial') {
@@ -441,15 +437,9 @@ export default function TransmissaoManual() {
           </div>
 
           {!certInfo && !(empresa as any)?.cert_pfx_path && (empresa as any)?.ecac_cnpj_procurador && (
-            procStatus && !procStatus.procuradorOk ? (
-              <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
-                ⚠ <strong>Não é possível transmitir.</strong> A procuração está ativa, mas nenhuma consultoria com este CNPJ e certificado foi encontrada na sua conta. Suba o certificado da consultoria ou um certificado próprio em Configurações.
-              </div>
-            ) : (
-              <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
-                📋 Transmissão via <strong>procuração eCAC</strong> — usando o certificado da consultoria procuradora. Não é necessário carregar certificado.
-              </div>
-            )
+            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
+              📋 Transmissão via <strong>procuração eCAC</strong> — o certificado da consultoria será usado automaticamente.
+            </div>
           )}
 
           {pendentes.length === 0 ? (
