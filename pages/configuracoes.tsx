@@ -431,124 +431,64 @@ export default function Configuracoes() {
       {/* ABA: Procuração eCAC */}
       {aba === 'ecac' && (
         <div style={s.card}>
-          <div style={s.cardTit}>Transmitir via Procuração eCAC</div>
-          <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.8 }}>
-            <strong>Alternativa ao certificado próprio.</strong> Se uma consultoria/escritório transmite por esta empresa, informe o CNPJ do procurador. As transmissões passam a usar o <strong>certificado da consultoria</strong> — esta empresa não precisa de certificado próprio. A consultoria precisa ter o certificado dela cadastrado no sistema e a procuração do serviço <strong>eSocial</strong> ativa no eCAC.
+          <div style={s.cardTit}>Empresas Transmitidas</div>
+          <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
+            Cadastre as empresas cujos eventos você transmite via procuração. Elas <strong>não precisam de certificado próprio</strong> — as transmissões usarão o certificado desta empresa.
           </div>
 
-          {empresa?.ecac_cnpj_procurador && (
-            procStatus?.procuradorOk ? (
-              <div style={{ background:'#EAF3DE', border:'0.5px solid #C0DD97', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'#27500A', marginBottom:4 }}>✅ Procuração ativa — certificado do procurador encontrado</div>
-                <div style={{ fontSize:12, color:'#374151' }}>
-                  Procurador: <strong>{empresa.ecac_nome_procurador || procStatus.titular || '—'}</strong> · CNPJ {formatCnpj(empresa.ecac_cnpj_procurador)}
+          {empregadoras.length > 0 && (
+            <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, overflow:'hidden', marginBottom:16 }}>
+              {empregadoras.map((emp, i) => (
+                <div key={emp.id} style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'9px 14px',
+                  borderBottom: i < empregadoras.length - 1 ? '0.5px solid #f3f4f6' : 'none',
+                  background:'#fff',
+                }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {emp.razao_social}
+                    </div>
+                    <div style={{ fontSize:11, color:'#6b7280', marginTop:1 }}>{emp.cnpj}</div>
+                  </div>
+                  <div style={{ flexShrink:0 }}>
+                    {emp.cert_pfx_path
+                      ? <span style={{ fontSize:11, color:'#6b7280' }}>cert. próprio</span>
+                      : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>transmitida aqui</span>
+                    }
+                  </div>
                 </div>
-                <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}>
-                  Confirme que a procuração do serviço <strong>eSocial</strong> está ativa no eCAC para este CNPJ.
-                </div>
-              </div>
-            ) : (
-              <div style={{ background:'#FCEBEB', border:'0.5px solid #F7C1C1', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#791F1F', lineHeight:1.7 }}>
-                ⚠ <strong>Procuração informada, mas não é possível transmitir ainda.</strong> Nenhuma empresa com o CNPJ {formatCnpj(empresa.ecac_cnpj_procurador)} e certificado configurado foi encontrada na sua conta. Cadastre a consultoria procuradora no sistema e suba o certificado dela na aba Certificado Digital.
-              </div>
-            )
+              ))}
+            </div>
           )}
 
-          <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:12, color:'#0C447C', lineHeight:1.8 }}>
-            <strong>Como configurar no eCAC:</strong><br/>
-            1. Acesse <strong>cav.receita.fazenda.gov.br</strong> com o certificado desta empresa<br/>
-            2. Vá em <strong>Senhas e Procurações → Procuração eletrônica → Outorgar</strong><br/>
-            3. Selecione o serviço <strong>eSocial</strong><br/>
-            4. Informe o CNPJ da consultoria procuradora<br/>
-            5. Volte aqui e salve os dados do procurador abaixo
-          </div>
+          {empregadoras.length === 0 && (
+            <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16, padding:'10px 14px', background:'#f9fafb', borderRadius:8 }}>
+              Nenhuma empresa transmitida vinculada a esta conta.
+            </div>
+          )}
 
-          <div style={s.row2}>
-            <div>
-              <label style={s.label}>CNPJ do procurador (consultoria)</label>
-              <input style={s.input} placeholder="00.000.000/0001-00"
-                value={ecacCnpjProcurador} onChange={e => setEcacCnpjProcurador(e.target.value)} />
+          <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'16px' }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Cadastrar empresa transmitida</div>
+            <div style={s.row2}>
+              <div>
+                <label style={s.label}>Razão Social *</label>
+                <input style={s.input} placeholder="Empresa Transmitida Ltda."
+                  value={novaEmpRazao} onChange={e => setNovaEmpRazao(e.target.value)} />
+              </div>
+              <div>
+                <label style={s.label}>CNPJ *</label>
+                <input style={s.input} placeholder="00.000.000/0001-00"
+                  value={novaEmpCnpj} onChange={e => setNovaEmpCnpj(e.target.value)} />
+              </div>
             </div>
-            <div>
-              <label style={s.label}>Nome do procurador</label>
-              <input style={s.input} placeholder="Nome da consultoria/escritório"
-                value={ecacNomeProcurador} onChange={e => setEcacNomeProcurador(e.target.value)} />
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button style={s.btnPrimary} onClick={salvarEcac} disabled={salvando}>
-              {salvando ? 'Salvando...' : 'Salvar procuração'}
+            {cadEmpMsg && (
+              <div style={{ background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'8px 12px', fontSize:12, margin:'8px 0' }}>
+                ✅ {cadEmpMsg}
+              </div>
+            )}
+            <button style={{ ...s.btnPrimary, marginTop:8 }} onClick={cadastrarEmpregadora} disabled={salvando}>
+              {salvando ? 'Cadastrando...' : 'Cadastrar empresa transmitida'}
             </button>
-            {empresa?.ecac_cnpj_procurador && (
-              <button style={s.btnOutline} onClick={removerEcac} disabled={salvando}>
-                Remover procuração
-              </button>
-            )}
-          </div>
-
-          {/* Empresas transmitidas — qualquer empresa pode transmitir por outras */}
-          <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:'#111', marginBottom:4 }}>
-              Empresas Transmitidas
-            </div>
-            <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
-              Cadastre aqui as empresas cujos eventos você transmite. Elas <strong>não precisam de certificado próprio</strong> — as transmissões usarão o certificado desta empresa. A empresa transmitida só precisa informar o CNPJ desta empresa como procuradora na aba Procuração eCAC dela.
-            </div>
-
-            {empregadoras.length > 0 && (
-              <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, overflow:'hidden', marginBottom:16 }}>
-                {empregadoras.map((emp, i) => (
-                  <div key={emp.id} style={{
-                    display:'flex', alignItems:'center', gap:10, padding:'9px 14px',
-                    borderBottom: i < empregadoras.length - 1 ? '0.5px solid #f3f4f6' : 'none',
-                    background:'#fff',
-                  }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {emp.razao_social}
-                      </div>
-                      <div style={{ fontSize:11, color:'#6b7280', marginTop:1 }}>{emp.cnpj}</div>
-                    </div>
-                    <div style={{ flexShrink:0 }}>
-                      {emp.cert_pfx_path
-                        ? <span style={{ fontSize:11, color:'#6b7280' }}>cert. próprio</span>
-                        : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>transmitida aqui</span>
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {empregadoras.length === 0 && empresa?.cnpj?.replace(/\D/g,'').length === 14 && (
-              <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16, padding:'10px 14px', background:'#f9fafb', borderRadius:8 }}>
-                Nenhuma empresa transmitida vinculada a esta conta.
-              </div>
-            )}
-
-            <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'16px', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Cadastrar empresa transmitida</div>
-              <div style={s.row2}>
-                <div>
-                  <label style={s.label}>Razão Social *</label>
-                  <input style={s.input} placeholder="Empresa Transmitida Ltda."
-                    value={novaEmpRazao} onChange={e => setNovaEmpRazao(e.target.value)} />
-                </div>
-                <div>
-                  <label style={s.label}>CNPJ da empresa transmitida *</label>
-                  <input style={s.input} placeholder="00.000.000/0001-00"
-                    value={novaEmpCnpj} onChange={e => setNovaEmpCnpj(e.target.value)} />
-                </div>
-              </div>
-              {cadEmpMsg && (
-                <div style={{ background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'8px 12px', fontSize:12, margin:'8px 0' }}>
-                  ✅ {cadEmpMsg}
-                </div>
-              )}
-              <button style={{ ...s.btnPrimary, marginTop:8 }} onClick={cadastrarEmpregadora} disabled={salvando}>
-                {salvando ? 'Cadastrando...' : 'Cadastrar empresa transmitida'}
-              </button>
-            </div>
           </div>
         </div>
       )}
