@@ -486,8 +486,8 @@ export default function Configuracoes() {
             )}
           </div>
 
-          {/* Empresas transmitidas — só visível para consultorias (sem procurador próprio) */}
-          {!empresa?.ecac_cnpj_procurador && <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
+          {/* Empresas transmitidas — só visível para consultorias (is_consultoria=true) */}
+          {empresa?.is_consultoria && <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
             <div style={{ fontSize:14, fontWeight:700, color:'#111', marginBottom:4 }}>
               Empresas Transmitidas
             </div>

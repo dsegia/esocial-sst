@@ -51,6 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cnpj: cnpjFormatado,
     ecac_cnpj_procurador: cnpjProcLimpo,
     ecac_nome_procurador: nome_procurador?.trim() || null,
+    is_consultoria: false,
   }).select().single()
 
   if (error || !nova) {
