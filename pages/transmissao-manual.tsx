@@ -66,8 +66,8 @@ export default function TransmissaoManual() {
     fetch(`/api/cert/procuracao-status?empresa_id=${empId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
       .then(r => r.json()).then(d => setProcStatus(d)).catch(() => setProcStatus(null))
 
-    // Pular etapa de certificado apenas se há certificado armazenado — procuração requer upload na sessão
-    if ((empresaData as any)?.cert_pfx_path) {
+    // Pular etapa de certificado se há certificado armazenado ou procuração configurada
+    if ((empresaData as any)?.cert_pfx_path || (empresaData as any)?.ecac_cnpj_procurador) {
       setEtapa('selecionar')
     }
 
@@ -86,8 +86,9 @@ export default function TransmissaoManual() {
 
   async function testarConexao() {
     const temCertArmazenado = !!(empresa as any)?.cert_pfx_path
-    if (!temCertArmazenado && (!pfxBase64 || !certSenha)) {
-      setTesteResult({ ok: false, msg: 'Carregue o certificado digital para testar a conexão.' })
+    const temProcuracao = !!(empresa as any)?.ecac_cnpj_procurador
+    if (!temCertArmazenado && !temProcuracao && (!pfxBase64 || !certSenha)) {
+      setTesteResult({ ok: false, msg: 'Carregue o certificado digital ou configure-o em Configurações.' })
       return
     }
     setTestando(true)
@@ -146,7 +147,8 @@ export default function TransmissaoManual() {
     if (processando) return  // Guard contra duplo clique antes do estado atualizar
     if (!selecionados.length) { setErro('Selecione ao menos uma transmissão.'); return }
     const usandoCertArmazenado = !!(empresa as any)?.cert_pfx_path && !pfxBase64
-    if (!usandoCertArmazenado && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
+    const usandoProcuracao = !!(empresa as any)?.ecac_cnpj_procurador && !pfxBase64
+    if (!usandoCertArmazenado && !usandoProcuracao && (!pfxBase64 || !certSenha)) { setErro('Certificado não carregado.'); return }
 
     // Período de teste: limitar 1 transmissão enviada por tipo de evento
     if (empresa?.plano === 'trial') {
@@ -393,6 +395,9 @@ export default function TransmissaoManual() {
               </div>
               <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}>
                 As transmissões usarão este certificado automaticamente.
+                {empresa?.ecac_cnpj_procurador && (
+                  <span> · Procuração eCAC ativa: CNPJ {empresa.ecac_cnpj_procurador}</span>
+                )}
               </div>
               <button onClick={() => setEtapa('selecionar')} style={{ ...s.btnPrimary, marginTop:12, fontSize:12 }}>
                 Continuar para seleção de eventos →
@@ -400,10 +405,6 @@ export default function TransmissaoManual() {
               <div style={{ fontSize:11, color:'#9ca3af', marginTop:8 }}>
                 Ou carregue um certificado diferente abaixo para sobrescrever nesta sessão:
               </div>
-            </div>
-          ) : (empresa as any)?.ecac_cnpj_procurador ? (
-            <div style={{ fontSize:12, color:'#6b7280', marginBottom:14, lineHeight:1.7 }}>
-              Esta empresa transmite via <strong>procuração eCAC</strong>. Carregue o certificado digital do <strong>responsável pela transmissão</strong> (.pfx) para assinar e enviar os eventos.
             </div>
           ) : (
             <div style={{ fontSize:12, color:'#6b7280', marginBottom:14, lineHeight:1.7 }}>
@@ -438,12 +439,18 @@ export default function TransmissaoManual() {
       )}
 
       {/* ETAPA 2: Selecionar eventos */}
-      {(etapa === 'selecionar' || etapa === 'certificado') && (certInfo || (empresa as any)?.cert_pfx_path) && (
+      {(etapa === 'selecionar' || etapa === 'certificado') && (certInfo || (empresa as any)?.cert_pfx_path || (empresa as any)?.ecac_cnpj_procurador) && (
         <div style={s.card}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <div style={s.cardTit}>📋 Etapa 2 — Selecionar eventos para transmitir</div>
             <div style={{ fontSize:12, color:'#6b7280' }}>{pendentes.length} pendente(s)</div>
           </div>
+
+          {!certInfo && !(empresa as any)?.cert_pfx_path && (empresa as any)?.ecac_cnpj_procurador && (
+            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
+              Transmissão via <strong>procuração eCAC</strong> — o certificado configurado em suas Configurações será usado automaticamente.
+            </div>
+          )}
 
           {pendentes.length === 0 ? (
             <div style={{ fontSize:13, color:'#9ca3af', textAlign:'center', padding:'2rem' }}>

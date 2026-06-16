@@ -97,7 +97,7 @@ export default async function handler(req, res) {
 
       const cred = await resolverCertEmpresa(empresaId, user)
       if (!cred) {
-        return res.status(400).json({ erro: 'Certificado não configurado. Carregue o certificado na tela de transmissão.' })
+        return res.status(400).json({ erro: 'Certificado não configurado. Acesse Configurações → Certificado Digital para configurar.' })
       }
       pfxBuf = cred.pfxBuffer
       senhaResolvida = cred.senha

@@ -213,14 +213,12 @@ export default async function handler(req, res) {
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   try {
+    // Resolver certificado e CNPJ do transmissor. Caminhos:
+    //  1. pfx no body (override manual da sessão)  → transmissor = próprio empregador
+    //  2. cert próprio / procuração  → resolverCertEmpresa
     let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
     let certSenhaResolvida = cert_senha || null
     let cnpjTransmissor = cnpj_empregador.replace(/\D/g, '')
-
-    // Quando cert é carregado na sessão e a empresa usa procuração, o transmissor é o procurador
-    if (pfxBuffer && empresa?.ecac_cnpj_procurador) {
-      cnpjTransmissor = (empresa.ecac_cnpj_procurador || '').replace(/\D/g, '')
-    }
 
     if (!pfxBuffer) {
       const cred = await resolverCertEmpresa(empresaId, user)
@@ -232,7 +230,7 @@ export default async function handler(req, res) {
     }
 
     if (!pfxBuffer || !certSenhaResolvida) {
-      return res.status(400).json({ erro: 'Certificado não configurado. Carregue o certificado na tela de transmissão.' })
+      return res.status(400).json({ erro: 'Certificado não configurado. Acesse Configurações → Certificado Digital para configurar.' })
     }
 
     const _nrLote = Date.now().toString()
