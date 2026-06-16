@@ -2,8 +2,18 @@
 // Testa conectividade com o webservice eSocial Gov.br usando mTLS real com o certificado do cliente
 
 import https from 'node:https'
+import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
+import { decryptSenha } from '../../lib/cert-crypto'
+import { downloadCertR2 } from '../../lib/cert-store'
+import { getMasterCert } from '../../lib/master-cert'
+
+const sbAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+)
 
 const ENDPOINT = 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php'
 
@@ -69,18 +79,38 @@ export default async function handler(req, res) {
 
   const { pfx: pfxBase64, cert_senha } = req.body || {}
 
-  if (!pfxBase64 || !cert_senha) {
+  // Resolver certificado: body (sessão) → cert próprio armazenado → procuração (cert mestre)
+  let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
+  let senha = cert_senha || null
+
+  if (!pfxBuffer) {
+    const { data: usuarioDb } = await sbAdmin
+      .from('usuarios').select('empresa_id').eq('id', user.id).single()
+    const empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
+    if (empresaId) {
+      const { data: empresa } = await sbAdmin
+        .from('empresas').select('cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador').eq('id', empresaId).single()
+      if (empresa?.cert_pfx_path && empresa?.cert_senha_enc) {
+        pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
+        senha = decryptSenha(empresa.cert_senha_enc)
+      } else if (empresa?.ecac_cnpj_procurador) {
+        const master = getMasterCert()
+        if (master) { pfxBuffer = master.pfxBuffer; senha = master.senha }
+      }
+    }
+  }
+
+  if (!pfxBuffer || !senha) {
     return res.status(200).json({
       conectado: false,
-      erro: 'Carregue e valide o certificado digital antes de testar a conexão.',
+      erro: 'Configure um certificado digital ou uma procuração eCAC antes de testar a conexão.',
     })
   }
 
   const inicio = Date.now()
 
   try {
-    const pfxBuffer = Buffer.from(pfxBase64, 'base64')
-    const { status, body } = await postComCert(pfxBuffer, cert_senha)
+    const { status, body } = await postComCert(pfxBuffer, senha)
     const latencia = Date.now() - inicio
 
     const cdResp    = body.match(/<cdResp>([^<]+)<\/cdResp>/)?.[1]

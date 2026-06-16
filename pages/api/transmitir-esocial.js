@@ -8,6 +8,7 @@ import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 import { decryptSenha } from '../../lib/cert-crypto'
 import { downloadCertR2 } from '../../lib/cert-store'
+import { getMasterCert } from '../../lib/master-cert'
 
 // Envia SOAP com mTLS (certificado A1 do cliente)
 function postSoap(url, headers, body, pfxBuffer, passphrase) {
@@ -214,19 +215,32 @@ export default async function handler(req, res) {
   if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   try {
-    // Resolver certificado: body (override manual) ou R2 (cert armazenado)
+    // Resolver certificado e CNPJ do transmissor. Três caminhos:
+    //  1. pfx no body (override manual da sessão)  → transmissor = próprio empregador
+    //  2. cert próprio armazenado da empresa (R2)  → transmissor = próprio empregador
+    //  3. procuração eCAC (sem cert próprio)        → cert mestre do SaaS; transmissor = SaaS (procurador)
     let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
     let certSenhaResolvida = cert_senha || null
+    let cnpjTransmissor = cnpj_empregador.replace(/\D/g, '')
 
-    if (!pfxBuffer && empresa.cert_pfx_path && empresa.cert_senha_enc) {
-      pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
-      certSenhaResolvida = decryptSenha(empresa.cert_senha_enc)
+    if (!pfxBuffer) {
+      if (empresa.cert_pfx_path && empresa.cert_senha_enc) {
+        pfxBuffer = await downloadCertR2(empresa.cert_pfx_path)
+        certSenhaResolvida = decryptSenha(empresa.cert_senha_enc)
+      } else if (empresa.ecac_cnpj_procurador) {
+        const master = getMasterCert()
+        if (!master) {
+          return res.status(503).json({ erro: 'Transmissão via procuração indisponível: certificado do procurador não está configurado no sistema. Contate o suporte.' })
+        }
+        pfxBuffer = master.pfxBuffer
+        certSenhaResolvida = master.senha
+        cnpjTransmissor = master.cnpj
+      }
     }
 
-    // Resolver CNPJ do transmissor conforme tipo de acesso
-    const cnpjTransmissor = empresa.tipo_acesso === 'terceiro' && empresa.ecac_cnpj_procurador
-      ? empresa.ecac_cnpj_procurador.replace(/\D/g, '')
-      : cnpj_empregador.replace(/\D/g, '')
+    if (!pfxBuffer || !certSenhaResolvida) {
+      return res.status(400).json({ erro: 'Nenhum certificado digital ou procuração eCAC configurado. Acesse Configurações para habilitar a transmissão.' })
+    }
 
     const _nrLote = Date.now().toString()
     const dataHoraTransmissao = new Date().toISOString()

@@ -7,6 +7,7 @@ import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
 import { decryptSenha } from '../../lib/cert-crypto'
 import { downloadCertR2 } from '../../lib/cert-store'
+import { getMasterCert } from '../../lib/master-cert'
 
 const sbAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -96,12 +97,22 @@ export default async function handler(req, res) {
         if (vinculo) empresaId = empresaIdBody
       }
       const { data: empresa } = await sbAdmin
-        .from('empresas').select('cert_pfx_path, cert_senha_enc').eq('id', empresaId).single()
-      if (!empresa?.cert_pfx_path || !empresa?.cert_senha_enc) {
-        return res.status(400).json({ erro: 'Certificado digital não configurado. Acesse Configurações para fazer o upload.' })
+        .from('empresas').select('cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador').eq('id', empresaId).single()
+
+      if (empresa?.cert_pfx_path && empresa?.cert_senha_enc) {
+        pfxBuf = await downloadCertR2(empresa.cert_pfx_path)
+        senhaResolvida = decryptSenha(empresa.cert_senha_enc)
+      } else if (empresa?.ecac_cnpj_procurador) {
+        // Procuração eCAC: assina com o certificado mestre do SaaS (procurador)
+        const master = getMasterCert()
+        if (!master) {
+          return res.status(503).json({ erro: 'Procuração ativa, mas o certificado do procurador não está configurado no sistema.' })
+        }
+        pfxBuf = master.pfxBuffer
+        senhaResolvida = master.senha
+      } else {
+        return res.status(400).json({ erro: 'Certificado digital não configurado. Acesse Configurações para fazer o upload ou habilitar a procuração eCAC.' })
       }
-      pfxBuf = await downloadCertR2(empresa.cert_pfx_path)
-      senhaResolvida = decryptSenha(empresa.cert_senha_enc)
     }
     const pfxDer = forge.util.createBuffer(pfxBuf.toString('binary'))
     const pfxAsn1 = forge.asn1.fromDer(pfxDer)
