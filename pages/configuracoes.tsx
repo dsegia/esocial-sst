@@ -232,31 +232,22 @@ export default function Configuracoes() {
     setErro(''); setSucesso(''); setCadEmpMsg('')
     if (!razao) { setErro('Informe a razão social da empregadora.'); return }
     if (cnpjLimpo.length !== 14) { setErro('CNPJ da empregadora inválido (14 dígitos).'); return }
-    if (cnpjProc.length !== 14) { setErro('Esta empresa precisa de um CNPJ válido (14 dígitos) para ser procuradora. Ajuste em Dados da Empresa.'); return }
+    if (cnpjProc.length !== 14) { setErro('Esta empresa precisa de um CNPJ válido (14 dígitos) para ser procuradora.'); return }
     if (cnpjLimpo === cnpjProc) { setErro('A empregadora não pode ser a própria empresa procuradora.'); return }
 
     setSalvando(true)
-    const cnpjFormatado = formatCnpj(cnpjLimpo)
-    const { data: existe } = await supabase.from('empresas').select('id').eq('cnpj', cnpjFormatado).maybeSingle()
-    if (existe) { setErro('Já existe uma empresa com esse CNPJ no sistema.'); setSalvando(false); return }
-
-    const { data: nova, error } = await supabase.from('empresas').insert({
-      razao_social: razao,
-      cnpj: cnpjFormatado,
-      ecac_cnpj_procurador: cnpjProc,
-      ecac_nome_procurador: empresa?.razao_social || null,
-    }).select().single()
-    if (error || !nova) { setErro('Erro ao cadastrar empregadora: ' + (error?.message || '')); setSalvando(false); return }
-
     const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user.id) {
-      await supabase.from('usuario_empresas').upsert({
-        usuario_id: session.user.id, empresa_id: nova.id, perfil: 'admin', tipo_acesso: 'empresa',
-      }, { onConflict: 'usuario_id,empresa_id' })
-    }
+    const token = session?.access_token
+    const r = await fetch('/api/empresa/cadastrar-empregadora', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ razao_social: razao, cnpj: cnpjLimpo, cnpj_procurador: cnpjProc, nome_procurador: empresa?.razao_social }),
+    })
+    const json = await r.json()
+    if (!r.ok) { setErro(json.erro || 'Erro ao cadastrar empregadora.'); setSalvando(false); return }
 
     setNovaEmpRazao(''); setNovaEmpCnpj('')
-    setCadEmpMsg(`Empregadora "${razao}" cadastrada. Os eventos dela serão transmitidos pelo certificado desta empresa (procuradora).`)
+    setCadEmpMsg(`Empregadora "${razao}" cadastrada. Os eventos dela serão transmitidos pelo certificado desta empresa.`)
     carregarEmpregadoras(empresa?.cnpj, empresaId)
     setSalvando(false)
   }
@@ -495,8 +486,8 @@ export default function Configuracoes() {
             )}
           </div>
 
-          {/* Empresas-empregadoras que esta empresa procura */}
-          <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
+          {/* Empresas-empregadoras — só visível para consultorias (sem procurador próprio) */}
+          {!empresa?.ecac_cnpj_procurador && <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
             <div style={{ fontSize:14, fontWeight:700, color:'#111', marginBottom:4 }}>
               Empresas-Empregadoras
             </div>
@@ -558,7 +549,7 @@ export default function Configuracoes() {
                 {salvando ? 'Cadastrando...' : 'Cadastrar empresa-empregadora'}
               </button>
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
