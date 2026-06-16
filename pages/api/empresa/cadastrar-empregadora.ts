@@ -40,33 +40,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ erro: 'Acesso não autorizado à empresa procuradora' })
   }
 
-  // Verifica duplicidade
   const cnpjFormatado = formatCnpj(cnpjLimpo)
-  const { data: existe } = await sbAdmin.from('empresas').select('id').eq('cnpj', cnpjFormatado).maybeSingle()
-  if (existe) return res.status(409).json({ erro: 'Já existe uma empresa com esse CNPJ no sistema' })
+  const { data: existe } = await sbAdmin.from('empresas').select('id, razao_social').eq('cnpj', cnpjFormatado).maybeSingle()
 
-  // Cria a empregadora com service role (bypassa RLS)
-  const { data: nova, error } = await sbAdmin.from('empresas').insert({
-    razao_social: razao_social.trim(),
-    cnpj: cnpjFormatado,
-    ecac_cnpj_procurador: cnpjProcLimpo,
-    ecac_nome_procurador: nome_procurador?.trim() || null,
-    is_consultoria: false,
-  }).select().single()
+  let empresa: any
 
-  if (error || !nova) {
-    return res.status(500).json({ erro: 'Erro ao cadastrar empregadora: ' + (error?.message || '') })
+  if (existe) {
+    // Empresa já existe — apenas vincula a procuração e o usuário
+    const { data: atualizada, error: errUp } = await sbAdmin.from('empresas').update({
+      ecac_cnpj_procurador: cnpjProcLimpo,
+      ecac_nome_procurador: nome_procurador?.trim() || null,
+      is_consultoria: false,
+    }).eq('id', existe.id).select().single()
+    if (errUp || !atualizada) {
+      return res.status(500).json({ erro: 'Erro ao atualizar procuração da empresa: ' + (errUp?.message || '') })
+    }
+    empresa = atualizada
+  } else {
+    // Empresa não existe — cria com service role (bypassa RLS)
+    const { data: nova, error } = await sbAdmin.from('empresas').insert({
+      razao_social: razao_social.trim(),
+      cnpj: cnpjFormatado,
+      ecac_cnpj_procurador: cnpjProcLimpo,
+      ecac_nome_procurador: nome_procurador?.trim() || null,
+      is_consultoria: false,
+    }).select().single()
+    if (error || !nova) {
+      return res.status(500).json({ erro: 'Erro ao cadastrar empresa transmitida: ' + (error?.message || '') })
+    }
+    empresa = nova
   }
 
-  // Vincula o usuário à nova empresa
+  // Vincula o usuário à empresa (nova ou existente)
   await sbAdmin.from('usuario_empresas').upsert({
     usuario_id: user.id,
-    empresa_id: nova.id,
+    empresa_id: empresa.id,
     perfil: 'admin',
     tipo_acesso: 'empresa',
   }, { onConflict: 'usuario_id,empresa_id' })
 
-  return res.status(200).json({ sucesso: true, empresa: nova })
+  return res.status(200).json({ sucesso: true, empresa })
 }
 
 function formatCnpj(cnpj: string) {
