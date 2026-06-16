@@ -448,7 +448,7 @@ export default function TransmissaoManual() {
 
           {!certInfo && !(empresa as any)?.cert_pfx_path && (empresa as any)?.ecac_cnpj_procurador && (
             <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:12, color:'#0C447C' }}>
-              Transmissão via <strong>procuração eCAC</strong> — o certificado configurado em suas Configurações será usado automaticamente.
+              Transmissão via <strong>procuração eCAC</strong> — o certificado desta empresa será usado. Configure-o em <strong>Configurações → eCAC → Empresas Transmitidas</strong>.
             </div>
           )}
 

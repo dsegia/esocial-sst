@@ -27,6 +27,7 @@ interface CertInfo {
 export default function Configuracoes() {
   const router = useRouter()
   const inputCertRef = useRef<HTMLInputElement>(null)
+  const certEmpRef = useRef<HTMLInputElement>(null)
   const [empresaId, setEmpresaId] = useState('')
   const [empresa, setEmpresa] = useState<any>(null)
   const [aba, setAba] = useState('certificado')
@@ -62,6 +63,13 @@ export default function Configuracoes() {
   const [novaEmpRazao, setNovaEmpRazao] = useState('')
   const [novaEmpCnpj, setNovaEmpCnpj] = useState('')
   const [cadEmpMsg, setCadEmpMsg] = useState('')
+
+  // Upload de cert por empresa transmitida
+  const [certEmpUploadId, setCertEmpUploadId] = useState<string | null>(null)
+  const [certEmpFile, setCertEmpFile] = useState<File | null>(null)
+  const [certEmpSenha, setCertEmpSenha] = useState('')
+  const [certEmpMsgs, setCertEmpMsgs] = useState<Record<string, string>>({})
+  const [salvandoCertEmp, setSalvandoCertEmp] = useState(false)
 
   // Empresa
   const [formEmpresa, setFormEmpresa] = useState({
@@ -220,7 +228,7 @@ export default function Configuracoes() {
     const limpo = (cnpjProcurador || '').replace(/\D/g, '')
     if (limpo.length !== 14) { setEmpregadoras([]); return }
     const { data } = await supabase.from('empresas')
-      .select('id, razao_social, cnpj, cert_pfx_path')
+      .select('id, razao_social, cnpj, cert_pfx_path, cert_digital_validade, cert_titular')
       .eq('ecac_cnpj_procurador', limpo)
     setEmpregadoras((data || []).filter(e => e.id !== selfId))
   }
@@ -247,9 +255,39 @@ export default function Configuracoes() {
     if (!r.ok) { setErro(json.erro || 'Erro ao cadastrar empregadora.'); setSalvando(false); return }
 
     setNovaEmpRazao(''); setNovaEmpCnpj('')
-    setCadEmpMsg(`"${razao}" cadastrada como empresa transmitida. Os eventos dela serão enviados usando o certificado desta empresa.`)
+    setCadEmpMsg(`"${razao}" cadastrada. Carregue o certificado digital dela para habilitar a transmissão.`)
     carregarEmpregadoras(empresa?.cnpj, empresaId)
     setSalvando(false)
+  }
+
+  async function salvarCertEmpregadora(empId: string) {
+    if (!certEmpFile || !certEmpSenha) return
+    setSalvandoCertEmp(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader()
+        r.onload = (e) => resolve((e.target?.result as string).split(',')[1])
+        r.onerror = reject
+        r.readAsDataURL(certEmpFile)
+      })
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/cert/salvar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ pfx: base64, senha: certEmpSenha, empresa_id: empId }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) {
+        setCertEmpMsgs(prev => ({ ...prev, [empId]: json.erro || 'Erro ao salvar.' }))
+      } else {
+        setCertEmpMsgs(prev => ({ ...prev, [empId]: 'Certificado salvo com sucesso.' }))
+        setCertEmpFile(null); setCertEmpSenha(''); setCertEmpUploadId(null)
+        carregarEmpregadoras(empresa?.cnpj, empresaId)
+      }
+    } catch {
+      setCertEmpMsgs(prev => ({ ...prev, [empId]: 'Erro ao enviar o certificado.' }))
+    }
+    setSalvandoCertEmp(false)
   }
 
   async function carregarUsuarios(empId: string) {
@@ -433,29 +471,75 @@ export default function Configuracoes() {
         <div style={s.card}>
           <div style={s.cardTit}>Empresas Transmitidas</div>
           <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
-            Cadastre as empresas cujos eventos você transmite via procuração. Elas <strong>não precisam de certificado próprio</strong> — as transmissões usarão o certificado desta empresa.
+            Cadastre as empresas cujos eventos você transmite via procuração. Carregue o certificado digital de cada empresa para habilitar a transmissão.
           </div>
 
           {empregadoras.length > 0 && (
             <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, overflow:'hidden', marginBottom:16 }}>
               {empregadoras.map((emp, i) => (
                 <div key={emp.id} style={{
-                  display:'flex', alignItems:'center', gap:10, padding:'9px 14px',
+                  padding:'10px 14px',
                   borderBottom: i < empregadoras.length - 1 ? '0.5px solid #f3f4f6' : 'none',
                   background:'#fff',
                 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {emp.razao_social}
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {emp.razao_social}
+                      </div>
+                      <div style={{ fontSize:11, color:'#6b7280', marginTop:1 }}>{emp.cnpj}</div>
                     </div>
-                    <div style={{ fontSize:11, color:'#6b7280', marginTop:1 }}>{emp.cnpj}</div>
+                    <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:8 }}>
+                      {emp.cert_pfx_path ? (
+                        <>
+                          <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>
+                            Cert. ok · {emp.cert_digital_validade ? new Date(emp.cert_digital_validade).toLocaleDateString('pt-BR') : ''}
+                          </span>
+                          <button onClick={() => { setCertEmpUploadId(certEmpUploadId === emp.id ? null : emp.id); setCertEmpFile(null); setCertEmpSenha('') }}
+                            style={{ fontSize:11, color:'#6b7280', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', padding:0 }}>
+                            trocar
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => { setCertEmpUploadId(certEmpUploadId === emp.id ? null : emp.id); setCertEmpFile(null); setCertEmpSenha('') }}
+                          style={{ fontSize:11, color:'#185FA5', background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'3px 10px', cursor:'pointer', fontWeight:600 }}>
+                          Carregar certificado
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ flexShrink:0 }}>
-                    {emp.cert_pfx_path
-                      ? <span style={{ fontSize:11, color:'#6b7280' }}>cert. próprio</span>
-                      : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>transmitida aqui</span>
-                    }
-                  </div>
+                  {certEmpMsgs[emp.id] && (
+                    <div style={{ fontSize:11, marginTop:6, color: certEmpMsgs[emp.id].includes('sucesso') ? '#27500A' : '#791F1F' }}>
+                      {certEmpMsgs[emp.id]}
+                    </div>
+                  )}
+                  {certEmpUploadId === emp.id && (
+                    <div style={{ marginTop:10, background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:8, padding:'12px' }}>
+                      <div style={s.row2}>
+                        <div>
+                          <label style={s.label}>Arquivo .pfx da empresa</label>
+                          <div style={{ border:'2px dashed #d1d5db', borderRadius:6, padding:'10px', textAlign:'center', cursor:'pointer' }}
+                            onClick={() => certEmpRef.current?.click()}>
+                            {certEmpFile
+                              ? <span style={{ fontSize:12, color:'#185FA5' }}>✓ {certEmpFile.name}</span>
+                              : <span style={{ fontSize:12, color:'#9ca3af' }}>Clique para selecionar</span>}
+                          </div>
+                          <input ref={certEmpRef} type="file" accept=".pfx,.p12" style={{ display:'none' }}
+                            onChange={e => setCertEmpFile(e.target.files?.[0] ?? null)} />
+                        </div>
+                        <div>
+                          <label style={s.label}>Senha do certificado</label>
+                          <input style={s.input} type="password" placeholder="Senha do arquivo .pfx"
+                            value={certEmpSenha} onChange={e => setCertEmpSenha(e.target.value)} />
+                        </div>
+                      </div>
+                      <button style={{ ...s.btnPrimary, marginTop:8, fontSize:12 }}
+                        onClick={() => salvarCertEmpregadora(emp.id)}
+                        disabled={!certEmpFile || !certEmpSenha || salvandoCertEmp}>
+                        {salvandoCertEmp ? 'Salvando...' : 'Salvar certificado'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

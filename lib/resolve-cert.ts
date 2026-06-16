@@ -98,27 +98,5 @@ export async function resolverCertEmpresa(empresaId: string, user: AuthUser): Pr
     }
   }
 
-  // 2. Procuração → usa o certificado da empresa principal do usuário logado
-  //    Cada empresa cliente é independente; o cert vem do contexto do usuário, não de um vínculo explícito
-  if (empresa.ecac_cnpj_procurador) {
-    const { data: usuarioDb } = await sbAdmin
-      .from('usuarios').select('empresa_id').eq('id', user.id).single()
-    const empresaIdPrimaria = usuarioDb?.empresa_id
-    if (empresaIdPrimaria && empresaIdPrimaria !== empresaId) {
-      const { data: empPrimaria } = await sbAdmin
-        .from('empresas')
-        .select('cnpj, cert_pfx_path, cert_senha_enc')
-        .eq('id', empresaIdPrimaria).single()
-      if (empPrimaria?.cert_pfx_path && empPrimaria?.cert_senha_enc) {
-        return {
-          pfxBuffer: await downloadCertR2(empPrimaria.cert_pfx_path),
-          senha: decryptSenha(empPrimaria.cert_senha_enc),
-          cnpjTransmissor: (empPrimaria.cnpj || '').replace(/\D/g, ''),
-          fonte: 'procuracao',
-        }
-      }
-    }
-  }
-
   return null
 }
