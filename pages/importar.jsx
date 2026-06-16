@@ -26,7 +26,7 @@ function detectarIncompativel(nomeArquivo) {
 
 const LIMITE_ARQUIVOS  = 50
 const CONCORRENCIA     = 3
-const LIMITE_BASE64    = 3 * 1024 * 1024
+const LIMITE_BASE64    = 18 * 1024 * 1024  // PDFs até 18MB são enviados nativos ao Claude/Gemini
 const LIMITE_TAMANHO   = 50 * 1024 * 1024
 
 // ── Utilitários ──────────────────────────────────────────
@@ -129,11 +129,14 @@ async function processarArquivo(file, onProgresso, token) {
   const pdfDoc = await lib.getDocument({ data: arrayBuf.slice(0) }).promise
 
   onProgresso('Extraindo texto...')
-  // Para PCMSOs: o texto relevante é nas seções de GHE (grade de exames)
-  // Extrai todas as páginas mas prioriza as que contêm palavras-chave dos GHEs
-  const PALAVRAS_GHE = ['admissional','periódico','periodico','demissional','retorno ao trabalho','ghe','grupo homogêneo','grade de exame','funções:','funcoes:']
+  const PALAVRAS_GHE = [
+    'admissional','periódico','periodico','demissional','retorno ao trabalho',
+    'ghe','grupo homogêneo','grade de exame','funções:','funcoes:',
+    'ltcat','laudo técnico','agente nocivo','agente de risco','epi','epc',
+    'grupo homogêneo de exposição','responsável técnico',
+  ]
   const paginasTexto = []
-  const maxPaginasTexto = Math.min(pdfDoc.numPages, 60)
+  const maxPaginasTexto = pdfDoc.numPages  // extrai todas as páginas
   for (let i = 1; i <= maxPaginasTexto; i++) {
     const page = await pdfDoc.getPage(i)
     const content = await page.getTextContent()
@@ -145,7 +148,7 @@ async function processarArquivo(file, onProgresso, token) {
   const ordenado = [...paginasTexto.filter(p => p.temGHE), ...paginasTexto.filter(p => !p.temGHE)]
   let textoPdf = ''
   for (const p of ordenado) {
-    if (textoPdf.length > 60000) break
+    if (textoPdf.length > 120000) break
     textoPdf += p.texto + '\n'
   }
   const temTexto = textoPdf.replace(/\s/g, '').length > 300
@@ -157,9 +160,14 @@ async function processarArquivo(file, onProgresso, token) {
   let payload
 
   if (file.size <= LIMITE_BASE64) {
-    onProgresso('Preparando leitura nativa...')
+    onProgresso(file.size > 5 * 1024 * 1024 ? 'Preparando PDF grande para análise nativa...' : 'Preparando leitura nativa...')
     const bytes = new Uint8Array(arrayBuf.slice(0))
-    let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    // Encoding em chunks para não travar na conversão de arquivos grandes
+    let bin = ''
+    const CHUNK = 8192
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + CHUNK, bytes.length)))
+    }
     payload = { pdf_base64: btoa(bin), texto_pdf: textoPdf, paginas: [], tipo: 'auto' }
   } else if (temTexto) {
     onProgresso(`PDF com texto (${fmtTamanho(file.size)}) — leitura via Gemini...`)

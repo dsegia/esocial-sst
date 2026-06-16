@@ -400,7 +400,7 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
       content.push({ type:'text', text: prompt })
     } else {
       // Fallback: texto extraído
-      content = [{ type:'text', text: `${prompt}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0,60000)}` }]
+      content = [{ type:'text', text: `${prompt}\n\nTEXTO DO DOCUMENTO:\n${texto_pdf.substring(0,120000)}` }]
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -448,7 +448,7 @@ async function lerComClaude(pdf_base64, texto_pdf, paginas, tipo, anthropicKey) 
 }
 
 // ────────────────────────────────────────────────────────
-export const config = { api: { bodyParser: { sizeLimit: '20mb' } }, maxDuration: 120 }
+export const config = { api: { bodyParser: { sizeLimit: '26mb' } }, maxDuration: 120 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
@@ -639,7 +639,7 @@ REGRAS CRÍTICAS:
           }
         )
       }
-      parts = [{ text: `${promptBase}\n\nTEXTO DO DOCUMENTO:\n${textoProcessado.substring(0,60000)}` }]
+      parts = [{ text: `${promptBase}\n\nTEXTO DO DOCUMENTO:\n${textoProcessado.substring(0,120000)}` }]
     } else if (paginas?.length > 0) {
       parts = [
         ...paginas.map(b64 => ({ inlineData: { mimeType:'image/jpeg', data:b64 } })),
@@ -655,7 +655,7 @@ REGRAS CRÍTICAS:
           {
             method:'POST',
             headers:{ 'Content-Type':'application/json', 'x-goog-api-key': geminiKey },
-            body: JSON.stringify({ contents:[{parts}], generationConfig:{temperature:0,maxOutputTokens:8192} })
+            body: JSON.stringify({ contents:[{parts}], generationConfig:{temperature:0,maxOutputTokens:16384} })
           }
         )
         if (!response.ok) {

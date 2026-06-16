@@ -57,6 +57,12 @@ export default function Configuracoes() {
   const [ecacNomeProcurador, setEcacNomeProcurador] = useState('')
   const [procStatus, setProcStatus] = useState<{ ativa: boolean; procuradorOk: boolean; titular?: string | null } | null>(null)
 
+  // Empresas-empregadoras que ESTA empresa (procuradora) transmite
+  const [empregadoras, setEmpregadoras] = useState<any[]>([])
+  const [novaEmpRazao, setNovaEmpRazao] = useState('')
+  const [novaEmpCnpj, setNovaEmpCnpj] = useState('')
+  const [cadEmpMsg, setCadEmpMsg] = useState('')
+
   // Empresa
   const [formEmpresa, setFormEmpresa] = useState({
     razao_social:'', cnpj:'', cnae:'', endereco:'', municipio:'', uf:'SP', cep:'',
@@ -77,6 +83,7 @@ export default function Configuracoes() {
     const { data:emp } = await supabase.from('empresas').select('*').eq('id', empId).single()
     if (emp) {
       setEmpresa(emp)
+      carregarEmpregadoras(emp.cnpj, empId)
       setFormEmpresa({
         razao_social: emp.razao_social || '',
         cnpj: emp.cnpj || '',
@@ -206,6 +213,51 @@ export default function Configuracoes() {
       setProcStatus({ ativa: false, procuradorOk: false })
       setSucesso('Procuração removida.')
     }
+    setSalvando(false)
+  }
+
+  async function carregarEmpregadoras(cnpjProcurador: string, selfId: string) {
+    const limpo = (cnpjProcurador || '').replace(/\D/g, '')
+    if (limpo.length !== 14) { setEmpregadoras([]); return }
+    const { data } = await supabase.from('empresas')
+      .select('id, razao_social, cnpj, cert_pfx_path')
+      .eq('ecac_cnpj_procurador', limpo)
+    setEmpregadoras((data || []).filter(e => e.id !== selfId))
+  }
+
+  async function cadastrarEmpregadora() {
+    const razao = novaEmpRazao.trim()
+    const cnpjLimpo = novaEmpCnpj.replace(/\D/g, '')
+    const cnpjProc = (empresa?.cnpj || '').replace(/\D/g, '')
+    setErro(''); setSucesso(''); setCadEmpMsg('')
+    if (!razao) { setErro('Informe a razão social da empregadora.'); return }
+    if (cnpjLimpo.length !== 14) { setErro('CNPJ da empregadora inválido (14 dígitos).'); return }
+    if (cnpjProc.length !== 14) { setErro('Esta empresa precisa de um CNPJ válido (14 dígitos) para ser procuradora. Ajuste em Dados da Empresa.'); return }
+    if (cnpjLimpo === cnpjProc) { setErro('A empregadora não pode ser a própria empresa procuradora.'); return }
+
+    setSalvando(true)
+    const cnpjFormatado = formatCnpj(cnpjLimpo)
+    const { data: existe } = await supabase.from('empresas').select('id').eq('cnpj', cnpjFormatado).maybeSingle()
+    if (existe) { setErro('Já existe uma empresa com esse CNPJ no sistema.'); setSalvando(false); return }
+
+    const { data: nova, error } = await supabase.from('empresas').insert({
+      razao_social: razao,
+      cnpj: cnpjFormatado,
+      ecac_cnpj_procurador: cnpjProc,
+      ecac_nome_procurador: empresa?.razao_social || null,
+    }).select().single()
+    if (error || !nova) { setErro('Erro ao cadastrar empregadora: ' + (error?.message || '')); setSalvando(false); return }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user.id) {
+      await supabase.from('usuario_empresas').upsert({
+        usuario_id: session.user.id, empresa_id: nova.id, perfil: 'admin', tipo_acesso: 'empresa',
+      }, { onConflict: 'usuario_id,empresa_id' })
+    }
+
+    setNovaEmpRazao(''); setNovaEmpCnpj('')
+    setCadEmpMsg(`Empregadora "${razao}" cadastrada. Os eventos dela serão transmitidos pelo certificado desta empresa (procuradora).`)
+    carregarEmpregadoras(empresa?.cnpj, empresaId)
     setSalvando(false)
   }
 
@@ -441,6 +493,71 @@ export default function Configuracoes() {
                 Remover procuração
               </button>
             )}
+          </div>
+
+          {/* Empresas-empregadoras que esta empresa procura */}
+          <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:'#111', marginBottom:4 }}>
+              Empresas-Empregadoras
+            </div>
+            <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
+              Se esta empresa é uma <strong>consultoria procuradora</strong>, cadastre aqui as empresas para as quais transmite eventos. Elas não precisam de certificado próprio — usarão o certificado desta empresa.
+            </div>
+
+            {empregadoras.length > 0 && (
+              <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, overflow:'hidden', marginBottom:16 }}>
+                {empregadoras.map((emp, i) => (
+                  <div key={emp.id} style={{
+                    display:'flex', alignItems:'center', gap:10, padding:'9px 14px',
+                    borderBottom: i < empregadoras.length - 1 ? '0.5px solid #f3f4f6' : 'none',
+                    background:'#fff',
+                  }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {emp.razao_social}
+                      </div>
+                      <div style={{ fontSize:11, color:'#6b7280', marginTop:1 }}>{emp.cnpj}</div>
+                    </div>
+                    <div style={{ flexShrink:0 }}>
+                      {emp.cert_pfx_path
+                        ? <span style={{ fontSize:11, color:'#6b7280' }}>cert. próprio</span>
+                        : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>via procuração</span>
+                      }
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {empregadoras.length === 0 && empresa?.cnpj?.replace(/\D/g,'').length === 14 && (
+              <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16, padding:'10px 14px', background:'#f9fafb', borderRadius:8 }}>
+                Nenhuma empresa-empregadora vinculada a esta conta como procurada.
+              </div>
+            )}
+
+            <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'16px', marginTop:4 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Cadastrar nova empresa-empregadora</div>
+              <div style={s.row2}>
+                <div>
+                  <label style={s.label}>Razão Social *</label>
+                  <input style={s.input} placeholder="Empresa Empregadora Ltda."
+                    value={novaEmpRazao} onChange={e => setNovaEmpRazao(e.target.value)} />
+                </div>
+                <div>
+                  <label style={s.label}>CNPJ da empregadora *</label>
+                  <input style={s.input} placeholder="00.000.000/0001-00"
+                    value={novaEmpCnpj} onChange={e => setNovaEmpCnpj(e.target.value)} />
+                </div>
+              </div>
+              {cadEmpMsg && (
+                <div style={{ background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'8px 12px', fontSize:12, margin:'8px 0' }}>
+                  ✅ {cadEmpMsg}
+                </div>
+              )}
+              <button style={{ ...s.btnPrimary, marginTop:8 }} onClick={cadastrarEmpregadora} disabled={salvando}>
+                {salvando ? 'Cadastrando...' : 'Cadastrar empresa-empregadora'}
+              </button>
+            </div>
           </div>
         </div>
       )}
