@@ -247,7 +247,7 @@ export default function Configuracoes() {
     if (!r.ok) { setErro(json.erro || 'Erro ao cadastrar empregadora.'); setSalvando(false); return }
 
     setNovaEmpRazao(''); setNovaEmpCnpj('')
-    setCadEmpMsg(`Empregadora "${razao}" cadastrada. Os eventos dela serão transmitidos pelo certificado desta empresa.`)
+    setCadEmpMsg(`"${razao}" cadastrada como empresa transmitida. Os eventos dela serão enviados usando o certificado desta empresa.`)
     carregarEmpregadoras(empresa?.cnpj, empresaId)
     setSalvando(false)
   }
@@ -486,13 +486,13 @@ export default function Configuracoes() {
             )}
           </div>
 
-          {/* Empresas-empregadoras — só visível para consultorias (sem procurador próprio) */}
+          {/* Empresas transmitidas — só visível para consultorias (sem procurador próprio) */}
           {!empresa?.ecac_cnpj_procurador && <div style={{ marginTop:28, borderTop:'0.5px solid #e5e7eb', paddingTop:20 }}>
             <div style={{ fontSize:14, fontWeight:700, color:'#111', marginBottom:4 }}>
-              Empresas-Empregadoras
+              Empresas Transmitidas
             </div>
             <div style={{ fontSize:12, color:'#6b7280', marginBottom:16, lineHeight:1.7 }}>
-              Se esta empresa é uma <strong>consultoria procuradora</strong>, cadastre aqui as empresas para as quais transmite eventos. Elas não precisam de certificado próprio — usarão o certificado desta empresa.
+              Cadastre aqui as empresas cujos eventos você transmite. Elas <strong>não precisam de certificado próprio</strong> — as transmissões usarão o certificado desta empresa. A empresa transmitida só precisa informar o CNPJ desta empresa como procuradora na aba Procuração eCAC dela.
             </div>
 
             {empregadoras.length > 0 && (
@@ -512,7 +512,7 @@ export default function Configuracoes() {
                     <div style={{ flexShrink:0 }}>
                       {emp.cert_pfx_path
                         ? <span style={{ fontSize:11, color:'#6b7280' }}>cert. próprio</span>
-                        : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>via procuração</span>
+                        : <span style={{ fontSize:11, color:'#27500A', background:'#EAF3DE', padding:'2px 8px', borderRadius:99, fontWeight:600 }}>transmitida aqui</span>
                       }
                     </div>
                   </div>
@@ -522,20 +522,20 @@ export default function Configuracoes() {
 
             {empregadoras.length === 0 && empresa?.cnpj?.replace(/\D/g,'').length === 14 && (
               <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16, padding:'10px 14px', background:'#f9fafb', borderRadius:8 }}>
-                Nenhuma empresa-empregadora vinculada a esta conta como procurada.
+                Nenhuma empresa transmitida vinculada a esta conta.
               </div>
             )}
 
             <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:10, padding:'16px', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Cadastrar nova empresa-empregadora</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Cadastrar empresa transmitida</div>
               <div style={s.row2}>
                 <div>
                   <label style={s.label}>Razão Social *</label>
-                  <input style={s.input} placeholder="Empresa Empregadora Ltda."
+                  <input style={s.input} placeholder="Empresa Transmitida Ltda."
                     value={novaEmpRazao} onChange={e => setNovaEmpRazao(e.target.value)} />
                 </div>
                 <div>
-                  <label style={s.label}>CNPJ da empregadora *</label>
+                  <label style={s.label}>CNPJ da empresa transmitida *</label>
                   <input style={s.input} placeholder="00.000.000/0001-00"
                     value={novaEmpCnpj} onChange={e => setNovaEmpCnpj(e.target.value)} />
                 </div>
@@ -546,7 +546,7 @@ export default function Configuracoes() {
                 </div>
               )}
               <button style={{ ...s.btnPrimary, marginTop:8 }} onClick={cadastrarEmpregadora} disabled={salvando}>
-                {salvando ? 'Cadastrando...' : 'Cadastrar empresa-empregadora'}
+                {salvando ? 'Cadastrando...' : 'Cadastrar empresa transmitida'}
               </button>
             </div>
           </div>}
