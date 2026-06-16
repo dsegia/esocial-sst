@@ -127,7 +127,7 @@ export default async function handler(req, res) {
         if (tx?.empresa_id) empresaId = tx.empresa_id
       }
       if (empresaId) {
-        const cred = await resolverCertEmpresa(empresaId, user.id)
+        const cred = await resolverCertEmpresa(empresaId, user)
         if (cred) {
           pfxBuffer = cred.pfxBuffer
           certSenhaResolvida = cred.senha

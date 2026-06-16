@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ ativa: false, procuradorOk: false })
   }
 
-  const proc = await resolverProcurador(empresa.ecac_cnpj_procurador, user.id)
+  const proc = await resolverProcurador(empresa.ecac_cnpj_procurador, user)
   return res.status(200).json({
     ativa: true,
     procuradorOk: !!proc,

@@ -221,7 +221,7 @@ export default async function handler(req, res) {
     let cnpjTransmissor = cnpj_empregador.replace(/\D/g, '')
 
     if (!pfxBuffer) {
-      const cred = await resolverCertEmpresa(empresaId, user.id)
+      const cred = await resolverCertEmpresa(empresaId, user)
       if (cred) {
         pfxBuffer = cred.pfxBuffer
         certSenhaResolvida = cred.senha

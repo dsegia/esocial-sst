@@ -86,7 +86,7 @@ export default async function handler(req, res) {
       .from('usuarios').select('empresa_id').eq('id', user.id).single()
     const empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
     if (empresaId) {
-      const cred = await resolverCertEmpresa(empresaId, user.id)
+      const cred = await resolverCertEmpresa(empresaId, user)
       if (cred) { pfxBuffer = cred.pfxBuffer; senha = cred.senha }
     }
   }

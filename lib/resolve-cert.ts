@@ -4,9 +4,11 @@
 // Dois caminhos:
 //  1. Certificado próprio da empresa (cert_pfx_path no R2).
 //  2. Procuração eCAC: usa o certificado da empresa PROCURADORA (consultoria) cujo
-//     CNPJ corresponde a `ecac_cnpj_procurador` — desde que o usuário que está
-//     transmitindo tenha acesso a essa empresa (evita uso indevido de certificado
-//     de outro inquilino).
+//     CNPJ corresponde a `ecac_cnpj_procurador`.
+//
+// Segurança: a consultoria procuradora precisa estar entre as empresas que o
+// usuário pode usar — suas empresas vinculadas (usuario_empresas + empresa padrão)
+// ou, para o admin do sistema (ADMIN_EMAIL), qualquer empresa.
 
 import { createClient } from '@supabase/supabase-js'
 import { decryptSenha } from './cert-crypto'
@@ -18,12 +20,18 @@ const sbAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+type AuthUser = { id: string; email?: string | null }
+
 type ProcuradorRow = {
   cnpj: string | null
   cert_pfx_path: string | null
   cert_senha_enc: string | null
   cert_titular: string | null
   cert_digital_validade: string | null
+}
+
+function ehAdmin(user: AuthUser): boolean {
+  return !!user.email && !!process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL
 }
 
 // IDs de todas as empresas às quais o usuário tem acesso (própria + vínculos).
@@ -41,20 +49,24 @@ async function empresasDoUsuario(userId: string): Promise<string[]> {
 // Empresa procuradora (consultoria) com certificado configurado, acessível ao usuário.
 export async function resolverProcurador(
   ecacCnpjProcurador: string | null | undefined,
-  userId: string
+  user: AuthUser
 ): Promise<ProcuradorRow | null> {
   if (!ecacCnpjProcurador) return null
   const cnpjProc = ecacCnpjProcurador.replace(/\D/g, '')
   if (cnpjProc.length !== 14) return null
 
-  const ids = await empresasDoUsuario(userId)
-  if (!ids.length) return null
-
-  const { data: procs } = await sbAdmin
+  let query = sbAdmin
     .from('empresas')
     .select('cnpj, cert_pfx_path, cert_senha_enc, cert_titular, cert_digital_validade')
-    .in('id', ids)
 
+  // Admin do sistema enxerga todas as empresas; demais, só as suas.
+  if (!ehAdmin(user)) {
+    const ids = await empresasDoUsuario(user.id)
+    if (!ids.length) return null
+    query = query.in('id', ids)
+  }
+
+  const { data: procs } = await query
   return (procs || []).find(
     (p) => (p.cnpj || '').replace(/\D/g, '') === cnpjProc && p.cert_pfx_path && p.cert_senha_enc
   ) || null
@@ -68,7 +80,7 @@ export type CertResolvido = {
 }
 
 // Resolve o certificado (PFX + senha) e o CNPJ transmissor para a empresa.
-export async function resolverCertEmpresa(empresaId: string, userId: string): Promise<CertResolvido | null> {
+export async function resolverCertEmpresa(empresaId: string, user: AuthUser): Promise<CertResolvido | null> {
   const { data: empresa } = await sbAdmin
     .from('empresas')
     .select('cnpj, cert_pfx_path, cert_senha_enc, ecac_cnpj_procurador')
@@ -87,7 +99,7 @@ export async function resolverCertEmpresa(empresaId: string, userId: string): Pr
   }
 
   // 2. Procuração → certificado da consultoria procuradora
-  const proc = await resolverProcurador(empresa.ecac_cnpj_procurador, userId)
+  const proc = await resolverProcurador(empresa.ecac_cnpj_procurador, user)
   if (proc) {
     return {
       pfxBuffer: await downloadCertR2(proc.cert_pfx_path!),

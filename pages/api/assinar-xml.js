@@ -95,7 +95,7 @@ export default async function handler(req, res) {
         if (vinculo) empresaId = empresaIdBody
       }
 
-      const cred = await resolverCertEmpresa(empresaId, user.id)
+      const cred = await resolverCertEmpresa(empresaId, user)
       if (!cred) {
         return res.status(400).json({ erro: 'Certificado não configurado. Suba um certificado próprio ou configure a procuração para uma consultoria que tenha certificado no sistema.' })
       }
