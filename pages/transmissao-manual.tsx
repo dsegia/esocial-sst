@@ -31,8 +31,6 @@ export default function TransmissaoManual() {
   const ambiente = 'producao'
   const [testando, setTestando] = useState(false)
   const [testeResult, setTesteResult] = useState<null | { ok: boolean; msg: string; latencia?: number }>(null)
-  const [procStatus, setProcStatus] = useState<{ ativa: boolean; procuradorOk: boolean } | null>(null)
-
   // Certificado (nunca sai do estado do browser)
   const [certArquivo, setCertArquivo] = useState<any>(null)
   const [certSenha, setCertSenha] = useState('')
@@ -62,9 +60,6 @@ export default function TransmissaoManual() {
       if (emp) empresaData = emp
     }
     setEmpresa(empresaData)
-
-    fetch(`/api/cert/procuracao-status?empresa_id=${empId}`, { headers: { Authorization: `Bearer ${session.access_token}` } })
-      .then(r => r.json()).then(d => setProcStatus(d)).catch(() => setProcStatus(null))
 
     // Pular etapa de certificado se há certificado armazenado ou procuração configurada
     if ((empresaData as any)?.cert_pfx_path || (empresaData as any)?.ecac_cnpj_procurador) {

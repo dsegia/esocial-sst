@@ -56,7 +56,6 @@ export default function Configuracoes() {
   // eCAC
   const [ecacCnpjProcurador, setEcacCnpjProcurador] = useState('')
   const [ecacNomeProcurador, setEcacNomeProcurador] = useState('')
-  const [procStatus, setProcStatus] = useState<{ ativa: boolean; procuradorOk: boolean; titular?: string | null } | null>(null)
 
   // Empresas-empregadoras que ESTA empresa (procuradora) transmite
   const [empregadoras, setEmpregadoras] = useState<any[]>([])
@@ -86,7 +85,6 @@ export default function Configuracoes() {
     if (!user) { router.push('/login'); return }
     const empId = getEmpresaId() || user.empresa_id
     setEmpresaId(empId)
-    carregarProcStatus(empId, session.access_token)
     carregarUsuarios(empId)
     const { data:emp } = await supabase.from('empresas').select('*').eq('id', empId).single()
     if (emp) {
@@ -182,13 +180,6 @@ export default function Configuracoes() {
     setSalvando(false)
   }
 
-  async function carregarProcStatus(empId: string, token: string) {
-    try {
-      const r = await fetch(`/api/cert/procuracao-status?empresa_id=${empId}`, { headers: { Authorization: `Bearer ${token}` } })
-      setProcStatus(await r.json())
-    } catch { setProcStatus(null) }
-  }
-
   async function salvarEcac() {
     const cnpjLimpo = ecacCnpjProcurador.replace(/\D/g, '')
     if (cnpjLimpo.length !== 14) { setErro('Informe um CNPJ de procurador válido (14 dígitos).'); return }
@@ -201,8 +192,6 @@ export default function Configuracoes() {
     else {
       setEmpresa((e: any) => ({ ...e, ecac_cnpj_procurador: cnpjLimpo, ecac_nome_procurador: ecacNomeProcurador || null }))
       setSucesso('Procuração salva! As transmissões desta empresa usarão o certificado da consultoria procuradora.')
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) carregarProcStatus(empresaId, session.access_token)
     }
     setSalvando(false)
   }
@@ -218,7 +207,6 @@ export default function Configuracoes() {
     else {
       setEcacCnpjProcurador(''); setEcacNomeProcurador('')
       setEmpresa((e: any) => ({ ...e, ecac_cnpj_procurador: null, ecac_nome_procurador: null }))
-      setProcStatus({ ativa: false, procuradorOk: false })
       setSucesso('Procuração removida.')
     }
     setSalvando(false)

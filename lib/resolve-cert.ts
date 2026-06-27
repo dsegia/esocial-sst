@@ -1,15 +1,3 @@
-// lib/resolve-cert.ts
-// Resolve qual certificado digital usar para transmitir/assinar em nome de uma empresa.
-//
-// Dois caminhos:
-//  1. Certificado próprio da empresa (cert_pfx_path no R2).
-//  2. Procuração eCAC: usa o certificado da empresa PROCURADORA (consultoria) cujo
-//     CNPJ corresponde a `ecac_cnpj_procurador`.
-//
-// Segurança: a consultoria procuradora precisa estar entre as empresas que o
-// usuário pode usar — suas empresas vinculadas (usuario_empresas + empresa padrão)
-// ou, para o admin do sistema (ADMIN_EMAIL), qualquer empresa.
-
 import { createClient } from '@supabase/supabase-js'
 import { decryptSenha } from './cert-crypto'
 import { downloadCertR2 } from './cert-store'
@@ -21,56 +9,6 @@ const sbAdmin = createClient(
 )
 
 type AuthUser = { id: string; email?: string | null }
-
-type ProcuradorRow = {
-  cnpj: string | null
-  cert_pfx_path: string | null
-  cert_senha_enc: string | null
-  cert_titular: string | null
-  cert_digital_validade: string | null
-}
-
-function ehAdmin(user: AuthUser): boolean {
-  return !!user.email && !!process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL
-}
-
-// IDs de todas as empresas às quais o usuário tem acesso (própria + vínculos).
-async function empresasDoUsuario(userId: string): Promise<string[]> {
-  const [{ data: usuarioDb }, { data: vinculos }] = await Promise.all([
-    sbAdmin.from('usuarios').select('empresa_id').eq('id', userId).single(),
-    sbAdmin.from('usuario_empresas').select('empresa_id').eq('usuario_id', userId),
-  ])
-  const ids = new Set<string>()
-  if (usuarioDb?.empresa_id) ids.add(usuarioDb.empresa_id)
-  for (const v of vinculos || []) ids.add(v.empresa_id)
-  return [...ids]
-}
-
-// Empresa procuradora (consultoria) com certificado configurado, acessível ao usuário.
-export async function resolverProcurador(
-  ecacCnpjProcurador: string | null | undefined,
-  user: AuthUser
-): Promise<ProcuradorRow | null> {
-  if (!ecacCnpjProcurador) return null
-  const cnpjProc = ecacCnpjProcurador.replace(/\D/g, '')
-  if (cnpjProc.length !== 14) return null
-
-  let query = sbAdmin
-    .from('empresas')
-    .select('cnpj, cert_pfx_path, cert_senha_enc, cert_titular, cert_digital_validade')
-
-  // Admin do sistema enxerga todas as empresas; demais, só as suas.
-  if (!ehAdmin(user)) {
-    const ids = await empresasDoUsuario(user.id)
-    if (!ids.length) return null
-    query = query.in('id', ids)
-  }
-
-  const { data: procs } = await query
-  return (procs || []).find(
-    (p) => (p.cnpj || '').replace(/\D/g, '') === cnpjProc && p.cert_pfx_path && p.cert_senha_enc
-  ) || null
-}
 
 export type CertResolvido = {
   pfxBuffer: Buffer
