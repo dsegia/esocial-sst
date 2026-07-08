@@ -16,6 +16,7 @@ const MENU_COMPLETO = [
   { href:'/aso',             label:'ASO',                     icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
   { href:'/ltcat',           label:'LTCAT',                   icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
   { href:'/pcmso',           label:'PCMSO',                   icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
+  { href:'/pgr',             label:'PGR',                     icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
   { sep:true, label:'TRANSMISSÕES' },
   { href:'/s2220',           label:'S-2220 Monit. Saúde',     icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
   { href:'/s2240',           label:'S-2240 Cond. Ambientais', icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
