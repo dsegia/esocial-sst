@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/alertas-trial",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/bloquear-trials-expirados",
+      "schedule": "0 10 * * *"
     }
   ]
 }

@@ -58,12 +58,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     empresa = atualizada
   } else {
     // Empresa não existe — cria com service role (bypassa RLS)
+    const trialExpira = new Date()
+    trialExpira.setDate(trialExpira.getDate() + 14)
     const { data: nova, error } = await sbAdmin.from('empresas').insert({
       razao_social: razao_social.trim(),
       cnpj: cnpjFormatado,
       ecac_cnpj_procurador: cnpjProcLimpo,
       ecac_nome_procurador: nome_procurador?.trim() || null,
       is_consultoria: false,
+      plano_expira_em: trialExpira.toISOString(),
     }).select().single()
     if (error || !nova) {
       return res.status(500).json({ erro: 'Erro ao cadastrar empresa transmitida: ' + (error?.message || '') })

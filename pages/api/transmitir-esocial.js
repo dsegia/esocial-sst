@@ -129,13 +129,25 @@ export default async function handler(req, res) {
   // Verifica e consome crédito de envio
   const { data: empresa } = await sbAdmin
     .from('empresas')
-    .select('id, cnpj, plano, creditos_restantes, stripe_customer_id, tipo_acesso, ecac_cnpj_procurador, cert_pfx_path, cert_senha_enc')
+    .select('id, cnpj, plano, creditos_restantes, stripe_customer_id, tipo_acesso, ecac_cnpj_procurador, cert_pfx_path, cert_senha_enc, trial_inicio, bloqueado')
     .eq('id', empresaId).single()
 
   if (!empresa) return res.status(403).json({ erro: 'Empresa não encontrada' })
 
+  if (empresa.bloqueado) {
+    return res.status(403).json({ erro: 'Conta bloqueada. Acesse /planos para reativar.', sem_creditos: true })
+  }
+
   if (empresa.plano === 'cancelado') {
     return res.status(403).json({ erro: 'Assinatura cancelada. Acesse /planos para reativar.', sem_creditos: true })
+  }
+
+  if (empresa.plano === 'trial') {
+    const expira = new Date(empresa.trial_inicio)
+    expira.setDate(expira.getDate() + 14)
+    if (new Date() > expira) {
+      return res.status(402).json({ erro: 'Período de trial expirado. Acesse /planos para continuar transmitindo.', trial_expirado: true })
+    }
   }
 
   if (empresa.creditos_restantes > 0) {
