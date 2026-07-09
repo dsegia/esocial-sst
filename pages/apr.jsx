@@ -11,8 +11,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-const etapaVazia = () => ({ etapa: '', risco: '', causa: '', medida_controle: '', responsavel: '' })
+const etapaVazia = () => ({ atividade: '', perigo: '', efeito_impacto: '', acao_preventiva: '', responsavel_acao: '' })
 const membroVazio = () => ({ nome: '', funcao: '' })
+const epiVazio = () => ({ nome: '', ca: '', eficaz: true })
+const epcVazio = () => ({ nome: '', eficaz: true })
 
 export default function APR() {
   const router = useRouter()
@@ -49,7 +51,7 @@ export default function APR() {
   function criarNova() {
     setForm({
       atividade: '', local: '', data_realizacao: new Date().toISOString().split('T')[0],
-      resp_nome: '', resp_cargo: '', etapas: [], equipe: [],
+      resp_nome: '', resp_cargo: '', etapas: [], equipe: [], epis: [], epcs: [],
     })
     setModoEdicao(true)
     setSucesso(''); setErro('')
@@ -79,6 +81,8 @@ export default function APR() {
       resp_cargo: form.resp_cargo || null,
       etapas: form.etapas || [],
       equipe: form.equipe || [],
+      epis: form.epis || [],
+      epcs: form.epcs || [],
       atualizado_em: new Date().toISOString(),
     }
 
@@ -142,9 +146,37 @@ export default function APR() {
     setForm(p => ({ ...p, equipe: p.equipe.filter((_, idx) => idx !== i) }))
   }
 
+  function addEpi() {
+    setForm(p => ({ ...p, epis: [...(p.epis || []), epiVazio()] }))
+  }
+  function setEpi(i, field, value) {
+    setForm(p => {
+      const epis = [...p.epis]
+      epis[i] = { ...epis[i], [field]: value }
+      return { ...p, epis }
+    })
+  }
+  function removerEpi(i) {
+    setForm(p => ({ ...p, epis: p.epis.filter((_, idx) => idx !== i) }))
+  }
+
+  function addEpc() {
+    setForm(p => ({ ...p, epcs: [...(p.epcs || []), epcVazio()] }))
+  }
+  function setEpc(i, field, value) {
+    setForm(p => {
+      const epcs = [...p.epcs]
+      epcs[i] = { ...epcs[i], [field]: value }
+      return { ...p, epcs }
+    })
+  }
+  function removerEpc(i) {
+    setForm(p => ({ ...p, epcs: p.epcs.filter((_, idx) => idx !== i) }))
+  }
+
   function exportarPdf(apr) {
     gerarPdfApr(
-      { dados_gerais: apr, etapas: apr.etapas || [], equipe: apr.equipe || [] },
+      { dados_gerais: apr, etapas: apr.etapas || [], equipe: apr.equipe || [], epis: apr.epis || [], epcs: apr.epcs || [] },
       { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
     )
   }
@@ -222,25 +254,64 @@ export default function APR() {
                 </div>
 
                 <div style={s.card}>
-                  <div style={s.cardTit}>Etapas e riscos ({aprSel.etapas?.length||0})</div>
+                  <div style={s.cardTit}>Atividades, perigos e ações preventivas ({aprSel.etapas?.length||0})</div>
                   {aprSel.etapas?.length ? (
                     <div style={{ overflowX:'auto', marginTop:10 }}>
                       <table style={s.table}>
-                        <thead><tr>{['Etapa','Risco','Causa','Medida de controle','Responsável'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                        <thead><tr>{['Atividade','Perigo','Efeito/Impacto','Ação preventiva','Responsável'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
                         <tbody>
                           {aprSel.etapas.map((e,i) => (
                             <tr key={i} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
-                              <td style={s.td}>{e.etapa||'—'}</td>
-                              <td style={s.td}>{e.risco||'—'}</td>
-                              <td style={s.td}>{e.causa||'—'}</td>
-                              <td style={s.td}>{e.medida_controle||'—'}</td>
-                              <td style={s.td}>{e.responsavel||'—'}</td>
+                              <td style={s.td}>{e.atividade||'—'}</td>
+                              <td style={s.td}>{e.perigo||'—'}</td>
+                              <td style={s.td}>{e.efeito_impacto||'—'}</td>
+                              <td style={s.td}>{e.acao_preventiva||'—'}</td>
+                              <td style={s.td}>{e.responsavel_acao||'—'}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                  ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhuma etapa cadastrada.</div>}
+                  ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhuma atividade cadastrada.</div>}
+                </div>
+
+                <div style={s.card}>
+                  <div style={s.cardTit}>EPIs aplicáveis ({aprSel.epis?.length||0})</div>
+                  {aprSel.epis?.length ? (
+                    <div style={{ overflowX:'auto', marginTop:10 }}>
+                      <table style={s.table}>
+                        <thead><tr>{['EPI','CA','Eficaz'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {aprSel.epis.map((e,i) => (
+                            <tr key={i} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                              <td style={s.td}>{e.nome||'—'}</td>
+                              <td style={s.td}>{e.ca||'—'}</td>
+                              <td style={s.td}>{e.eficaz ? 'Sim' : 'Não'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum EPI cadastrado.</div>}
+                </div>
+
+                <div style={s.card}>
+                  <div style={s.cardTit}>EPCs aplicáveis ({aprSel.epcs?.length||0})</div>
+                  {aprSel.epcs?.length ? (
+                    <div style={{ overflowX:'auto', marginTop:10 }}>
+                      <table style={s.table}>
+                        <thead><tr>{['EPC','Eficaz'].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {aprSel.epcs.map((e,i) => (
+                            <tr key={i} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                              <td style={s.td}>{e.nome||'—'}</td>
+                              <td style={s.td}>{e.eficaz ? 'Sim' : 'Não'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum EPC cadastrado.</div>}
                 </div>
 
                 <div style={s.card}>
@@ -294,20 +365,57 @@ export default function APR() {
 
                 <div style={{ marginBottom:16 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                    <label style={s.label}>Etapas e riscos ({form.etapas?.length||0})</label>
-                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addEtapa}>+ Adicionar etapa</button>
+                    <label style={s.label}>Atividades, perigos e ações preventivas ({form.etapas?.length||0})</label>
+                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addEtapa}>+ Adicionar atividade</button>
                   </div>
                   {(form.etapas||[]).map((e,i) => (
                     <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr 28px', gap:6, alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f3f4f6' }}>
-                      <input style={s.inputSm} placeholder="Etapa" value={e.etapa} onChange={ev => setEtapa(i,'etapa',ev.target.value)} />
-                      <input style={s.inputSm} placeholder="Risco" value={e.risco} onChange={ev => setEtapa(i,'risco',ev.target.value)} />
-                      <input style={s.inputSm} placeholder="Causa" value={e.causa} onChange={ev => setEtapa(i,'causa',ev.target.value)} />
-                      <input style={s.inputSm} placeholder="Medida de controle" value={e.medida_controle} onChange={ev => setEtapa(i,'medida_controle',ev.target.value)} />
-                      <input style={s.inputSm} placeholder="Responsável" value={e.responsavel} onChange={ev => setEtapa(i,'responsavel',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="Atividade" value={e.atividade} onChange={ev => setEtapa(i,'atividade',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="Perigo" value={e.perigo} onChange={ev => setEtapa(i,'perigo',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="Efeito ou impacto" value={e.efeito_impacto} onChange={ev => setEtapa(i,'efeito_impacto',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="Ação preventiva" value={e.acao_preventiva} onChange={ev => setEtapa(i,'acao_preventiva',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="Responsável" value={e.responsavel_acao} onChange={ev => setEtapa(i,'responsavel_acao',ev.target.value)} />
                       <button onClick={() => removerEtapa(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16 }}>×</button>
                     </div>
                   ))}
-                  {!(form.etapas||[]).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhuma etapa cadastrada.</div>}
+                  {!(form.etapas||[]).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhuma atividade cadastrada.</div>}
+                </div>
+
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <label style={s.label}>EPIs aplicáveis ({form.epis?.length||0})</label>
+                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addEpi}>+ Adicionar EPI</button>
+                  </div>
+                  {(form.epis||[]).map((e,i) => (
+                    <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 28px', gap:6, alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f3f4f6' }}>
+                      <input style={s.inputSm} placeholder="Nome do EPI" value={e.nome} onChange={ev => setEpi(i,'nome',ev.target.value)} />
+                      <input style={s.inputSm} placeholder="CA" value={e.ca} onChange={ev => setEpi(i,'ca',ev.target.value)} />
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer' }}>
+                        <input type="checkbox" checked={!!e.eficaz} onChange={ev => setEpi(i,'eficaz',ev.target.checked)} />
+                        Eficaz
+                      </label>
+                      <button onClick={() => removerEpi(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16 }}>×</button>
+                    </div>
+                  ))}
+                  {!(form.epis||[]).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum EPI cadastrado.</div>}
+                </div>
+
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <label style={s.label}>EPCs aplicáveis ({form.epcs?.length||0})</label>
+                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addEpc}>+ Adicionar EPC</button>
+                  </div>
+                  {(form.epcs||[]).map((e,i) => (
+                    <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 28px', gap:6, alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f3f4f6' }}>
+                      <input style={s.inputSm} placeholder="Nome do EPC" value={e.nome} onChange={ev => setEpc(i,'nome',ev.target.value)} />
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer' }}>
+                        <input type="checkbox" checked={!!e.eficaz} onChange={ev => setEpc(i,'eficaz',ev.target.checked)} />
+                        Eficaz
+                      </label>
+                      <button onClick={() => removerEpc(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16 }}>×</button>
+                    </div>
+                  ))}
+                  {!(form.epcs||[]).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum EPC cadastrado.</div>}
                 </div>
 
                 <div style={{ marginBottom:16 }}>

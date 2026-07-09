@@ -699,31 +699,63 @@ export async function gerarPdfApr(dados: any, empresa: any): Promise<void> {
 
   const etapas = dados?.etapas || []
   if (y > 230) { doc.addPage(); y = 20 }
-  y = secao(`ETAPAS E RISCOS (${etapas.length})`, y)
+  y = secao(`ATIVIDADES, PERIGOS E AÇÕES PREVENTIVAS (${etapas.length})`, y)
   if (etapas.length) {
     doc.setFillColor(245, 247, 250)
     doc.rect(mg, y, W - mg * 2, 5.5, 'F')
     doc.setFontSize(7); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
-    doc.text('ETAPA / RISCO / CAUSA', mg + 2, y + 4)
-    doc.text('MEDIDA DE CONTROLE', mg + 100, y + 4)
+    doc.text('ATIVIDADE / PERIGO / EFEITO OU IMPACTO', mg + 2, y + 4)
+    doc.text('AÇÃO PREVENTIVA', mg + 100, y + 4)
     doc.text('RESPONSÁVEL', mg + 160, y + 4)
     doc.setFont('helvetica', 'normal'); y += 8
 
     for (const e of etapas) {
       if (y > 265) { doc.addPage(); y = 20 }
       doc.setFontSize(8); doc.setTextColor(30)
-      const etapaLinhas = doc.splitTextToSize(`${e.etapa || '—'} — ${e.risco || '—'} (${e.causa || '—'})`, 85)
+      const etapaLinhas = doc.splitTextToSize(`${e.atividade || '—'} — ${e.perigo || '—'} (${e.efeito_impacto || '—'})`, 85)
       doc.text(etapaLinhas, mg + 2, y)
-      const medLinhas = doc.splitTextToSize(e.medida_controle || '—', 55)
+      const medLinhas = doc.splitTextToSize(e.acao_preventiva || '—', 55)
       doc.text(medLinhas, mg + 100, y)
-      doc.text(e.responsavel || '—', mg + 160, y)
+      doc.text(e.responsavel_acao || '—', mg + 160, y)
       const maxLinhas = Math.max(etapaLinhas.length, medLinhas.length)
       doc.setDrawColor(240); doc.line(mg, y + maxLinhas * 3.5 + 2, W - mg, y + maxLinhas * 3.5 + 2)
       y += maxLinhas * 3.5 + 6
     }
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
-    doc.text('Nenhuma etapa cadastrada.', mg + 2, y); y += 6
+    doc.text('Nenhuma atividade cadastrada.', mg + 2, y); y += 6
+  }
+  y += 2; linha(y); y += 6
+
+  const epis = dados?.epis || []
+  if (y > 230) { doc.addPage(); y = 20 }
+  y = secao(`EPIS APLICÁVEIS (${epis.length})`, y)
+  if (epis.length) {
+    for (const e of epis) {
+      if (y > 265) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setTextColor(30)
+      doc.text(`• ${e.nome || '—'}${e.ca ? ` — CA ${e.ca}` : ''} — ${e.eficaz ? 'Eficaz' : 'Não eficaz'}`, mg + 2, y)
+      y += 5
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum EPI cadastrado.', mg + 2, y); y += 6
+  }
+  y += 2; linha(y); y += 6
+
+  const epcs = dados?.epcs || []
+  if (y > 230) { doc.addPage(); y = 20 }
+  y = secao(`EPCS APLICÁVEIS (${epcs.length})`, y)
+  if (epcs.length) {
+    for (const e of epcs) {
+      if (y > 265) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setTextColor(30)
+      doc.text(`• ${e.nome || '—'} — ${e.eficaz ? 'Eficaz' : 'Não eficaz'}`, mg + 2, y)
+      y += 5
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum EPC cadastrado.', mg + 2, y); y += 6
   }
   y += 2; linha(y); y += 6
 
