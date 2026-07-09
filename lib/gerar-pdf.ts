@@ -874,3 +874,106 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
   doc.save(`LIP_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
 }
+
+export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('PERFIL PROFISSIOGRÁFICO PREVIDENCIÁRIO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('PPP', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DO TRABALHADOR', y)
+  const func = dados?.funcionario || {}
+  campo('Nome Completo', func.nome, mg, y, yw / 2)
+  campo('CPF', func.cpf, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Matrícula', func.matricula_esocial, mg, y, yw / 3)
+  campo('Função Atual', func.funcao, mg + yw / 3 + 5, y, yw / 3 - 5)
+  campo('Admissão', func.data_adm ? new Date(func.data_adm + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + (yw / 3 + 5) * 2, y, yw / 3 - 5)
+  y += 12; linha(y); y += 6
+
+  const dg = dados?.dados_gerais || {}
+  y = secao('DADOS DO DOCUMENTO', y)
+  campo('Data de Emissão', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, yw / 2)
+  campo('Responsável pelo Preenchimento', `${dg.resp_nome || '—'}${dg.resp_cargo ? ` (${dg.resp_cargo})` : ''}`, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 12; linha(y); y += 6
+
+  const historico = dados?.historico || []
+  if (y > 220) { doc.addPage(); y = 20 }
+  y = secao(`HISTÓRICO DE EXPOSIÇÃO OCUPACIONAL (${historico.length})`, y)
+  for (const h of historico) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+    const periodo = `${h.periodo_inicio ? new Date(h.periodo_inicio + 'T00:00').toLocaleDateString('pt-BR') : '—'} a ${h.periodo_fim ? new Date(h.periodo_fim + 'T00:00').toLocaleDateString('pt-BR') : 'atual'}`
+    doc.text(`${h.funcao || '—'}${h.setor ? ` — ${h.setor}` : ''}`, mg, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8); doc.setTextColor(100)
+    doc.text(periodo, W - mg, y, { align: 'right' })
+    y += 5
+    if (h.agentes?.length) {
+      doc.setFontSize(8); doc.setTextColor(80)
+      const linhas = doc.splitTextToSize(`Agentes de risco: ${h.agentes.map((a: any) => a.nome).join(', ')}`, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 4
+    }
+    doc.setFontSize(8); doc.setTextColor(h.epi_eficaz ? 39 : 151, h.epi_eficaz ? 80 : 30, h.epi_eficaz ? 10 : 30)
+    doc.text(h.epi_eficaz ? 'EPI eficaz neste período' : 'EPI não eficaz / não fornecido neste período', mg, y)
+    y += 6; linha(y); y += 5
+  }
+  if (!historico.length) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum período de exposição registrado.', mg + 2, y); y += 6
+  }
+
+  if (y > 255) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura do responsável pelo preenchimento', xMed, y, { align: 'center' })
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
+  const nome = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
+  doc.save(`PPP_${nome}_${data}.pdf`)
+}

@@ -48,7 +48,7 @@ export default function Dashboard() {
     const em60 = new Date(hoje); em60.setDate(em60.getDate() + 60)
     const em90 = new Date(hoje); em90.setDate(em90.getDate() + 90)
 
-    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes, pgrRes, aetRes, aprRes, lipRes] = await Promise.all([
+    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes, pgrRes, aetRes, aprRes, lipRes, pppRes] = await Promise.all([
       supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId).eq('ativo', true).limit(2000),
       supabase.from('asos').select('id, funcionario_id, tipo_aso, data_exame, prox_exame, conclusao').eq('empresa_id', empresaId).order('data_exame', { ascending: false }).limit(5000),
       supabase.from('transmissoes').select('id, evento, status, criado_em, recibo, dt_envio, funcionario_id, funcionarios(nome)').eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(1000),
@@ -60,7 +60,8 @@ export default function Dashboard() {
       supabase.from('aet').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('apr').select('id, atividade, data_realizacao', { count: 'exact' }).eq('empresa_id', empresaId).eq('ativo', true).order('data_realizacao', { ascending: false }).limit(1),
       supabase.from('lip').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
-    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }, { data: null }, { data: null }, { data: [], count: 0 }, { data: null }] })
+      supabase.from('ppp').select('id', { count: 'exact', head: true }).eq('empresa_id', empresaId),
+    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }, { data: null }, { data: null }, { data: [], count: 0 }, { data: null }, { count: 0 }] })
 
     const funcs    = funcsRes.data || []
     const asos     = asosRes.data || []
@@ -73,6 +74,7 @@ export default function Dashboard() {
     const apr      = (aprRes as any)?.data || []
     const aprCount = (aprRes as any)?.count ?? 0
     const lip      = (lipRes as any)?.data || null
+    const pppCount = (pppRes as any)?.count ?? 0
     // totalFunc usa count exato do banco — não fica limitado pelos 2000 da query de detalhes
     const totalFuncReal = (funcsCountRes as any)?.count ?? funcs.length
 
@@ -201,7 +203,7 @@ export default function Dashboard() {
       cats: catsCount,
       pcmso, pcmsoProgramas: pcmso.length,
       pcmsoAtualizado: pcmso[0]?.atualizado_em || null,
-      pgr, aet, apr, aprCount, lip,
+      pgr, aet, apr, aprCount, lip, pppCount,
     })
   }
 
@@ -449,6 +451,21 @@ export default function Dashboard() {
               )}
               <button onClick={() => router.push('/lip')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
                 {kpis?.lip ? 'Gerenciar' : 'Cadastrar'} LIP →
+              </button>
+            </div>
+
+            {/* PPP status */}
+            <div style={{ ...s.card, padding:'14px' }}>
+              <div style={s.cardTit}>📑 PPP</div>
+              {kpis?.pppCount > 0 ? (
+                <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>
+                  {kpis.pppCount} de {kpis.totalFunc} funcionário(s) com PPP
+                </div>
+              ) : (
+                <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhum PPP cadastrado.</div>
+              )}
+              <button onClick={() => router.push('/ppp')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
+                {kpis?.pppCount > 0 ? 'Gerenciar' : 'Cadastrar'} PPP →
               </button>
             </div>
 
