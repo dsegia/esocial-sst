@@ -1,6 +1,8 @@
 // lib/gerar-pdf.ts
 // Geração de PDF para ASO, LTCAT e PCMSO usando jsPDF
 
+import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, nivelRisco } from './pgr-conteudo'
+
 export async function gerarPdfAso(dados: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -418,6 +420,10 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const W = 210; const mg = 15
   let y = 15
 
+  function hexRgb(hex: string): [number, number, number] {
+    const h = (hex || '#999999').replace('#', '')
+    return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)]
+  }
   function linha(yPos: number) {
     doc.setDrawColor(220, 220, 220)
     doc.line(mg, yPos, W - mg, yPos)
@@ -430,6 +436,13 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 10
   }
+  function subSecao(texto: string, yPos: number): number {
+    if (yPos > 275) { doc.addPage(); yPos = 20 }
+    doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg, yPos)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 6
+  }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
     doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
     doc.setFontSize(10); doc.setTextColor(30)
@@ -437,99 +450,214 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
-  // Cabeçalho
+  const dg = dados?.dados_gerais || {}
+  const ambientes = dados?.ambientes || []
+  const inventario = dados?.inventario || []
+  const planoAcao = dados?.plano_acao || []
+  const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico', aci: 'Mecânico/Acidentes' }
+
+  // ── Capa ──────────────────────────────────────────────
   doc.setFillColor(24, 95, 165)
-  doc.rect(0, 0, W, 20, 'F')
-  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 8, { align: 'center' })
+  doc.rect(0, 0, W, 24, 'F')
+  doc.setFontSize(14); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 9, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text('PGR — NR-1', W / 2, 14, { align: 'center' })
-  y = 26
+  doc.text('PGR — NR-1 · Portaria SEPRT nº 6.730/2020', W / 2, 15, { align: 'center' })
+  if (dg.data_elaboracao) {
+    const periodo = `Período: ${new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR')}${dg.prox_revisao ? ` a ${new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR')}` : ''}`
+    doc.text(periodo, W / 2, 20.5, { align: 'center' })
+  }
+  y = 30
 
-  // Empresa
+  // ── Dados da empresa ──────────────────────────────────
   y = secao('DADOS DA EMPRESA', y)
   const yw = (W - mg * 2)
   campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
   campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10; linha(y); y += 6
-
-  // Dados gerais
-  y = secao('DADOS DO PROGRAMA', y)
-  const dg = dados?.dados_gerais || {}
-  const col = (W - mg * 2 - 10) / 3
-  campo('Data de Elaboração', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, col)
-  campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
-  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + (col + 5) * 2, y, col)
-  y += 10; linha(y); y += 6
-  campo('Responsável Técnico', dg.resp_nome, mg, y, W - mg * 2)
+  y += 10
+  campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg, y, yw / 2)
+  campo('Grau de Risco', empresa?.grau_risco != null ? String(empresa.grau_risco) : '—', mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw)
+  y += 10
+  campo('Telefone', empresa?.telefone, mg, y, yw / 2)
+  campo('E-mail', empresa?.email, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Inscrição Estadual', empresa?.inscricao_estadual, mg, y, yw / 3)
+  campo('Inscrição Municipal', empresa?.inscricao_municipal, mg + yw / 3, y, yw / 3)
+  campo('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', mg + (yw / 3) * 2, y, yw / 3)
+  y += 12
+  campo('Representante Legal', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` (${empresa.resp_cargo})` : ''}`, mg, y, yw)
   y += 12; linha(y); y += 6
 
-  // Inventário de riscos
-  const inventario = dados?.inventario || []
-  if (y > 250) { doc.addPage(); y = 20 }
-  y = secao(`INVENTÁRIO DE RISCOS (${inventario.length})`, y)
-  const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico' }
-  for (const r of inventario) {
-    if (y > 270) { doc.addPage(); y = 20 }
-    doc.setFontSize(9); doc.setTextColor(30)
-    doc.text(`• [${tipoMap[r.tipo] || r.tipo}] ${r.nome}${r.valor ? ` — ${r.valor}${r.unidade ? ` ${r.unidade}` : ''}` : ''}`, mg + 2, y)
-    if (r.ghe) {
-      doc.setFontSize(8); doc.setTextColor(120)
-      doc.text(r.ghe, W - mg - 2, y, { align: 'right' })
-    }
-    y += 5
+  // ── Textos legais (NR-1) ──────────────────────────────
+  for (const secaoTexto of TEXTOS_LEGAIS_PGR) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    for (const p of secaoTexto.paragrafos) y = paragrafo(p, y)
+    y += 2
   }
-  if (!inventario.length) {
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
+
+  // ── Responsáveis ──────────────────────────────────────
+  y = secao('RESPONSÁVEIS PELO PGR', y)
+  campo('Responsável pela implementação (representante legal)', empresa?.resp_nome, mg, y, yw)
+  y += 12
+  campo('Responsável pela elaboração', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim(), mg, y, yw)
+  y += 14; linha(y); y += 6
+
+  // ── Ambientes de trabalho ─────────────────────────────
+  if (y > 245) { doc.addPage(); y = 20 }
+  y = secao(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
+  if (ambientes.length) {
+    for (const a of ambientes) {
+      if (y > 260) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+      doc.text(`${a.nome || '—'}${a.tipo === 'terceiro' ? ' (Terceiro)' : ' (Próprio)'}`, mg + 2, y)
+      doc.setFont('helvetica', 'normal')
+      if (a.data_inicio) {
+        doc.setFontSize(8); doc.setTextColor(120)
+        doc.text(`desde ${new Date(a.data_inicio + 'T00:00').toLocaleDateString('pt-BR')}`, W - mg - 2, y, { align: 'right' })
+      }
+      y += 4.5
+      if (a.descricao) y = paragrafo(a.descricao, y, 8)
+      if (a.epcs?.length) {
+        doc.setFontSize(8); doc.setTextColor(90)
+        doc.text(`EPC: ${a.epcs.map((e: any) => e.nome).filter(Boolean).join(', ') || '—'}`, mg + 2, y)
+        y += 5
+      }
+      doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum ambiente cadastrado.', mg + 2, y); y += 6
+  }
+  y += 2; linha(y); y += 6
+
+  // ── Inventário de riscos ──────────────────────────────
+  if (y > 235) { doc.addPage(); y = 20 }
+  y = secao(`INVENTÁRIO DE RISCOS (${inventario.length})`, y)
+  if (inventario.length) {
+    for (const r of inventario) {
+      if (y > 255) { doc.addPage(); y = 20 }
+      const nr = nivelRisco(r.severidade, r.probabilidade)
+      doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+      doc.text(`[${tipoMap[r.tipo] || r.tipo}] ${r.nome || '—'}${r.perigo ? ` — ${r.perigo}` : ''}`, mg + 2, y)
+      doc.setFont('helvetica', 'normal')
+      if (nr) {
+        const [rC, gC, bC] = hexRgb(nr.cor)
+        doc.setFontSize(8); doc.setTextColor(rC, gC, bC)
+        doc.text(`${nr.faixa} (${nr.valor})`, W - mg - 2, y, { align: 'right' })
+      }
+      y += 4.5
+      const linha1 = `Função: ${r.funcao || '—'} · Ambiente: ${r.ghe || '—'} · Fontes: ${r.fontes_circunstancias || '—'}`
+      y = paragrafo(linha1, y, 8)
+      if (r.possiveis_danos) y = paragrafo(`Possíveis danos à saúde: ${r.possiveis_danos}`, y, 8)
+      const medicao = [
+        r.valor ? `Medido: ${r.valor}${r.unidade ? ' ' + r.unidade : ''}` : '',
+        r.limite ? `LT: ${r.limite}` : '',
+        r.equipamento ? `Equip.: ${r.equipamento}` : '',
+        r.trajetoria ? `Trajetória: ${r.trajetoria}` : '',
+        r.tipo_exposicao ? `Exposição: ${r.tipo_exposicao}` : '',
+        r.codigo_esocial ? `Cód. eSocial: ${r.codigo_esocial}` : '',
+      ].filter(Boolean).join(' · ')
+      if (medicao) y = paragrafo(medicao, y, 8)
+      doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
+    }
+  } else {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhum risco cadastrado.', mg + 2, y); y += 6
   }
-  y += 4; linha(y); y += 6
+  y += 2; linha(y); y += 6
 
-  // Plano de ação
-  const planoAcao = dados?.plano_acao || []
-  if (y > 240) { doc.addPage(); y = 20 }
+  // ── Plano de ação ─────────────────────────────────────
+  if (y > 230) { doc.addPage(); y = 20 }
   y = secao(`PLANO DE AÇÃO (${planoAcao.length})`, y)
+  const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
+  const priorMap: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
   if (planoAcao.length) {
-    doc.setFillColor(245, 247, 250)
-    doc.rect(mg, y, W - mg * 2, 5.5, 'F')
-    doc.setFontSize(7); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
-    doc.text('RISCO / MEDIDA DE CONTROLE', mg + 2, y + 4)
-    doc.text('PRAZO', mg + 110, y + 4)
-    doc.text('RESPONSÁVEL', mg + 135, y + 4)
-    doc.text('STATUS', mg + 170, y + 4)
-    doc.setFont('helvetica', 'normal'); y += 8
-
-    const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
     for (const a of planoAcao) {
-      if (y > 265) { doc.addPage(); y = 20 }
-      doc.setFontSize(8); doc.setTextColor(30)
+      if (y > 250) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
       doc.text(`${a.risco || '—'}`, mg + 2, y)
-      doc.setFontSize(7); doc.setTextColor(100)
-      const medLinhas = doc.splitTextToSize(a.medida_controle || '—', 100)
-      doc.text(medLinhas, mg + 2, y + 3.5)
-      doc.setFontSize(8); doc.setTextColor(30)
-      doc.text(a.prazo ? new Date(a.prazo + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + 110, y)
-      doc.text(a.responsavel || '—', mg + 135, y)
-      doc.text(statusMap[a.status] || a.status || '—', mg + 170, y)
-      doc.setDrawColor(240); doc.line(mg, y + medLinhas.length * 3.5 + 2, W - mg, y + medLinhas.length * 3.5 + 2)
-      y += medLinhas.length * 3.5 + 6
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8); doc.setTextColor(120)
+      doc.text(`Prioridade: ${priorMap[a.priorizacao] || '—'} · Status: ${statusMap[a.status] || a.status || '—'}`, W - mg - 2, y, { align: 'right' })
+      y += 4.5
+      if (a.medida_controle) y = paragrafo(`O que: ${a.medida_controle}`, y, 8)
+      if (a.justificativa) y = paragrafo(`Por que: ${a.justificativa}`, y, 8)
+      const quemComoOnde = [
+        a.responsavel ? `Quem: ${a.responsavel}` : '',
+        a.como ? `Como: ${a.como}` : '',
+        a.onde ? `Onde: ${a.onde}` : '',
+        a.prazo ? `Quando: ${new Date(a.prazo + 'T00:00').toLocaleDateString('pt-BR')}` : '',
+      ].filter(Boolean).join(' · ')
+      if (quemComoOnde) y = paragrafo(quemComoOnde, y, 8)
+      if (a.epis?.length) y = paragrafo(`EPIs: ${a.epis.map((e: any) => e.nome).filter(Boolean).join(', ')}`, y, 8)
+      doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
     }
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhuma ação cadastrada.', mg + 2, y); y += 6
   }
 
-  // Assinatura
-  if (y > 255) { doc.addPage(); y = 20 }
-  y += 6; linha(y); y += 10
-  const xMed = W / 2
-  doc.line(xMed - 45, y, xMed + 45, y)
-  y += 4
-  doc.setFontSize(8); doc.setTextColor(80)
-  doc.text('Assinatura e carimbo do responsável técnico', xMed, y, { align: 'center' })
+  // ── Anexo I — Plano de Emergência ─────────────────────
+  doc.addPage(); y = 20
+  y = secao(TEXTO_PLANO_EMERGENCIA.titulo, y)
+  for (const secaoEmerg of TEXTO_PLANO_EMERGENCIA.secoes) {
+    if (y > 260) { doc.addPage(); y = 20 }
+    y = subSecao(secaoEmerg.subtitulo, y)
+    for (const p of secaoEmerg.paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
 
-  // Rodapé
+  // ── Anexo II — Matriz de Risco ────────────────────────
+  doc.addPage(); y = 20
+  y = secao('ANEXO — MATRIZ DE RISCO', y)
+  y = subSecao('Quadro 1 — Interpretação por faixa de risco', y)
+  for (const q of QUADRO2_INTERPRETACAO) {
+    if (y > 255) { doc.addPage(); y = 20 }
+    const [rC, gC, bC] = hexRgb(q.cor)
+    const [rB, gB, bB] = hexRgb(q.bg)
+    doc.setFillColor(rB, gB, bB); doc.rect(mg, y - 4, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(rC, gC, bC); doc.setFont('helvetica', 'bold')
+    doc.text(`${q.label} (${q.faixa})`, mg + 2, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7); doc.setTextColor(90)
+    doc.text(q.prazo, W - mg - 2, y, { align: 'right' })
+    y += 5
+    y = paragrafo(q.acao, y, 8)
+    y += 2
+  }
+  y += 2
+  y = subSecao('Quadro 2 — Critério de probabilidade', y)
+  for (const p of PROBABILIDADE_OPCOES) {
+    if (y > 278) { doc.addPage(); y = 20 }
+    doc.setFontSize(8); doc.setTextColor(50)
+    doc.text(`${p.v} — ${p.l}`, mg + 2, y); y += 4.5
+  }
+  y += 3
+  y = subSecao('Quadro 3 — Critério de severidade', y)
+  for (const sv of QUADRO4_SEVERIDADE) {
+    if (y > 275) { doc.addPage(); y = 20 }
+    doc.setFontSize(8); doc.setTextColor(50)
+    doc.text(`${sv.v} — ${sv.l}: ${sv.efeito}`, mg + 2, y); y += 4.5
+  }
+
+  // ── Rodapé ────────────────────────────────────────────
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
     doc.setPage(p)

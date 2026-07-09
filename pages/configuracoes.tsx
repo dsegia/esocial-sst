@@ -72,7 +72,8 @@ export default function Configuracoes() {
 
   // Empresa
   const [formEmpresa, setFormEmpresa] = useState({
-    razao_social:'', cnpj:'', cnae:'', endereco:'', municipio:'', uf:'SP', cep:'',
+    razao_social:'', cnpj:'', cnae:'', cnae_descricao:'', endereco:'', municipio:'', uf:'SP', cep:'',
+    telefone:'', email:'', inscricao_estadual:'', inscricao_municipal:'', grau_risco:'',
     resp_nome:'', resp_cpf:'', resp_cargo:''
   })
 
@@ -94,10 +95,16 @@ export default function Configuracoes() {
         razao_social: emp.razao_social || '',
         cnpj: emp.cnpj || '',
         cnae: emp.cnae || '',
+        cnae_descricao: emp.cnae_descricao || '',
         endereco: emp.endereco || '',
         municipio: emp.municipio || '',
         uf: emp.uf || 'SP',
         cep: emp.cep || '',
+        telefone: emp.telefone || '',
+        email: emp.email || '',
+        inscricao_estadual: emp.inscricao_estadual || '',
+        inscricao_municipal: emp.inscricao_municipal || '',
+        grau_risco: emp.grau_risco != null ? String(emp.grau_risco) : '',
         resp_nome: emp.resp_nome || '',
         resp_cpf: emp.resp_cpf || '',
         resp_cargo: emp.resp_cargo || '',
@@ -328,7 +335,10 @@ export default function Configuracoes() {
 
   async function salvarEmpresa() {
     setSalvando(true); setErro(''); setSucesso('')
-    const { error } = await supabase.from('empresas').update(formEmpresa).eq('id', empresaId)
+    const { error } = await supabase.from('empresas').update({
+      ...formEmpresa,
+      grau_risco: formEmpresa.grau_risco ? parseInt(formEmpresa.grau_risco, 10) : null,
+    }).eq('id', empresaId)
     if (error) { setErro('Erro: ' + error.message) }
     else setSucesso('Dados da empresa atualizados!')
     setSalvando(false)
@@ -707,6 +717,26 @@ export default function Configuracoes() {
               </select>
             </div>
           </div>
+          <div style={s.row3}>
+            <div>
+              <label style={s.label}>Descrição da atividade (CNAE)</label>
+              <input style={s.input} placeholder="Ex: Montagem de estruturas metálicas" value={formEmpresa.cnae_descricao} onChange={e => setFormEmpresa({...formEmpresa, cnae_descricao:e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>Grau de risco</label>
+              <select style={s.input} value={formEmpresa.grau_risco} onChange={e => setFormEmpresa({...formEmpresa, grau_risco:e.target.value})}>
+                <option value="">— não informado —</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+            <div>
+              <label style={s.label}>Inscrição Estadual</label>
+              <input style={s.input} value={formEmpresa.inscricao_estadual} onChange={e => setFormEmpresa({...formEmpresa, inscricao_estadual:e.target.value})} />
+            </div>
+          </div>
           <div style={s.row2}>
             <div>
               <label style={s.label}>Endereço</label>
@@ -717,7 +747,21 @@ export default function Configuracoes() {
               <input style={s.input} value={formEmpresa.municipio} onChange={e => setFormEmpresa({...formEmpresa, municipio:e.target.value})} />
             </div>
           </div>
-          <div style={{ ...s.cardTit, marginTop:16, marginBottom:12 }}>Responsável pela empresa</div>
+          <div style={s.row3}>
+            <div>
+              <label style={s.label}>Telefone</label>
+              <input style={s.input} placeholder="(00) 00000-0000" value={formEmpresa.telefone} onChange={e => setFormEmpresa({...formEmpresa, telefone:e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>E-mail</label>
+              <input style={s.input} type="email" value={formEmpresa.email} onChange={e => setFormEmpresa({...formEmpresa, email:e.target.value})} />
+            </div>
+            <div>
+              <label style={s.label}>Inscrição Municipal</label>
+              <input style={s.input} value={formEmpresa.inscricao_municipal} onChange={e => setFormEmpresa({...formEmpresa, inscricao_municipal:e.target.value})} />
+            </div>
+          </div>
+          <div style={{ ...s.cardTit, marginTop:16, marginBottom:12 }}>Responsável pela empresa (representante legal)</div>
           <div style={s.row3}>
             <div>
               <label style={s.label}>Nome</label>
