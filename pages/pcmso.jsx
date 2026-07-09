@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { gerarPdfPcmso } from '../lib/gerar-pdf'
 import { getEmpresaId } from '../lib/empresa'
+import { formatarCPF } from '../lib/format'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -89,6 +90,12 @@ export default function PCMSO() {
   const [novoExame, setNovoExame] = useState({ nome:'', tipos:['periodico'], obrigatorio:true })
   const [salvandoProg, setSalvandoProg] = useState(false)
 
+  // Médico coordenador
+  const [medico, setMedico] = useState(null)
+  const [editandoMedico, setEditandoMedico] = useState(false)
+  const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
+  const [salvandoMedico, setSalvandoMedico] = useState(false)
+
   useEffect(() => { init() }, [])
 
   async function init() {
@@ -101,18 +108,50 @@ export default function PCMSO() {
     supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
-    const [funcsRes, ltcatRes, asosRes, progRes] = await Promise.all([
+    const [funcsRes, ltcatRes, asosRes, progRes, medicoRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome').limit(2000),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo',true).order('data_emissao',{ascending:false}).limit(1).maybeSingle(),
       supabase.from('asos').select('funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,exames').eq('empresa_id', empId).order('data_exame',{ascending:false}).limit(5000),
       supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).order('funcao').limit(200),
+      supabase.from('pcmso_dados').select('*').eq('empresa_id', empId).maybeSingle(),
     ])
 
     setFuncionarios(funcsRes.data || [])
     setLtcatAtivo(ltcatRes.data || null)
     setAsos(asosRes.data || [])
     setPrograma(progRes.data || [])
+    setMedico(medicoRes.data || null)
     setCarregando(false)
+  }
+
+  function abrirEdicaoMedico() {
+    setFormMedico(medico ? { ...medico } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
+    setEditandoMedico(true)
+    setSucesso(''); setErro('')
+  }
+
+  async function salvarMedico() {
+    if (!formMedico.medico_nome) { setErro('Informe o nome do médico coordenador.'); return }
+    setSalvandoMedico(true); setErro(''); setSucesso('')
+
+    const dados = {
+      empresa_id: empresaId,
+      medico_nome: formMedico.medico_nome,
+      medico_cpf: formMedico.medico_cpf || null,
+      medico_crm: formMedico.medico_crm || null,
+      data_elaboracao: formMedico.data_elaboracao || null,
+      prox_revisao: formMedico.prox_revisao || null,
+      atualizado_em: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
+
+    if (error) { setErro('Erro ao salvar: ' + error.message) }
+    else {
+      setSucesso('Dados do médico coordenador salvos!')
+      setEditandoMedico(false)
+      await init()
+    }
+    setSalvandoMedico(false)
   }
 
   function ultimoAso(funcId) {
@@ -229,10 +268,8 @@ export default function PCMSO() {
         </div>
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
-            const medico = ltcatAtivo?.resp_nome || ''
-            const crm    = ltcatAtivo?.resp_registro || ''
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico, medico_crm: crm }, programas: programa },
+              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa },
               { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
             )
           }}>📄 Exportar PDF</button>
@@ -261,6 +298,69 @@ export default function PCMSO() {
             <div style={{ fontSize:12, color:'#6b7280', marginTop:2 }}>{k.l}</div>
           </div>
         ))}
+      </div>
+
+      {/* Médico coordenador */}
+      <div style={{ ...s.card, marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+          <div>
+            <div style={s.cardTit}>Médico coordenador</div>
+            {medico ? (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginTop:8 }}>
+                {[
+                  { l:'Nome', v: medico.medico_nome||'—' },
+                  { l:'CPF', v: medico.medico_cpf||'—' },
+                  { l:'CRM', v: medico.medico_crm||'—' },
+                ].map((it,i) => (
+                  <div key={i}>
+                    <div style={{ fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase' }}>{it.l}</div>
+                    <div style={{ fontSize:13, fontWeight:500, color:'#111', marginTop:2 }}>{it.v}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize:12, color:'#E24B4A', marginTop:6 }}>Nenhum médico coordenador cadastrado.</div>
+            )}
+          </div>
+          <button style={{ ...s.btnAcao, flexShrink:0 }} onClick={abrirEdicaoMedico}>
+            {medico ? 'Editar' : '+ Cadastrar médico'}
+          </button>
+        </div>
+
+        {editandoMedico && (
+          <div style={{ marginTop:14, paddingTop:14, borderTop:'0.5px solid #e5e7eb' }}>
+            <div style={s.row2}>
+              <div>
+                <label style={s.label}>Nome do médico *</label>
+                <input style={s.input} value={formMedico.medico_nome} onChange={e => setFormMedico({...formMedico, medico_nome:e.target.value})} placeholder="Nome do médico coordenador"/>
+              </div>
+              <div>
+                <label style={s.label}>CRM</label>
+                <input style={s.input} value={formMedico.medico_crm} onChange={e => setFormMedico({...formMedico, medico_crm:e.target.value})} placeholder="Ex: 123456-SP"/>
+              </div>
+            </div>
+            <div style={s.row2}>
+              <div>
+                <label style={s.label}>CPF</label>
+                <input style={s.input} value={formMedico.medico_cpf} onChange={e => setFormMedico({...formMedico, medico_cpf:formatarCPF(e.target.value)})} placeholder="000.000.000-00"/>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={s.label}>Data de elaboração</label>
+                  <input type="date" style={s.input} value={formMedico.data_elaboracao||''} onChange={e => setFormMedico({...formMedico, data_elaboracao:e.target.value})}/>
+                </div>
+                <div>
+                  <label style={s.label}>Próxima revisão</label>
+                  <input type="date" style={s.input} value={formMedico.prox_revisao||''} onChange={e => setFormMedico({...formMedico, prox_revisao:e.target.value})}/>
+                </div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={s.btnPrimary} onClick={salvarMedico} disabled={salvandoMedico}>{salvandoMedico ? 'Salvando...' : 'Salvar'}</button>
+              <button style={s.btnOutline} onClick={() => setEditandoMedico(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Abas */}

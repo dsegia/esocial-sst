@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import { pdfFichaEPI } from '../lib/gerarPDF'
 import { gerarPdfLtcat } from '../lib/gerar-pdf'
 import { getEmpresaId } from '../lib/empresa'
+import { formatarCPF } from '../lib/format'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -21,6 +22,10 @@ const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F'
 const gheVazio = () => ({
   nome: '', setor: '', qtd_trabalhadores: 1, aposentadoria_especial: false,
   agentes: [], epc: [], epi: [], funcoes: []
+})
+const ltcatVazio = () => ({
+  data_emissao: new Date().toISOString().split('T')[0], data_vigencia: '', prox_revisao: '',
+  resp_nome: '', resp_conselho: 'CREA', resp_registro: '', resp_cpf: '', ghes: [],
 })
 const agenteVazio = () => ({ tipo:'fis', nome:'', valor:'', limite:'', supera_lt:false })
 const epiVazio    = () => ({ nome:'', ca:'', eficaz:true })
@@ -68,6 +73,13 @@ export default function LTCAT() {
     setSucesso(''); setErro('')
   }
 
+  function criarNovoLtcat() {
+    setFormLtcat(ltcatVazio())
+    setModoEdicao(true)
+    setGheAtivo(0)
+    setSucesso(''); setErro('')
+  }
+
   function cancelarEdicao() {
     setModoEdicao(false)
     setFormLtcat(null)
@@ -75,19 +87,24 @@ export default function LTCAT() {
 
   async function salvarEdicao() {
     setSalvando(true); setErro(''); setSucesso('')
-    const { error } = await supabase.from('ltcats').update({
+    const dados = {
       data_emissao: formLtcat.data_emissao,
       data_vigencia: formLtcat.data_vigencia,
       prox_revisao: formLtcat.prox_revisao || null,
       resp_nome: formLtcat.resp_nome || null,
       resp_conselho: formLtcat.resp_conselho || 'CREA',
       resp_registro: formLtcat.resp_registro || null,
+      resp_cpf: formLtcat.resp_cpf || null,
       ghes: formLtcat.ghes || [],
-    }).eq('id', formLtcat.id)
+    }
+
+    const { error } = formLtcat.id
+      ? await supabase.from('ltcats').update(dados).eq('id', formLtcat.id)
+      : await supabase.from('ltcats').insert({ ...dados, empresa_id: _empresaId })
 
     if (error) { setErro('Erro ao salvar: ' + error.message) }
     else {
-      setSucesso('LTCAT atualizado com sucesso!')
+      setSucesso(formLtcat.id ? 'LTCAT atualizado com sucesso!' : 'LTCAT criado com sucesso!')
       setModoEdicao(false)
       setFormLtcat(null)
       await init()
@@ -210,7 +227,7 @@ export default function LTCAT() {
         </div>
         {!modoEdicao && (
           <div style={{ display:'flex', gap:8 }}>
-            <button style={s.btnPrimary} onClick={() => router.push('/s2240')}>+ Novo manual</button>
+            <button style={s.btnPrimary} onClick={criarNovoLtcat}>+ Novo manual</button>
           </div>
         )}
       </div>
@@ -218,7 +235,7 @@ export default function LTCAT() {
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
       {erro    && <div style={s.erroBox}>{erro}</div>}
 
-      {ltcats.length === 0 ? (
+      {ltcats.length === 0 && !modoEdicao ? (
         <div style={s.emptyCard}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
             <path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/>
@@ -228,7 +245,7 @@ export default function LTCAT() {
           <div style={{ fontSize:12, color:'#9ca3af', marginTop:4 }}>Use a página Importar PDF para adicionar um LTCAT</div>
           <div style={{ display:'flex', gap:8, marginTop:16 }}>
             <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar PDF</button>
-            <button style={s.btnPrimary} onClick={() => router.push('/s2240')}>+ Novo manual</button>
+            <button style={s.btnPrimary} onClick={criarNovoLtcat}>+ Novo manual</button>
           </div>
         </div>
       ) : (
@@ -278,6 +295,7 @@ export default function LTCAT() {
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
                         {[
                           { l:'Responsável', v: ltcatSel.resp_nome||'—' },
+                          { l:'CPF', v: ltcatSel.resp_cpf||'—' },
                           { l:'Conselho/Registro', v: `${ltcatSel.resp_conselho||''} ${ltcatSel.resp_registro||''}`.trim()||'—' },
                           { l:'Vigência', v: fmtData(ltcatSel.data_vigencia) },
                           { l:'Próxima revisão', v: fmtData(ltcatSel.prox_revisao) },
@@ -296,7 +314,7 @@ export default function LTCAT() {
                         ✏ Editar LTCAT
                       </button>
                       <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
-                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro }, ghes: ltcatSel.ghes }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
+                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
                         ↓ Exportar PDF
                       </button>
                       {ltcatSel.ativo && (
@@ -465,7 +483,7 @@ export default function LTCAT() {
                       <input style={s.input} type="date" value={formLtcat.prox_revisao||''} onChange={e => setFormLtcat(p=>({...p,prox_revisao:e.target.value}))}/>
                     </div>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:10 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:10, marginBottom:10 }}>
                     <div>
                       <label style={s.label}>Responsável técnico</label>
                       <input style={s.input} value={formLtcat.resp_nome||''} onChange={e => setFormLtcat(p=>({...p,resp_nome:e.target.value}))} placeholder="Nome do engenheiro ou médico"/>
@@ -479,6 +497,12 @@ export default function LTCAT() {
                     <div>
                       <label style={s.label}>Nº Registro</label>
                       <input style={s.input} value={formLtcat.resp_registro||''} onChange={e => setFormLtcat(p=>({...p,resp_registro:e.target.value}))} placeholder="Ex: 123456-D/SP"/>
+                    </div>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:10 }}>
+                    <div>
+                      <label style={s.label}>CPF do responsável</label>
+                      <input style={s.input} value={formLtcat.resp_cpf||''} onChange={e => setFormLtcat(p=>({...p,resp_cpf:formatarCPF(e.target.value)}))} placeholder="000.000.000-00"/>
                     </div>
                   </div>
                 </div>
