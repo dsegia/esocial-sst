@@ -473,7 +473,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   for (const r of inventario) {
     if (y > 270) { doc.addPage(); y = 20 }
     doc.setFontSize(9); doc.setTextColor(30)
-    doc.text(`• [${tipoMap[r.tipo] || r.tipo}] ${r.nome}${r.valor ? ` — ${r.valor}` : ''}`, mg + 2, y)
+    doc.text(`• [${tipoMap[r.tipo] || r.tipo}] ${r.nome}${r.valor ? ` — ${r.valor}${r.unidade ? ` ${r.unidade}` : ''}` : ''}`, mg + 2, y)
     if (r.ghe) {
       doc.setFontSize(8); doc.setTextColor(120)
       doc.text(r.ghe, W - mg - 2, y, { align: 'right' })

@@ -30,7 +30,7 @@ function inventarioDoLtcat(ltcat) {
       const chave = `${ghe.nome}__${ag.nome}`
       if (vistos.has(chave)) continue
       vistos.add(chave)
-      lista.push({ ghe: ghe.nome || '—', tipo: ag.tipo, nome: ag.nome, valor: ag.valor || '' })
+      lista.push({ ghe: ghe.nome || '—', tipo: ag.tipo, nome: ag.nome, valor: ag.valor || '', unidade: ag.unidade || '' })
     }
   }
   return lista
@@ -150,7 +150,7 @@ export default function PGR() {
   }
 
   function addRiscoManual() {
-    setForm(p => ({ ...p, inventario: [...(p.inventario || []), { ghe: 'Manual', tipo: 'fis', nome: '', valor: '' }] }))
+    setForm(p => ({ ...p, inventario: [...(p.inventario || []), { ghe: 'Manual', tipo: 'fis', nome: '', valor: '', unidade: '' }] }))
   }
 
   function setRisco(i, field, value) {
@@ -296,7 +296,7 @@ export default function PGR() {
                         <span style={{ padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:COR_AGENTE[r.tipo]||'#f3f4f6', color:TXT_AGENTE[r.tipo]||'#374151' }}>
                           {TIPO_AGENTE[r.tipo] || r.tipo}
                         </span>
-                        <span style={{ fontSize:13, flex:1 }}>{r.nome}{r.valor ? ` — ${r.valor}` : ''}</span>
+                        <span style={{ fontSize:13, flex:1 }}>{r.nome}{r.valor ? ` — ${r.valor}${r.unidade ? ` ${r.unidade}` : ''}` : ''}</span>
                         <span style={{ fontSize:11, color:'#9ca3af' }}>{r.ghe}</span>
                       </div>
                     ))}
@@ -396,16 +396,28 @@ export default function PGR() {
               <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addRiscoManual}>+ Adicionar risco</button>
             </div>
             {(form.inventario || []).map((r, i) => (
-              <div key={i} style={{ display:'grid', gridTemplateColumns:'110px 1fr 1fr 90px 28px', gap:6, alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f3f4f6' }}>
+              <div key={i} style={{ display:'grid', gridTemplateColumns:'100px 1fr 80px 100px 60px 28px', gap:6, alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f3f4f6' }}>
                 <select style={s.inputSm} value={r.tipo} onChange={e => setRisco(i, 'tipo', e.target.value)}>
                   {Object.entries(TIPO_AGENTE).map(([k,l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
                 <input style={s.inputSm} placeholder="Agente / risco" value={r.nome} onChange={e => setRisco(i, 'nome', e.target.value)} />
-                <input style={s.inputSm} placeholder="Medição / valor" value={r.valor || ''} onChange={e => setRisco(i, 'valor', e.target.value)} />
+                <input style={s.inputSm} placeholder="Valor" value={r.valor || ''} onChange={e => setRisco(i, 'valor', e.target.value)} />
+                <input style={s.inputSm} placeholder="Medida" list="unidades-medida" value={r.unidade || ''} onChange={e => setRisco(i, 'unidade', e.target.value)} />
                 <div style={{ fontSize:10, color:'#9ca3af', textAlign:'center' }}>{r.ghe}</div>
                 <button onClick={() => removerRisco(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16 }}>×</button>
               </div>
             ))}
+            <datalist id="unidades-medida">
+              <option value="dB(A)" />
+              <option value="ppm" />
+              <option value="mg/m³" />
+              <option value="µg/m³" />
+              <option value="fibras/cm³" />
+              <option value="IBUTG °C" />
+              <option value="lux" />
+              <option value="m/s²" />
+              <option value="%" />
+            </datalist>
             {!(form.inventario || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum risco. Cadastre um LTCAT vigente ou adicione manualmente.</div>}
           </div>
 
