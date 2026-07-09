@@ -4,6 +4,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { setEmpresaId, setMultiEmpresa } from '../lib/empresa'
+import { formatarCNPJ } from '../lib/format'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,12 +99,6 @@ export default function Login() {
     router.push('/dashboard')
   }
 
-  function fmtCNPJ(cnpj: string) {
-    const n = cnpj?.replace(/\D/g, '') || ''
-    if (n.length !== 14) return cnpj
-    return `${n.slice(0,2)}.${n.slice(2,5)}.${n.slice(5,8)}/${n.slice(8,12)}-${n.slice(12)}`
-  }
-
   if (etapa === 'selecionar') {
     return (
       <>
@@ -136,7 +131,7 @@ export default function Login() {
                     </div>
                     <div>
                       <div style={{ fontSize:13, fontWeight:600, color:'#111' }}>{emp.razao_social}</div>
-                      <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>{fmtCNPJ(emp.cnpj)}</div>
+                      <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>{formatarCNPJ(emp.cnpj)}</div>
                     </div>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>

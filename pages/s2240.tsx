@@ -299,7 +299,15 @@ export default function S2240() {
       const ghe = gheDoFuncionario(f)
       return ghe && !ghe.epi?.length && !ghe.epc?.length && ghe.agentes?.length > 0
     })
-    for (const f of aptos) await criarTransmissao(f.id, true)
+    if (aptos.length > 0) {
+      const { error } = await supabase.from('transmissoes').insert(aptos.map(f => ({
+        empresa_id: empresaId, funcionario_id: f.id,
+        evento: 'S-2240', referencia_id: ltcatAtivo.id, referencia_tipo: 'ltcat',
+        status: 'pendente', tentativas: 0, ambiente: 'producao',
+      })))
+      if (error) { setErro('Erro: ' + error.message); return }
+      await init()
+    }
     const aviso = semEpiEpc.length > 0
       ? ` ⚠ ${semEpiEpc.length} sem EPI/EPC — preencha no LTCAT antes de transmitir.`
       : ''

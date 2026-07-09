@@ -33,10 +33,10 @@ CREATE POLICY "usuarios podem ver pgr da empresa" ON pgr
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM usuario_empresas
-      WHERE usuario_id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE usuario_id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     ) OR EXISTS (
       SELECT 1 FROM usuarios
-      WHERE id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     )
   );
 
@@ -44,10 +44,10 @@ CREATE POLICY "usuarios podem inserir pgr" ON pgr
   FOR INSERT WITH CHECK (
     EXISTS (
       SELECT 1 FROM usuario_empresas
-      WHERE usuario_id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE usuario_id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     ) OR EXISTS (
       SELECT 1 FROM usuarios
-      WHERE id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     )
   );
 
@@ -55,10 +55,10 @@ CREATE POLICY "usuarios podem editar pgr" ON pgr
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM usuario_empresas
-      WHERE usuario_id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE usuario_id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     ) OR EXISTS (
       SELECT 1 FROM usuarios
-      WHERE id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     )
   );
 
@@ -66,9 +66,9 @@ CREATE POLICY "usuarios podem deletar pgr" ON pgr
   FOR DELETE USING (
     EXISTS (
       SELECT 1 FROM usuario_empresas
-      WHERE usuario_id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE usuario_id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     ) OR EXISTS (
       SELECT 1 FROM usuarios
-      WHERE id = auth.uid() AND empresa_id = pgr.empresa_id
+      WHERE id = (select auth.uid()) AND empresa_id = pgr.empresa_id
     )
   );

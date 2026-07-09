@@ -50,7 +50,14 @@ export default async function handler(req, res) {
   const { data: authUsers } = await sb.auth.admin.listUsers()
   const jaAuth = authUsers?.users?.find(u => u.email === email)
   if (jaAuth) {
-    // Já tem conta — adiciona direto na empresa sem reenviar convite
+    // Se o e-mail já pertence a outra empresa, não sobrescreve o vínculo dele
+    const { data: outraEmpresa } = await sb.from('usuarios')
+      .select('empresa_id').eq('id', jaAuth.id).neq('empresa_id', empresaId).maybeSingle()
+    if (outraEmpresa) {
+      return res.status(409).json({ erro: 'Este e-mail já está vinculado a outra empresa no sistema' })
+    }
+
+    // Já tem conta e ainda não pertence a nenhuma empresa — adiciona direto sem reenviar convite
     const { error: insErr } = await sb.from('usuarios').upsert({
       id: jaAuth.id,
       email: email,

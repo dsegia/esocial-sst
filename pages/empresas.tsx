@@ -4,6 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { getEmpresaId, setEmpresaId } from '../lib/empresa'
+import { formatarCNPJ } from '../lib/format'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,8 +58,8 @@ export default function Empresas() {
         .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
         .eq('id', user.empresa_id).single()
       if (emp) {
-        const { data: funcs } = await supabase.from('funcionarios').select('id').eq('empresa_id', emp.id).eq('ativo', true)
-        setEmpresas([{ ...emp, perfil: 'admin', funcionarios_count: funcs?.length || 0 }])
+        const { count } = await supabase.from('funcionarios').select('id', { count: 'exact', head: true }).eq('empresa_id', emp.id).eq('ativo', true)
+        setEmpresas([{ ...emp, perfil: 'admin', funcionarios_count: count || 0 }])
         setEmpresaAtualId(emp.id)
       }
     }
@@ -67,14 +68,6 @@ export default function Empresas() {
   function entrarNaEmpresa(id: string) {
     setEmpresaId(id)
     router.push('/dashboard')
-  }
-
-  function fmtCNPJ(v: string) {
-    const n = v.replace(/\D/g, '').slice(0, 14)
-    return n.replace(/(\d{2})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1.$2')
-            .replace(/(\d{3})(\d)/, '$1/$2')
-            .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
   async function salvarNovaEmpresa(e: React.FormEvent) {
@@ -188,7 +181,7 @@ export default function Empresas() {
               <div>
                 <label style={s.label}>CNPJ *</label>
                 <input style={s.input} placeholder="00.000.000/0001-00" value={form.cnpj}
-                  onChange={e => setForm({...form, cnpj: fmtCNPJ(e.target.value)})} required />
+                  onChange={e => setForm({...form, cnpj: formatarCNPJ(e.target.value)})} required />
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
