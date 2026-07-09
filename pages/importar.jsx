@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { melhorCBO } from '../lib/cbo'
 
 const supabase = createClient(
@@ -305,9 +305,9 @@ export default function Importar() {
       if (!session) { router.push('/login'); return }
       setSessionToken(session.access_token)
       supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
-        .then(({ data: u }) => {
+        .then(async ({ data: u }) => {
           if (!u) { router.push('/login'); return }
-          setEmpresaId(getEmpresaId() || u.empresa_id)
+          setEmpresaId(await getEmpresaIdValida(supabase, session.user.id, u.empresa_id))
         })
     })
   }, [])

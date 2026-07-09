@@ -4,7 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { gerarPdfLip } from '../lib/gerar-pdf'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
 
 const supabase = createClient(
@@ -57,7 +57,7 @@ export default function LIP() {
     if (!session) { router.push('/login'); return }
     const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
-    const empId = getEmpresaId() || user.empresa_id
+    const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
     supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })

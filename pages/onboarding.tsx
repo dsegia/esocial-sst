@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +43,7 @@ export default function Onboarding() {
     setNomeUser((user.nome || '').split(' ')[0])
     setEmpresaNome((user.empresas as any)?.razao_social || '')
 
-    const empId = getEmpresaId() || user.empresa_id
+    const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     const emp   = user.empresas as any
 
     // Verificar conclusão de cada passo em paralelo

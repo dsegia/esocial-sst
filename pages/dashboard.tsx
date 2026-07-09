@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +31,7 @@ export default function Dashboard() {
       .eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
 
-    const empId = getEmpresaId() || user.empresa_id
+    const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setUsuario(user)
     setEmpresa(user.empresas)
     await carregarDados(empId)

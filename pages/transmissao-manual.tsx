@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, type CSSProperties } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import Layout from '../components/Layout'
 
 const supabase = createClient(
@@ -48,7 +48,7 @@ export default function TransmissaoManual() {
       .select('empresa_id, empresas(razao_social, cnpj, cert_digital_validade, cert_titular, cert_pfx_path, plano, tipo_acesso, ecac_cnpj_procurador)')
       .eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
-    const empId = getEmpresaId() || user.empresa_id
+    const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
 
     // Busca dados da empresa ativa — pode diferir da empresa padrão quando há troca de contexto

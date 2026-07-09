@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
-import { getEmpresaId } from '../lib/empresa'
+import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 
 // Tabela 27 eSocial — exames
 const EXAMES_ESOCIAL = [
@@ -92,7 +92,7 @@ export default function S2240() {
     if (!session) { router.push('/login'); return }
     const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', session.user.id).single()
     if (!user) { router.push('/login'); return }
-    const empId = getEmpresaId() || user.empresa_id
+    const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
 
     const [funcsRes, ltcatRes, txRes, asosRes] = await Promise.all([
