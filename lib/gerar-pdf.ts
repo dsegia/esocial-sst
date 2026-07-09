@@ -257,8 +257,10 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   campo('Data de Vigência', dg.data_vigencia ? new Date(dg.data_vigencia + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
   campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + (col + 5) * 2, y, col)
   y += 10; linha(y); y += 6
-  campo('Responsável Técnico', dg.resp_nome, mg, y, (W - mg * 2) / 2)
-  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + (W - mg * 2) / 2 + 5, y, (W - mg * 2) / 2 - 5)
+  const colResp = (W - mg * 2 - 10) / 3
+  campo('Responsável Técnico', dg.resp_nome, mg, y, colResp)
+  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + colResp + 5, y, colResp)
+  campo('CPF', dg.resp_cpf, mg + (colResp + 5) * 2, y, colResp)
   y += 12; linha(y); y += 6
 
   // GHEs
@@ -354,7 +356,12 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   doc.text(dg.medico_nome || '—', mg, y)
   doc.text(dg.medico_crm ? `CRM ${dg.medico_crm}` : '—', mg + 90, y)
   doc.text(dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + 140, y)
-  y += 10
+  y += 5
+  if (dg.medico_cpf) {
+    doc.setFontSize(7); doc.setTextColor(100)
+    doc.text(`CPF: ${dg.medico_cpf}`, mg, y)
+  }
+  y += 5
 
   // Programas por função
   const programas = dados?.programas || []
@@ -533,4 +540,337 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
   doc.save(`PGR_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+}
+
+export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('ANÁLISE ERGONÔMICA DO TRABALHO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('AET — NR-17', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DO LAUDO', y)
+  const dg = dados?.dados_gerais || {}
+  const col = (W - mg * 2 - 10) / 3
+  campo('Data de Elaboração', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, col)
+  campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
+  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + (col + 5) * 2, y, col)
+  y += 10; linha(y); y += 6
+  campo('Responsável Técnico', dg.resp_nome, mg, y, col * 2)
+  campo('CPF', dg.resp_cpf, mg + col * 2 + 5, y, col)
+  y += 12; linha(y); y += 6
+
+  const postos = dados?.postos_trabalho || []
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = secao(`POSTOS DE TRABALHO AVALIADOS (${postos.length})`, y)
+  for (const p of postos) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+    doc.text(`${p.nome || '—'}${p.setor ? ` — ${p.setor}` : ''}`, mg, y)
+    doc.setFont('helvetica', 'normal'); y += 5
+    if (p.descricao_atividade) {
+      doc.setFontSize(8); doc.setTextColor(80)
+      const linhas = doc.splitTextToSize(p.descricao_atividade, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 4 + 2
+    }
+    const fatores = [
+      !p.mobiliario_adequado && 'Mobiliário inadequado',
+      p.levantamento_peso && 'Levantamento de peso',
+      p.posturas_inadequadas && 'Posturas inadequadas',
+      p.repetitividade && 'Repetitividade',
+    ].filter(Boolean)
+    if (fatores.length) {
+      doc.setFontSize(8); doc.setTextColor(151, 79, 0)
+      doc.text(`Fatores de risco: ${fatores.join(', ')}`, mg, y); y += 5
+    }
+    if (p.recomendacoes?.length) {
+      doc.setFontSize(8); doc.setTextColor(39, 80, 10)
+      const linhas = doc.splitTextToSize(`Recomendações: ${p.recomendacoes.join('; ')}`, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 4
+    }
+    y += 4; linha(y); y += 5
+  }
+  if (!postos.length) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum posto de trabalho avaliado.', mg + 2, y); y += 6
+  }
+
+  if (y > 255) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura e carimbo do responsável técnico', xMed, y, { align: 'center' })
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
+  doc.save(`AET_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+}
+
+export async function gerarPdfApr(dados: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('ANÁLISE PRELIMINAR DE RISCO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('APR', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DA ATIVIDADE', y)
+  const dg = dados?.dados_gerais || {}
+  campo('Atividade', dg.atividade, mg, y, yw / 2)
+  campo('Local', dg.local, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Data de Realização', dg.data_realizacao ? new Date(dg.data_realizacao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, yw / 2)
+  campo('Responsável', `${dg.resp_nome || '—'}${dg.resp_cargo ? ` (${dg.resp_cargo})` : ''}`, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 12; linha(y); y += 6
+
+  const etapas = dados?.etapas || []
+  if (y > 230) { doc.addPage(); y = 20 }
+  y = secao(`ETAPAS E RISCOS (${etapas.length})`, y)
+  if (etapas.length) {
+    doc.setFillColor(245, 247, 250)
+    doc.rect(mg, y, W - mg * 2, 5.5, 'F')
+    doc.setFontSize(7); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+    doc.text('ETAPA / RISCO / CAUSA', mg + 2, y + 4)
+    doc.text('MEDIDA DE CONTROLE', mg + 100, y + 4)
+    doc.text('RESPONSÁVEL', mg + 160, y + 4)
+    doc.setFont('helvetica', 'normal'); y += 8
+
+    for (const e of etapas) {
+      if (y > 265) { doc.addPage(); y = 20 }
+      doc.setFontSize(8); doc.setTextColor(30)
+      const etapaLinhas = doc.splitTextToSize(`${e.etapa || '—'} — ${e.risco || '—'} (${e.causa || '—'})`, 85)
+      doc.text(etapaLinhas, mg + 2, y)
+      const medLinhas = doc.splitTextToSize(e.medida_controle || '—', 55)
+      doc.text(medLinhas, mg + 100, y)
+      doc.text(e.responsavel || '—', mg + 160, y)
+      const maxLinhas = Math.max(etapaLinhas.length, medLinhas.length)
+      doc.setDrawColor(240); doc.line(mg, y + maxLinhas * 3.5 + 2, W - mg, y + maxLinhas * 3.5 + 2)
+      y += maxLinhas * 3.5 + 6
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhuma etapa cadastrada.', mg + 2, y); y += 6
+  }
+  y += 2; linha(y); y += 6
+
+  const equipe = dados?.equipe || []
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = secao(`EQUIPE ENVOLVIDA (${equipe.length})`, y)
+  if (equipe.length) {
+    for (const m of equipe) {
+      if (y > 265) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setTextColor(30)
+      doc.text(`• ${m.nome || '—'}${m.funcao ? ` — ${m.funcao}` : ''}`, mg + 2, y)
+      y += 5
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum integrante cadastrado.', mg + 2, y); y += 6
+  }
+
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura do responsável pela atividade', xMed, y, { align: 'center' })
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const data = dg.data_realizacao || new Date().toISOString().split('T')[0]
+  doc.save(`APR_${(dg.atividade || 'atividade').replace(/\s+/g, '_')}_${data}.pdf`)
+}
+
+export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('LAUDO DE INSALUBRIDADE E PERICULOSIDADE', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('LIP — NR-15 / NR-16', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DO LAUDO', y)
+  const dg = dados?.dados_gerais || {}
+  const col = (W - mg * 2 - 10) / 3
+  campo('Data de Elaboração', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, col)
+  campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
+  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + (col + 5) * 2, y, col)
+  y += 10; linha(y); y += 6
+  campo('Responsável Técnico', dg.resp_nome, mg, y, col * 2)
+  campo('CPF', dg.resp_cpf, mg + col * 2 + 5, y, col)
+  y += 12; linha(y); y += 6
+
+  const funcoes = dados?.funcoes || []
+  const grauMap: Record<string, string> = { minimo: 'Mínimo (10%)', medio: 'Médio (20%)', maximo: 'Máximo (40%)' }
+  if (y > 230) { doc.addPage(); y = 20 }
+  y = secao(`FUNÇÕES AVALIADAS (${funcoes.length})`, y)
+  for (const f of funcoes) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+    doc.text(`${f.funcao || '—'}${f.setor ? ` — ${f.setor}` : ''}`, mg, y)
+    doc.setFont('helvetica', 'normal'); y += 5
+
+    doc.setFontSize(8); doc.setTextColor(80)
+    if (f.insalubre) {
+      doc.setTextColor(151, 79, 0)
+      doc.text(`Insalubre — grau ${grauMap[f.grau_insalubridade] || f.grau_insalubridade || '—'}${f.percentual_insalubridade ? ` (${f.percentual_insalubridade}%)` : ''}`, mg, y)
+      y += 4.5
+    }
+    if (f.periculoso) {
+      doc.setTextColor(151, 30, 30)
+      doc.text('Periculoso — adicional de 30%', mg, y)
+      y += 4.5
+    }
+    if (!f.insalubre && !f.periculoso) {
+      doc.setTextColor(39, 80, 10)
+      doc.text('Sem insalubridade ou periculosidade identificada', mg, y)
+      y += 4.5
+    }
+    if (f.fundamentacao) {
+      doc.setFontSize(7); doc.setTextColor(100)
+      const linhas = doc.splitTextToSize(`Fundamentação: ${f.fundamentacao}`, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 3.5
+    }
+    if (f.agentes?.length) {
+      doc.setFontSize(7); doc.setTextColor(100)
+      doc.text(`Agentes: ${f.agentes.map((a: any) => a.nome).join(', ')}`, mg, y); y += 4
+    }
+    y += 3; linha(y); y += 5
+  }
+  if (!funcoes.length) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhuma função avaliada.', mg + 2, y); y += 6
+  }
+
+  if (y > 255) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura e carimbo do responsável técnico', xMed, y, { align: 'center' })
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
+  doc.save(`LIP_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
 }

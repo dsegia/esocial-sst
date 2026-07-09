@@ -48,7 +48,7 @@ export default function Dashboard() {
     const em60 = new Date(hoje); em60.setDate(em60.getDate() + 60)
     const em90 = new Date(hoje); em90.setDate(em90.getDate() + 90)
 
-    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes] = await Promise.all([
+    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes, pgrRes, aetRes, aprRes, lipRes] = await Promise.all([
       supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId).eq('ativo', true).limit(2000),
       supabase.from('asos').select('id, funcionario_id, tipo_aso, data_exame, prox_exame, conclusao').eq('empresa_id', empresaId).order('data_exame', { ascending: false }).limit(5000),
       supabase.from('transmissoes').select('id, evento, status, criado_em, recibo, dt_envio, funcionario_id, funcionarios(nome)').eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(1000),
@@ -56,7 +56,11 @@ export default function Dashboard() {
       supabase.from('cats').select('id, criado_em', { count: 'exact', head: true }).eq('empresa_id', empresaId),
       supabase.from('pcmso_programa').select('id, funcao, atualizado_em').eq('empresa_id', empresaId).order('atualizado_em', { ascending: false }).limit(200),
       supabase.from('funcionarios').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId).eq('ativo', true),
-    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }] })
+      supabase.from('pgr').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('aet').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('apr').select('id, atividade, data_realizacao', { count: 'exact' }).eq('empresa_id', empresaId).eq('ativo', true).order('data_realizacao', { ascending: false }).limit(1),
+      supabase.from('lip').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
+    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }, { data: null }, { data: null }, { data: [], count: 0 }, { data: null }] })
 
     const funcs    = funcsRes.data || []
     const asos     = asosRes.data || []
@@ -64,6 +68,11 @@ export default function Dashboard() {
     const ltcat    = (ltcatRes.data as any) || null
     const catsCount = (catsRes as any)?.count ?? 0
     const pcmso    = pcmsoRes.data || []
+    const pgr      = (pgrRes as any)?.data || null
+    const aet      = (aetRes as any)?.data || null
+    const apr      = (aprRes as any)?.data || []
+    const aprCount = (aprRes as any)?.count ?? 0
+    const lip      = (lipRes as any)?.data || null
     // totalFunc usa count exato do banco — não fica limitado pelos 2000 da query de detalhes
     const totalFuncReal = (funcsCountRes as any)?.count ?? funcs.length
 
@@ -163,8 +172,14 @@ export default function Dashboard() {
     if (pcmso.length === 0) alertasLista.push({
       tipo: 'info', icon: '🩺',
       titulo: 'PCMSO não cadastrado',
-      desc: 'Importe o PCMSO para controle de exames por função',
-      acao: 'Importar PCMSO', rota: '/importar',
+      desc: 'Cadastre o PCMSO para controle de exames por função',
+      acao: 'Cadastrar PCMSO', rota: '/pcmso',
+    })
+    if (!pgr) alertasLista.push({
+      tipo: 'info', icon: '📝',
+      titulo: 'Nenhum PGR cadastrado',
+      desc: 'Obrigatório para todas as empresas (NR-1)',
+      acao: 'Cadastrar PGR', rota: '/pgr',
     })
     if (semAso.length > 0) alertasLista.push({
       tipo: 'info', icon: '🩺',
@@ -186,6 +201,7 @@ export default function Dashboard() {
       cats: catsCount,
       pcmso, pcmsoProgramas: pcmso.length,
       pcmsoAtualizado: pcmso[0]?.atualizado_em || null,
+      pgr, aet, apr, aprCount, lip,
     })
   }
 
@@ -317,8 +333,8 @@ export default function Dashboard() {
         {/* Ações rápidas + Info LTCAT */}
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
-            {/* LTCAT + PCMSO lado a lado */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            {/* Documentos SST */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
 
             {/* LTCAT status */}
             <div style={{ ...s.card, padding:'14px' }}>
@@ -343,7 +359,7 @@ export default function Dashboard() {
                 <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhum LTCAT ativo.</div>
               )}
               <button onClick={() => router.push('/ltcat')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
-                Gerenciar LTCAT →
+                {kpis?.ltcat ? 'Gerenciar' : 'Cadastrar'} LTCAT →
               </button>
             </div>
 
@@ -372,7 +388,67 @@ export default function Dashboard() {
                 <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhum PCMSO cadastrado.</div>
               )}
               <button onClick={() => router.push('/pcmso')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
-                Gerenciar PCMSO →
+                {kpis?.pcmsoProgramas > 0 ? 'Gerenciar' : 'Cadastrar'} PCMSO →
+              </button>
+            </div>
+
+            {/* PGR status */}
+            <div style={{ ...s.card, padding:'14px' }}>
+              <div style={s.cardTit}>📝 PGR</div>
+              {kpis?.pgr ? (
+                <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>
+                  Elaborado em {new Date(kpis.pgr.data_elaboracao+'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              ) : (
+                <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhum PGR cadastrado.</div>
+              )}
+              <button onClick={() => router.push('/pgr')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
+                {kpis?.pgr ? 'Gerenciar' : 'Cadastrar'} PGR →
+              </button>
+            </div>
+
+            {/* AET status */}
+            <div style={{ ...s.card, padding:'14px' }}>
+              <div style={s.cardTit}>🧍 AET</div>
+              {kpis?.aet ? (
+                <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>
+                  Elaborada em {new Date(kpis.aet.data_elaboracao+'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              ) : (
+                <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhuma AET cadastrada.</div>
+              )}
+              <button onClick={() => router.push('/aet')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
+                {kpis?.aet ? 'Gerenciar' : 'Cadastrar'} AET →
+              </button>
+            </div>
+
+            {/* APR status */}
+            <div style={{ ...s.card, padding:'14px' }}>
+              <div style={s.cardTit}>⚠️ APR</div>
+              {kpis?.aprCount > 0 ? (
+                <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>
+                  {kpis.aprCount} análise(s) cadastrada(s)
+                </div>
+              ) : (
+                <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhuma APR cadastrada.</div>
+              )}
+              <button onClick={() => router.push('/apr')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
+                {kpis?.aprCount > 0 ? 'Gerenciar' : 'Cadastrar'} APR →
+              </button>
+            </div>
+
+            {/* LIP status */}
+            <div style={{ ...s.card, padding:'14px' }}>
+              <div style={s.cardTit}>🧪 LIP</div>
+              {kpis?.lip ? (
+                <div style={{ marginTop:8, fontSize:12, color:'#6b7280' }}>
+                  Elaborado em {new Date(kpis.lip.data_elaboracao+'T12:00:00').toLocaleDateString('pt-BR')}
+                </div>
+              ) : (
+                <div style={{ marginTop:8, fontSize:12, color:'#E24B4A' }}>Nenhum LIP cadastrado.</div>
+              )}
+              <button onClick={() => router.push('/lip')} style={{ ...s.btnOutline, width:'100%', marginTop:10, fontSize:11 }}>
+                {kpis?.lip ? 'Gerenciar' : 'Cadastrar'} LIP →
               </button>
             </div>
 
