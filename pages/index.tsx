@@ -26,6 +26,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-
 nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:96px;display:flex;align-items:center;justify-content:space-between;}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo-img{height:90px;width:auto;transition:height .2s;}
 .nav-links{display:flex;align-items:center;gap:6px;}
 .nav-links a{font-size:13px;color:#475569;text-decoration:none;font-weight:500;padding:7px 12px;border-radius:8px;transition:background .15s,color .15s;}
 .nav-links a:hover{background:#f1f5f9;color:#0f172a;}
@@ -266,7 +267,7 @@ footer{background:#0f172a;padding:56px 24px 32px;}
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .hero-inner{grid-template-columns:1fr;gap:40px;text-align:center;}
-  .hero-demo-scene{display:none;}
+  .hero-demo-scene{max-width:480px;margin:0 auto;}
   .hero-sub{margin:0 auto 32px;}
   .hero-btns{justify-content:center;}
   .hero-note,.hero-trust{justify-content:center;}
@@ -281,7 +282,8 @@ footer{background:#0f172a;padding:56px 24px 32px;}
 @media(max-width:640px){
   .nav-links,.nav-cta{display:none;}
   .nav-mobile-btn{display:flex;}
-  .nav-inner{padding:0 16px;}
+  .nav-inner{padding:0 16px;height:64px;}
+  .nav-logo-img{height:44px;}
   .hero{padding:80px 16px 90px;}
   .hero h1{font-size:32px;letter-spacing:-.5px;}
   .hero-btns{flex-direction:column;align-items:stretch;}
@@ -847,8 +849,16 @@ export default function Home() {
         <meta property="og:title" content="eSocial SST — Transmissão e Documentos com IA" />
         <meta property="og:description" content="Transmita os eventos SST do eSocial e gere os 7 documentos exigidos pelas NRs com IA." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://esocial-sst.vercel.app" />
-        <link rel="canonical" href="https://esocial-sst.vercel.app" />
+        <meta property="og:url" content="https://www.dsegconsultoria.com.br" />
+        <meta property="og:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
+        <meta property="og:image:width" content="2000" />
+        <meta property="og:image:height" content="2000" />
+        <meta property="og:locale" content="pt_BR" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="eSocial SST — Transmissão e Documentos com IA" />
+        <meta name="twitter:description" content="Transmita os eventos SST do eSocial e gere os 7 documentos exigidos pelas NRs com IA." />
+        <meta name="twitter:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
+        <link rel="canonical" href="https://www.dsegconsultoria.com.br" />
         <meta name="keywords" content="esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, ltcat esocial, certificado digital esocial, automatizar esocial sst" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
@@ -856,7 +866,7 @@ export default function Home() {
           name: 'eSocial SST',
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
-          url: 'https://esocial-sst.vercel.app',
+          url: 'https://www.dsegconsultoria.com.br',
           description: 'Software SaaS brasileiro para transmissão automática de eventos de Saúde e Segurança do Trabalho (SST) ao eSocial Gov.br, com módulo completo de documentos (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP).',
           featureList: ['Leitura de PDF com IA (ASO, LTCAT, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Dashboard executivo e relatório de conformidade', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
           aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '12' },
@@ -870,7 +880,7 @@ export default function Home() {
       <nav className={scrolled ? 'scrolled' : ''}>
         <div className="nav-inner">
           <a href="#" className="nav-logo">
-            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" style={{ height:90, width:'auto' }} />
+            <img src="/logo-completa.png" alt="DSEG Consultoria em SST" className="nav-logo-img" />
           </a>
           <div className="nav-links">
             <a href="#jornada">Como funciona</a>
