@@ -2,6 +2,7 @@
 // Geração de PDF para ASO, LTCAT e PCMSO usando jsPDF
 
 import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, nivelRisco } from './pgr-conteudo'
+import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
 
 export async function gerarPdfAso(dados: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
@@ -799,6 +800,17 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
@@ -825,6 +837,18 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
   campo('CPF', dg.resp_cpf, mg + col * 2 + 5, y, col)
   y += 12; linha(y); y += 6
 
+  // ── Textos legais (NR-17) ──────────────────────────────
+  const textosCustomAet = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_AET) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomAet[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
+
   const postos = dados?.postos_trabalho || []
   if (y > 240) { doc.addPage(); y = 20 }
   y = secao(`POSTOS DE TRABALHO AVALIADOS (${postos.length})`, y)
@@ -843,10 +867,21 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
       p.levantamento_peso && 'Levantamento de peso',
       p.posturas_inadequadas && 'Posturas inadequadas',
       p.repetitividade && 'Repetitividade',
+      p.controle_rigido_produtividade && 'Controle rígido de produtividade',
+      p.trabalho_noturno_turnos && 'Trabalho noturno/turnos',
     ].filter(Boolean)
     if (fatores.length) {
       doc.setFontSize(8); doc.setTextColor(151, 79, 0)
       doc.text(`Fatores de risco: ${fatores.join(', ')}`, mg, y); y += 5
+    }
+    if (p.descricao_organizacao_trabalho) {
+      doc.setFontSize(8); doc.setTextColor(80)
+      const linhas = doc.splitTextToSize(`Organização do trabalho: ${p.descricao_organizacao_trabalho}`, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 4 + 2
+    }
+    if (p.pausas_previstas) {
+      doc.setFontSize(8); doc.setTextColor(80)
+      doc.text(`Pausas previstas: ${p.pausas_previstas}`, mg, y); y += 5
     }
     if (p.recomendacoes?.length) {
       doc.setFontSize(8); doc.setTextColor(39, 80, 10)

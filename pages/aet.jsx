@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import { gerarPdfAet } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
+import { TEXTOS_LEGAIS_AET } from '../lib/aet-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,6 +16,7 @@ const supabase = createClient(
 const postoVazio = () => ({
   nome: '', setor: '', descricao_atividade: '',
   mobiliario_adequado: true, levantamento_peso: false, posturas_inadequadas: false, repetitividade: false,
+  descricao_organizacao_trabalho: '', controle_rigido_produtividade: false, trabalho_noturno_turnos: false, pausas_previstas: '',
   recomendacoes: [],
 })
 
@@ -32,6 +34,8 @@ export default function AET() {
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
   const [novaRecomendacao, setNovaRecomendacao] = useState('')
+  const [textoAberto, setTextoAberto] = useState(null)
+  const [modalTextos, setModalTextos] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -56,9 +60,25 @@ export default function AET() {
       data_elaboracao: new Date().toISOString().split('T')[0],
       prox_revisao: '', resp_nome: '', resp_conselho: 'CREA', resp_registro: '', resp_cpf: '',
       postos_trabalho: [],
+      textos_legais_custom: {},
     })
     setAba('editar')
     setSucesso(''); setErro('')
+  }
+
+  // ── Textos legais editáveis ───────────────────────────
+  function setTextoCustom(titulo, paragrafos) {
+    setForm(p => ({ ...p, textos_legais_custom: { ...(p.textos_legais_custom || {}), [titulo]: paragrafos } }))
+  }
+  function restaurarTextoPadrao(titulo) {
+    setForm(p => {
+      const textos = { ...(p.textos_legais_custom || {}) }
+      delete textos[titulo]
+      return { ...p, textos_legais_custom: textos }
+    })
+  }
+  function paragrafosDoTexto(titulo, padrao) {
+    return form.textos_legais_custom?.[titulo] || padrao
   }
 
   function abrirEdicao(aet) {
@@ -86,6 +106,7 @@ export default function AET() {
       resp_registro: form.resp_registro || null,
       resp_cpf: form.resp_cpf || null,
       postos_trabalho: form.postos_trabalho || [],
+      textos_legais_custom: form.textos_legais_custom || {},
       atualizado_em: new Date().toISOString(),
     }
 
@@ -162,6 +183,7 @@ export default function AET() {
           resp_nome: aet.resp_nome, resp_conselho: aet.resp_conselho, resp_registro: aet.resp_registro, resp_cpf: aet.resp_cpf,
         },
         postos_trabalho: aet.postos_trabalho || [],
+        textos_legais_custom: aet.textos_legais_custom || {},
       },
       { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
     )
@@ -179,6 +201,7 @@ export default function AET() {
           <div style={s.sub}>Análise Ergonômica do Trabalho · NR-17</div>
         </div>
         <div style={{ display:'flex', gap:6 }}>
+          {aetSel && <button style={s.btnOutline} onClick={() => setModalTextos(true)}>📃 Ver textos do documento</button>}
           {aetSel && <button style={s.btnOutline} onClick={() => exportarPdf(aetSel)}>📄 Exportar PDF</button>}
           <button style={s.btnPrimary} onClick={abrirNovo}>+ Nova AET</button>
         </div>
@@ -257,7 +280,15 @@ export default function AET() {
                           {p.levantamento_peso && <span style={s.tagRisco}>Levantamento de peso</span>}
                           {p.posturas_inadequadas && <span style={s.tagRisco}>Posturas inadequadas</span>}
                           {p.repetitividade && <span style={s.tagRisco}>Repetitividade</span>}
+                          {p.controle_rigido_produtividade && <span style={s.tagRisco}>Controle rígido de produtividade</span>}
+                          {p.trabalho_noturno_turnos && <span style={s.tagRisco}>Trabalho noturno/turnos</span>}
                         </div>
+                        {p.descricao_organizacao_trabalho && (
+                          <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}><strong>Organização do trabalho:</strong> {p.descricao_organizacao_trabalho}</div>
+                        )}
+                        {p.pausas_previstas && (
+                          <div style={{ fontSize:11, color:'#6b7280', marginTop:4 }}><strong>Pausas previstas:</strong> {p.pausas_previstas}</div>
+                        )}
                         {p.recomendacoes?.length > 0 && (
                           <div style={{ marginTop:6, fontSize:11, color:'#374151' }}>
                             <strong>Recomendações:</strong> {p.recomendacoes.join(' · ')}
@@ -337,6 +368,8 @@ export default function AET() {
                     { k:'levantamento_peso', l:'Levantamento de peso' },
                     { k:'posturas_inadequadas', l:'Posturas inadequadas' },
                     { k:'repetitividade', l:'Repetitividade' },
+                    { k:'controle_rigido_produtividade', l:'Controle rígido de produtividade' },
+                    { k:'trabalho_noturno_turnos', l:'Trabalho noturno/turnos' },
                   ].map(chk => (
                     <label key={chk.k} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer' }}>
                       <input type="checkbox" checked={!!p[chk.k]} onChange={e => setPosto(i, chk.k, e.target.checked)} />
@@ -344,6 +377,10 @@ export default function AET() {
                     </label>
                   ))}
                 </div>
+                <textarea style={{ ...s.input, minHeight:50, marginBottom:10 }} placeholder="Organização do trabalho (jornada, ritmo, metas de produção, modo operatório — NR-17 item 17.6)"
+                  value={p.descricao_organizacao_trabalho || ''} onChange={e => setPosto(i, 'descricao_organizacao_trabalho', e.target.value)} />
+                <input style={{ ...s.input, marginBottom:10 }} placeholder="Pausas previstas (ex: 10 min a cada 50 min de atividade)"
+                  value={p.pausas_previstas || ''} onChange={e => setPosto(i, 'pausas_previstas', e.target.value)} />
                 <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>RECOMENDAÇÕES</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>
                   {(p.recomendacoes || []).map((r,ri) => (
@@ -364,11 +401,66 @@ export default function AET() {
             {!(form.postos_trabalho || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum posto adicionado.</div>}
           </div>
 
+          {/* ── Textos legais do documento ── */}
+          <div style={{ marginBottom:16 }}>
+            <label style={s.label}>Textos legais do documento (NR-17)</label>
+            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
+            {TEXTOS_LEGAIS_AET.map(secaoTexto => {
+              const aberto = textoAberto === secaoTexto.titulo
+              const custom = form.textos_legais_custom?.[secaoTexto.titulo]
+              return (
+                <div key={secaoTexto.titulo} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:12, fontWeight:600 }}>
+                      {secaoTexto.titulo}
+                      {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
+                    </div>
+                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
+                      {aberto ? 'Fechar' : 'Ver / Editar'}
+                    </button>
+                  </div>
+                  {aberto && (
+                    <div style={{ marginTop:10 }}>
+                      <textarea
+                        style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
+                        value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
+                        onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
+                      />
+                      <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                        {custom && <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
+                        <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => setTextoAberto(null)}>Concluído</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
           {erro && <div style={s.erroBox}>{erro}</div>}
 
           <div style={{ display:'flex', gap:8 }}>
             <button style={s.btnPrimary} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar AET'}</button>
             <button style={s.btnOutline} onClick={cancelarEdicao}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {modalTextos && aetSel && (
+        <div style={s.overlay} onClick={() => setModalTextos(false)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Textos do documento (NR-17)</div>
+              <button onClick={() => setModalTextos(false)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+            </div>
+            {TEXTOS_LEGAIS_AET.map(secaoTexto => (
+              <div key={secaoTexto.titulo} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#185FA5', marginBottom:6 }}>{secaoTexto.titulo}</div>
+                {(aetSel.textos_legais_custom?.[secaoTexto.titulo] || secaoTexto.paragrafos).map((p, i) => (
+                  <div key={i} style={{ fontSize:12, color:'#374151', lineHeight:1.6, marginBottom:8 }}>{p}</div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -395,4 +487,6 @@ const s = {
   erroBox:    { background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   sucessoBox: { background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   tagRisco:   { padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:'#FAEEDA', color:'#633806' },
+  overlay:    { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'1rem' },
+  modal:      { background:'#fff', borderRadius:12, padding:'1.5rem', width:620, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' },
 }
