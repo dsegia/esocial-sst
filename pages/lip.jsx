@@ -18,6 +18,24 @@ const GRAU_INSALUBRIDADE = [
   { key:'maximo', label:'Máximo (40%)' },
 ]
 
+const MOTIVO_PERICULOSIDADE = [
+  { key:'', label:'Selecione o motivo...' },
+  { key:'inflamaveis',   label:'Inflamáveis / explosivos (NR-16 Anexo 1/2)' },
+  { key:'eletricidade',  label:'Energia elétrica (NR-16 Anexo 4)' },
+  { key:'radiacao',      label:'Radiação ionizante (NR-16 Anexo 5 antigo / atividades nucleares)' },
+  { key:'seguranca',     label:'Segurança patrimonial / roubo (NR-16 Anexo 3)' },
+  { key:'motocicleta',   label:'Uso de motocicleta em via pública (NR-16 Anexo V — Portaria MTE 2.021/2025)' },
+  { key:'outro',         label:'Outro' },
+]
+
+const FUNDAMENTACAO_SUGERIDA = {
+  motocicleta: 'NR-16, Anexo V (Portaria MTE nº 2.021/2025) — atividade habitual de deslocamento em via pública com motocicleta, conforme relatório de caracterização técnica.',
+  inflamaveis: 'NR-16, Anexo 1/2 — operações com inflamáveis/explosivos em quantidade acima do limite de isenção.',
+  eletricidade: 'NR-16, Anexo 4 — atividades e operações com energia elétrica em condições de risco.',
+  radiacao: 'NR-16 — atividades com radiação ionizante ou substâncias radioativas.',
+  seguranca: 'NR-16, Anexo 3 — atividades de segurança patrimonial ou pessoal com exposição a roubos e outras espécies de violência física.',
+}
+
 function funcoesDoLtcat(ltcat) {
   if (!ltcat?.ghes) return []
   const lista = []
@@ -28,7 +46,7 @@ function funcoesDoLtcat(ltcat) {
       lista.push({
         funcao, setor: ghe.setor || '', agentes: ghe.agentes || [],
         insalubre: false, grau_insalubridade: 'minimo', percentual_insalubridade: 10,
-        periculoso: false, fundamentacao: '',
+        periculoso: false, motivo_periculosidade: '', fundamentacao: '',
       })
     }
   }
@@ -142,7 +160,7 @@ export default function LIP() {
   }
 
   function addFuncaoManual() {
-    setForm(p => ({ ...p, funcoes: [...(p.funcoes || []), { funcao:'', setor:'', agentes:[], insalubre:false, grau_insalubridade:'minimo', percentual_insalubridade:10, periculoso:false, fundamentacao:'' }] }))
+    setForm(p => ({ ...p, funcoes: [...(p.funcoes || []), { funcao:'', setor:'', agentes:[], insalubre:false, grau_insalubridade:'minimo', percentual_insalubridade:10, periculoso:false, motivo_periculosidade:'', fundamentacao:'' }] }))
   }
 
   function setFuncao(i, field, value) {
@@ -151,6 +169,9 @@ export default function LIP() {
       funcoes[i] = { ...funcoes[i], [field]: value }
       if (field === 'grau_insalubridade') {
         funcoes[i].percentual_insalubridade = { minimo:10, medio:20, maximo:40 }[value] || 10
+      }
+      if (field === 'motivo_periculosidade' && value && !funcoes[i].fundamentacao) {
+        funcoes[i].fundamentacao = FUNDAMENTACAO_SUGERIDA[value] || ''
       }
       return { ...p, funcoes }
     })
@@ -271,7 +292,7 @@ export default function LIP() {
                         </div>
                         <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
                           {f.insalubre && <span style={{ ...s.tag, background:'#FAEEDA', color:'#633806' }}>Insalubre — {GRAU_INSALUBRIDADE.find(g=>g.key===f.grau_insalubridade)?.label || f.grau_insalubridade}</span>}
-                          {f.periculoso && <span style={{ ...s.tag, background:'#FCEBEB', color:'#791F1F' }}>Periculoso — 30%</span>}
+                          {f.periculoso && <span style={{ ...s.tag, background:'#FCEBEB', color:'#791F1F' }}>Periculoso — 30%{f.motivo_periculosidade ? ` · ${MOTIVO_PERICULOSIDADE.find(m=>m.key===f.motivo_periculosidade)?.label.split(' (')[0] || ''}` : ''}</span>}
                           {!f.insalubre && !f.periculoso && <span style={{ ...s.tag, background:'#EAF3DE', color:'#27500A' }}>Sem enquadramento</span>}
                         </div>
                         {f.fundamentacao && <div style={{ fontSize:11, color:'#6b7280', marginTop:6 }}>{f.fundamentacao}</div>}
@@ -355,7 +376,17 @@ export default function LIP() {
                     <input type="checkbox" checked={!!f.periculoso} onChange={e => setFuncao(i, 'periculoso', e.target.checked)} />
                     Periculoso (30%)
                   </label>
+                  {f.periculoso && (
+                    <select style={s.inputSm} value={f.motivo_periculosidade || ''} onChange={e => setFuncao(i, 'motivo_periculosidade', e.target.value)}>
+                      {MOTIVO_PERICULOSIDADE.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    </select>
+                  )}
                 </div>
+                {f.periculoso && f.motivo_periculosidade === 'motocicleta' && (
+                  <div style={{ background:'#FAEEDA', border:'0.5px solid #F3D9A4', borderRadius:8, padding:'8px 10px', fontSize:11, color:'#633806', marginBottom:10 }}>
+                    <strong>NR-16, Anexo V (Portaria MTE 2.021/2025):</strong> só configura periculosidade o uso de motocicleta como ferramenta de trabalho, em via pública, de forma habitual. <strong>Não</strong> gera periculosidade: trajeto residência–trabalho e volta; uso em local privado ou via interna sem circulação pública; uso eventual ou habitual com tempo de exposição extremamente reduzido. Recomenda-se elaborar relatório técnico de caracterização (percurso, tipo de via, frequência e tempo de exposição) e mantê-lo disponível aos trabalhadores, sindicato e fiscalização.
+                  </div>
+                )}
                 <input style={s.input} placeholder="Fundamentação (ex: NR-15 Anexo 1 — ruído contínuo)" value={f.fundamentacao||''} onChange={e => setFuncao(i, 'fundamentacao', e.target.value)} />
                 {f.agentes?.length > 0 && (
                   <div style={{ marginTop:8, fontSize:11, color:'#9ca3af' }}>
