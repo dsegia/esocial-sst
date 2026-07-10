@@ -13,9 +13,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
-const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico', aci:'Mecânico/Acidentes' }
-const COR_AGENTE  = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB', aci:'#EDE9FE' }
-const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F', aci:'#5B21B6' }
+const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico', aci:'Mecânico/Acidentes', psi:'Psicossocial' }
+const COR_AGENTE  = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB', aci:'#EDE9FE', psi:'#CFFAFE' }
+const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F', aci:'#5B21B6', psi:'#155E75' }
 
 const STATUS_ACAO = [
   { key:'pendente',    label:'Pendente',    cor:'#791F1F', bg:'#FCEBEB' },

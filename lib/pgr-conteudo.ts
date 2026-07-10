@@ -148,6 +148,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
       'Agentes biológicos: microrganismos tais como vírus, bactérias, protozoários, fungos, parasitas e bacilos.',
       'Riscos ergonômicos: relacionados ao processo produtivo e às tarefas executadas em situações inadequadas, tais como esforço físico intenso, levantamento e transporte manual de peso, exigência de postura inadequada, controle rígido de produtividade, imposição de ritmos excessivos, trabalho em turno noturno, jornadas prolongadas, monotonia e repetitividade.',
       'Riscos de acidentes: relacionados à execução das atividades, colocando em exposição a saúde e integridade física dos trabalhadores, tais como arranjo físico inadequado, máquinas e equipamentos sem proteção, ferramentas inadequadas ou defeituosas, iluminação inadequada, eletricidade, probabilidade de incêndio ou explosão, armazenamento inadequado e animais peçonhentos.',
+      'Riscos psicossociais: incluídos de forma explícita no GRO/PGR pela NR-1, com alterações dadas pela Portaria MTE nº 1.419/2024 (plenamente exigível desde 26/05/2026). Compreendem fatores relacionados à organização e às relações de trabalho capazes de causar dano à saúde física e mental do trabalhador, tais como: sobrecarga e ritmo de trabalho excessivos, metas inalcançáveis, jornadas extenuantes, assédio moral e sexual, violência no trabalho, conflitos interpessoais, falta de clareza de papéis e responsabilidades, e outras condições organizacionais que gerem estresse ocupacional crônico ou burnout.',
     ],
   },
   {

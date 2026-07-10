@@ -466,7 +466,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const ambientes = dados?.ambientes || []
   const inventario = dados?.inventario || []
   const planoAcao = dados?.plano_acao || []
-  const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico', aci: 'Mecânico/Acidentes' }
+  const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico', aci: 'Mecânico/Acidentes', psi: 'Psicossocial' }
 
   // ── Capa ──────────────────────────────────────────────
   doc.setFillColor(24, 95, 165)
