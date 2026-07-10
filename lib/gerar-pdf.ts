@@ -461,6 +461,35 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     }
     return yy + 2
   }
+  function tabela(colunas: { titulo: string; largura: number }[], linhas: string[][], yPos: number): number {
+    const larguraTotal = colunas.reduce((s, c) => s + c.largura, 0)
+    function cabecalho(yy: number) {
+      doc.setFillColor(24, 95, 165)
+      doc.rect(mg, yy, larguraTotal, 6, 'F')
+      doc.setFontSize(6.5); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+      let xx = mg
+      for (const col of colunas) { doc.text(col.titulo, xx + 1.5, yy + 4.2); xx += col.largura }
+      doc.setFont('helvetica', 'normal')
+      return yy + 6
+    }
+    if (yPos > 265) { doc.addPage(); yPos = 20 }
+    let yy = cabecalho(yPos)
+    for (const linha of linhas) {
+      const celulas = linha.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
+      const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
+      const alturaLinha = maxLinhas * 3.6 + 3
+      if (yy + alturaLinha > 285) { doc.addPage(); yy = cabecalho(20) }
+      doc.setFontSize(7.5); doc.setTextColor(50)
+      let x = mg
+      for (let ci = 0; ci < colunas.length; ci++) {
+        doc.text(celulas[ci], x + 1.5, yy + 3.2)
+        x += colunas[ci].largura
+      }
+      doc.setDrawColor(230); doc.line(mg, yy + alturaLinha - 1, mg + larguraTotal, yy + alturaLinha - 1)
+      yy += alturaLinha
+    }
+    return yy + 3
+  }
   function inserirImagens(imagens: string[], yPos: number, legendas?: (string | undefined)[]): number {
     if (!imagens?.length) return yPos
     const tam = 35, gap = 5
@@ -568,39 +597,80 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
   y += 2; linha(y); y += 6
 
-  // ── Inventário de riscos ──────────────────────────────
+  // ── Inventário de riscos por GHE ──────────────────────
   if (y > 235) { doc.addPage(); y = 20 }
-  y = secao(`INVENTÁRIO DE RISCOS (${inventario.length})`, y)
+  y = secao(`INVENTÁRIO DE RISCOS POR GHE (${inventario.length})`, y)
   if (inventario.length) {
-    for (const r of inventario) {
-      if (y > 255) { doc.addPage(); y = 20 }
-      const nr = nivelRisco(r.severidade, r.probabilidade)
-      doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
-      doc.text(`[${tipoMap[r.tipo] || r.tipo}] ${r.nome || '—'}${r.perigo ? ` — ${r.perigo}` : ''}`, mg + 2, y)
+    for (const g of inventario) {
+      if (y > 250) { doc.addPage(); y = 20 }
+      doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+      doc.text(g.nome || 'GHE', mg, y)
       doc.setFont('helvetica', 'normal')
-      if (nr) {
-        const [rC, gC, bC] = hexRgb(nr.cor)
-        doc.setFontSize(8); doc.setTextColor(rC, gC, bC)
-        doc.text(`${nr.faixa} (${nr.valor})`, W - mg - 2, y, { align: 'right' })
-      }
-      y += 4.5
-      const linha1 = `Função: ${r.funcao || '—'} · Ambiente: ${r.ghe || '—'} · Fontes: ${r.fontes_circunstancias || '—'}`
-      y = paragrafo(linha1, y, 8)
-      if (r.possiveis_danos) y = paragrafo(`Possíveis danos à saúde: ${r.possiveis_danos}`, y, 8)
-      const medicao = [
-        r.valor ? `Medido: ${r.valor}${r.unidade ? ' ' + r.unidade : ''}` : '',
-        r.limite ? `LT: ${r.limite}` : '',
-        r.equipamento ? `Equip.: ${r.equipamento}` : '',
-        r.trajetoria ? `Trajetória: ${r.trajetoria}` : '',
-        r.tipo_exposicao ? `Exposição: ${r.tipo_exposicao}` : '',
-        r.codigo_esocial ? `Cód. eSocial: ${r.codigo_esocial}` : '',
+      y += 5
+      const infoGhe = [
+        g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados}` : '',
+        g.jornada_trabalho ? `Jornada: ${g.jornada_trabalho}` : '',
+        g.numero_empregados ? `Nº empregados: ${g.numero_empregados}` : '',
       ].filter(Boolean).join(' · ')
-      if (medicao) y = paragrafo(medicao, y, 8)
-      doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
+      if (infoGhe) y = paragrafo(infoGhe, y, 8)
+      if (g.funcoes?.length) {
+        const funcoesTexto = g.funcoes
+          .map((f: any) => (f.atividades ? `${f.nome} (${f.atividades})` : f.nome))
+          .filter(Boolean).join('; ')
+        if (funcoesTexto) y = paragrafo(`Funções: ${funcoesTexto}`, y, 8)
+      }
+      y += 1
+
+      if (g.riscos?.length) {
+        y = tabela(
+          [
+            { titulo: 'PERIGO / RISCO', largura: 45 },
+            { titulo: 'FONTES/CIRCUNST.', largura: 35 },
+            { titulo: 'CÓD. ESOCIAL', largura: 20 },
+            { titulo: 'SEV/PROB/NÍVEL', largura: 30 },
+            { titulo: 'MEDIÇÃO', largura: 25 },
+            { titulo: 'EXPOSIÇÃO', largura: 25 },
+          ],
+          g.riscos.map((r: any) => {
+            const nr = nivelRisco(r.severidade, r.probabilidade)
+            return [
+              `[${tipoMap[r.tipo] || r.tipo}] ${r.nome || '—'}${r.perigo ? ` — ${r.perigo}` : ''}`,
+              r.fontes_circunstancias || '—',
+              r.codigo_esocial || '—',
+              nr ? `${r.severidade}/${r.probabilidade} = ${nr.faixa} (${nr.valor})` : '—',
+              r.valor ? `${r.valor}${r.unidade ? ' ' + r.unidade : ''}${r.limite ? ' / LT ' + r.limite : ''}` : '—',
+              [r.trajetoria, r.tipo_exposicao].filter(Boolean).join(' / ') || '—',
+            ]
+          }),
+          y,
+        )
+        const danos = g.riscos.filter((r: any) => r.possiveis_danos).map((r: any) => `${r.nome}: ${r.possiveis_danos}`).join(' · ')
+        if (danos) y = paragrafo(`Possíveis danos à saúde — ${danos}`, y, 7)
+      } else {
+        doc.setFontSize(8); doc.setTextColor(120)
+        doc.text('Nenhum risco cadastrado neste GHE.', mg + 2, y); y += 5
+      }
+
+      if (g.epis?.length) {
+        y = tabela(
+          [{ titulo: 'EPI', largura: 90 }, { titulo: 'ATENUAÇÃO', largura: 50 }, { titulo: 'EFICÁCIA', largura: 40 }],
+          g.epis.map((e: any) => [e.nome || '—', e.atenuacao || '—', e.eficaz ? 'Sim' : 'Não']),
+          y,
+        )
+      }
+
+      if (g.medidas_administrativas?.length) {
+        y = tabela(
+          [{ titulo: 'RISCO', largura: 60 }, { titulo: 'MEDIDA ADMINISTRATIVA', largura: 120 }],
+          g.medidas_administrativas.map((m: any) => [m.risco || '—', m.medida || '—']),
+          y,
+        )
+      }
+      doc.setDrawColor(200); doc.line(mg, y, W - mg, y); y += 6
     }
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
-    doc.text('Nenhum risco cadastrado.', mg + 2, y); y += 6
+    doc.text('Nenhum GHE cadastrado.', mg + 2, y); y += 6
   }
   y += 2; linha(y); y += 6
 
@@ -610,26 +680,23 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
   const priorMap: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
   if (planoAcao.length) {
-    for (const a of planoAcao) {
-      if (y > 250) { doc.addPage(); y = 20 }
-      doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
-      doc.text(`${a.risco || '—'}`, mg + 2, y)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8); doc.setTextColor(120)
-      doc.text(`Prioridade: ${priorMap[a.priorizacao] || '—'} · Status: ${statusMap[a.status] || a.status || '—'}`, W - mg - 2, y, { align: 'right' })
-      y += 4.5
-      if (a.medida_controle) y = paragrafo(`O que: ${a.medida_controle}`, y, 8)
-      if (a.justificativa) y = paragrafo(`Por que: ${a.justificativa}`, y, 8)
-      const quemComoOnde = [
-        a.responsavel ? `Quem: ${a.responsavel}` : '',
-        a.como ? `Como: ${a.como}` : '',
-        a.onde ? `Onde: ${a.onde}` : '',
-        a.prazo ? `Quando: ${new Date(a.prazo + 'T00:00').toLocaleDateString('pt-BR')}` : '',
-      ].filter(Boolean).join(' · ')
-      if (quemComoOnde) y = paragrafo(quemComoOnde, y, 8)
-      if (a.epis?.length) y = paragrafo(`EPIs: ${a.epis.map((e: any) => e.nome).filter(Boolean).join(', ')}`, y, 8)
-      doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
-    }
+    y = tabela(
+      [
+        { titulo: 'RISCO (PRIORIDADE)', largura: 35 },
+        { titulo: 'O QUE', largura: 45 },
+        { titulo: 'POR QUE', largura: 35 },
+        { titulo: 'QUEM / COMO / ONDE', largura: 40 },
+        { titulo: 'QUANDO / STATUS', largura: 25 },
+      ],
+      planoAcao.map((a: any) => [
+        `${a.risco || '—'}${a.priorizacao ? ` (${priorMap[a.priorizacao] || a.priorizacao})` : ''}`,
+        a.medida_controle || '—',
+        a.justificativa || '—',
+        [a.responsavel, a.como, a.onde].filter(Boolean).join(' / ') || '—',
+        `${a.prazo ? new Date(a.prazo + 'T00:00').toLocaleDateString('pt-BR') : '—'}${a.status ? ` (${statusMap[a.status] || a.status})` : ''}`,
+      ]),
+      y,
+    )
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhuma ação cadastrada.', mg + 2, y); y += 6

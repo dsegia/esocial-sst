@@ -8,6 +8,7 @@ import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, nivelRisco, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { redimensionarImagem } from '../lib/imagem-util'
+import { sugerirParaRisco } from '../lib/pgr-sugestoes'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,25 +25,51 @@ const STATUS_ACAO = [
   { key:'concluida',   label:'Concluída',   cor:'#27500A', bg:'#EAF3DE' },
 ]
 
-function inventarioDoLtcat(ltcat) {
-  if (!ltcat?.ghes) return []
-  const vistos = new Set()
-  const lista = []
-  for (const ghe of ltcat.ghes) {
-    for (const ag of (ghe.agentes || [])) {
-      const chave = `${ghe.nome}__${ag.nome}`
-      if (vistos.has(chave)) continue
-      vistos.add(chave)
-      lista.push({
-        ghe: ghe.nome || '—', funcao: '', tipo: ag.tipo, nome: ag.nome,
-        perigo: '', fontes_circunstancias: '', codigo_esocial: '', possiveis_danos: '',
-        severidade: '', probabilidade: '',
-        valor: ag.valor || '', unidade: ag.unidade || '', limite: ag.limite || '',
-        equipamento: '', trajetoria: '', tipo_exposicao: '',
-      })
-    }
+// ── Inventário de riscos por GHE ─────────────────────────
+function riscoVazio() {
+  return {
+    perigo: '', fontes_circunstancias: '', tipo: 'fis', codigo_esocial: '', nome: '',
+    possiveis_danos: '', severidade: '', probabilidade: '',
+    valor: '', unidade: '', limite: '', equipamento: '', trajetoria: '', tipo_exposicao: '',
   }
-  return lista
+}
+const funcaoVazia = () => ({ nome: '', atividades: '' })
+const epiGheVazio = () => ({ nome: '', atenuacao: '', eficaz: true })
+const medidaAdmVazia = (risco = '') => ({ risco, medida: '' })
+
+function gheVazio() {
+  return {
+    nome: '', ambientes_relacionados: '', jornada_trabalho: '', numero_empregados: '',
+    funcoes: [], riscos: [], epis: [], medidas_administrativas: [],
+  }
+}
+
+function gheInventarioDoLtcat(ltcat) {
+  if (!ltcat?.ghes) return []
+  return ltcat.ghes.map(ghe => {
+    const riscos = (ghe.agentes || []).map(ag => {
+      const sugestao = sugerirParaRisco(ag.nome)
+      return {
+        ...riscoVazio(),
+        tipo: ag.tipo, nome: ag.nome,
+        codigo_esocial: sugestao?.codigo_esocial || '',
+        valor: ag.valor || '', unidade: ag.unidade || '', limite: ag.limite || '',
+      }
+    })
+    const nomesRiscos = [...new Set(riscos.map(r => r.nome).filter(Boolean))]
+    return {
+      nome: ghe.nome || ghe.setor || 'GHE',
+      ambientes_relacionados: ghe.nome || ghe.setor || '',
+      jornada_trabalho: '', numero_empregados: '',
+      funcoes: (ghe.funcoes || []).map(fn => ({ nome: fn, atividades: '' })),
+      riscos,
+      epis: (ghe.epi || []).map(e => ({ nome: e.nome || '', atenuacao: '', eficaz: e.eficaz !== false })),
+      medidas_administrativas: nomesRiscos.map(nome => {
+        const sugestao = sugerirParaRisco(nome)
+        return { risco: nome, medida: sugestao?.medida_administrativa || '' }
+      }),
+    }
+  })
 }
 
 function ambientesDoLtcat(ltcat) {
@@ -55,18 +82,11 @@ function ambientesDoLtcat(ltcat) {
   }))
 }
 
-const riscoVazio = () => ({
-  ghe: 'Manual', funcao: '', tipo: 'fis', nome: '',
-  perigo: '', fontes_circunstancias: '', codigo_esocial: '', possiveis_danos: '',
-  severidade: '', probabilidade: '',
-  valor: '', unidade: '', limite: '', equipamento: '', trajetoria: '', tipo_exposicao: '',
-})
-
 const ambienteVazio = () => ({ nome: '', descricao: '', tipo: 'proprio', data_inicio: '', epcs: [], imagens: [] })
 
 const acaoVazia = (risco = '') => ({
   risco, medida_controle: '', justificativa: '', como: '', onde: 'Ambiente da empresa',
-  prazo: '', responsavel: '', priorizacao: 'media', epis: [], status: 'pendente',
+  prazo: '', responsavel: '', priorizacao: 'media', status: 'pendente',
 })
 
 export default function PGR() {
@@ -117,8 +137,9 @@ export default function PGR() {
   }
 
   function abrirNovo() {
-    const inventario = inventarioDoLtcat(ltcatAtivo)
+    const inventario = gheInventarioDoLtcat(ltcatAtivo)
     const ambientes = ambientesDoLtcat(ltcatAtivo)
+    const nomesRiscos = [...new Set(inventario.flatMap(g => g.riscos.map(r => r.nome)).filter(Boolean))]
     setForm({
       data_elaboracao: new Date().toISOString().split('T')[0],
       prox_revisao: '',
@@ -127,7 +148,7 @@ export default function PGR() {
       resp_registro: ltcatAtivo?.resp_registro || '',
       ambientes,
       inventario,
-      plano_acao: [...new Set(inventario.map(i => i.nome))].map(acaoVazia),
+      plano_acao: nomesRiscos.map(acaoVazia),
       textos_legais_custom: {},
       imagens_anexas: [],
     })
@@ -233,19 +254,127 @@ export default function PGR() {
     })
   }
 
-  // ── Inventário de riscos ──────────────────────────────
-  function addRiscoManual() {
-    setForm(p => ({ ...p, inventario: [...(p.inventario || []), riscoVazio()] }))
+  // ── GHEs (inventário) ─────────────────────────────────
+  function addGhe() {
+    setForm(p => ({ ...p, inventario: [...(p.inventario || []), gheVazio()] }))
   }
-  function setRisco(i, field, value) {
+  function setGhe(gi, field, value) {
     setForm(p => {
       const inventario = [...p.inventario]
-      inventario[i] = { ...inventario[i], [field]: value }
+      inventario[gi] = { ...inventario[gi], [field]: value }
       return { ...p, inventario }
     })
   }
-  function removerRisco(i) {
-    setForm(p => ({ ...p, inventario: p.inventario.filter((_, idx) => idx !== i) }))
+  function removerGhe(gi) {
+    setForm(p => ({ ...p, inventario: p.inventario.filter((_, idx) => idx !== gi) }))
+  }
+
+  function addFuncaoGhe(gi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].funcoes = [...(inventario[gi].funcoes || []), funcaoVazia()]
+      return { ...p, inventario }
+    })
+  }
+  function setFuncaoGhe(gi, fi, field, value) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].funcoes[fi][field] = value
+      return { ...p, inventario }
+    })
+  }
+  function removerFuncaoGhe(gi, fi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].funcoes = inventario[gi].funcoes.filter((_, idx) => idx !== fi)
+      return { ...p, inventario }
+    })
+  }
+
+  function addRiscoGhe(gi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].riscos = [...(inventario[gi].riscos || []), riscoVazio()]
+      return { ...p, inventario }
+    })
+  }
+  function setRiscoGhe(gi, ri, field, value) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].riscos[ri][field] = value
+      return { ...p, inventario }
+    })
+  }
+  function removerRiscoGhe(gi, ri) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].riscos = inventario[gi].riscos.filter((_, idx) => idx !== ri)
+      return { ...p, inventario }
+    })
+  }
+  // Ao sair do campo "risco", sugere código eSocial e medida administrativa
+  // (só preenche o que ainda estiver vazio — nunca sobrescreve o que já foi digitado)
+  function aoSairDoNomeRisco(gi, ri) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      const risco = inventario[gi].riscos[ri]
+      const sugestao = sugerirParaRisco(risco.nome)
+      if (!sugestao || !risco.nome) return p
+      if (!risco.codigo_esocial) risco.codigo_esocial = sugestao.codigo_esocial
+      const medidas = inventario[gi].medidas_administrativas || []
+      const existente = medidas.find(m => m.risco === risco.nome)
+      if (existente) {
+        if (!existente.medida) existente.medida = sugestao.medida_administrativa
+      } else {
+        medidas.push({ risco: risco.nome, medida: sugestao.medida_administrativa })
+      }
+      inventario[gi].medidas_administrativas = medidas
+      return { ...p, inventario }
+    })
+  }
+
+  function addEpiGhe(gi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].epis = [...(inventario[gi].epis || []), epiGheVazio()]
+      return { ...p, inventario }
+    })
+  }
+  function setEpiGhe(gi, ei, field, value) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].epis[ei][field] = value
+      return { ...p, inventario }
+    })
+  }
+  function removerEpiGhe(gi, ei) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].epis = inventario[gi].epis.filter((_, idx) => idx !== ei)
+      return { ...p, inventario }
+    })
+  }
+
+  function addMedidaAdmGhe(gi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].medidas_administrativas = [...(inventario[gi].medidas_administrativas || []), medidaAdmVazia()]
+      return { ...p, inventario }
+    })
+  }
+  function setMedidaAdmGhe(gi, mi, field, value) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].medidas_administrativas[mi][field] = value
+      return { ...p, inventario }
+    })
+  }
+  function removerMedidaAdmGhe(gi, mi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].medidas_administrativas = inventario[gi].medidas_administrativas.filter((_, idx) => idx !== mi)
+      return { ...p, inventario }
+    })
   }
 
   // ── Plano de ação ──────────────────────────────────────
@@ -261,27 +390,6 @@ export default function PGR() {
   }
   function removerAcao(i) {
     setForm(p => ({ ...p, plano_acao: p.plano_acao.filter((_, idx) => idx !== i) }))
-  }
-  function addEpiAcao(ai) {
-    setForm(p => {
-      const plano_acao = JSON.parse(JSON.stringify(p.plano_acao))
-      plano_acao[ai].epis = [...(plano_acao[ai].epis || []), { nome: '', ca: '', eficaz: true }]
-      return { ...p, plano_acao }
-    })
-  }
-  function setEpiAcao(ai, ei, field, value) {
-    setForm(p => {
-      const plano_acao = JSON.parse(JSON.stringify(p.plano_acao))
-      plano_acao[ai].epis[ei][field] = value
-      return { ...p, plano_acao }
-    })
-  }
-  function removerEpiAcao(ai, ei) {
-    setForm(p => {
-      const plano_acao = JSON.parse(JSON.stringify(p.plano_acao))
-      plano_acao[ai].epis = plano_acao[ai].epis.filter((_, idx) => idx !== ei)
-      return { ...p, plano_acao }
-    })
   }
 
   // ── Textos legais editáveis ───────────────────────────
@@ -356,10 +464,14 @@ export default function PGR() {
 
   if (carregando) return <div style={s.loading}>Carregando...</div>
 
+  const totalRiscos = (pgrSel?.inventario || []).reduce((acc, g) => acc + (g.riscos?.length || 0), 0)
   const acoesPendentes = (pgrSel?.plano_acao || []).filter(a => a.status !== 'concluida').length
-  const maiorRisco = (pgrSel?.inventario || []).reduce((max, r) => {
-    const n = nivelRisco(r.severidade, r.probabilidade)
-    return n && (!max || n.valor > max.valor) ? n : max
+  const maiorRisco = (pgrSel?.inventario || []).reduce((max, g) => {
+    for (const r of (g.riscos || [])) {
+      const n = nivelRisco(r.severidade, r.probabilidade)
+      if (n && (!max || n.valor > max.valor)) max = n
+    }
+    return max
   }, null)
 
   return (
@@ -388,7 +500,7 @@ export default function PGR() {
       {!ltcatAtivo && (
         <div style={{ ...s.card, background:'#FAEEDA', border:'0.5px solid #F3D9A4' }}>
           <div style={{ fontSize:13, color:'#633806' }}>
-            Nenhum LTCAT vigente encontrado. O inventário de riscos e os ambientes podem ser cadastrados manualmente, mas recomendamos cadastrar o LTCAT primeiro para herdar os agentes de risco automaticamente.
+            Nenhum LTCAT vigente encontrado. O inventário de riscos e os ambientes podem ser cadastrados manualmente, mas recomendamos cadastrar o LTCAT primeiro para herdar os GHEs e agentes de risco automaticamente.
           </div>
         </div>
       )}
@@ -396,9 +508,9 @@ export default function PGR() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:'1.25rem' }}>
         {[
           { n: pgrSel ? 'Vigente' : 'Ausente', l:'PGR', c: pgrSel ? '#1D9E75' : '#E24B4A' },
-          { n: pgrSel?.inventario?.length || 0, l:'Riscos no inventário', c:'#185FA5' },
+          { n: pgrSel?.inventario?.length || 0, l:'GHEs cadastrados', c:'#185FA5' },
+          { n: totalRiscos, l:'Riscos no inventário', c:'#185FA5' },
           { n: maiorRisco?.faixa || '—', l:'Maior nível de risco', c: maiorRisco?.cor || '#6b7280' },
-          { n: pgrSel?.plano_acao?.length || 0, l:'Ações no plano', c:'#185FA5' },
           { n: acoesPendentes, l:'Ações pendentes', c: acoesPendentes > 0 ? '#E24B4A' : '#1D9E75' },
         ].map((k,i) => (
           <div key={i} style={s.kpiCard}>
@@ -414,7 +526,7 @@ export default function PGR() {
             <div style={{ ...s.card, textAlign:'center', padding:'3rem' }}>
               <div style={{ fontSize:14, color:'#374151', marginBottom:8 }}>Nenhum PGR cadastrado</div>
               <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16 }}>
-                Monte os ambientes de trabalho, o inventário de riscos e o plano de ação da empresa
+                Monte os ambientes de trabalho, o inventário de riscos por GHE e o plano de ação da empresa
               </div>
               <button style={s.btnPrimary} onClick={abrirNovo}>+ Criar primeiro PGR</button>
             </div>
@@ -499,47 +611,104 @@ export default function PGR() {
               )}
 
               <div style={s.card}>
-                <div style={s.cardTit}>Inventário de riscos ({pgrSel.inventario?.length || 0})</div>
+                <div style={s.cardTit}>Inventário de riscos por GHE ({pgrSel.inventario?.length || 0})</div>
                 {pgrSel.inventario?.length ? (
-                  <div style={{ overflowX:'auto', marginTop:10 }}>
-                    <table style={s.table}>
-                      <thead>
-                        <tr style={{ background:'#f9fafb' }}>
-                          {['Tipo','Perigo / Risco','Função','Ambiente','Nível de risco','Medição','Exposição'].map(h => <th key={h} style={s.th}>{h}</th>)}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pgrSel.inventario.map((r,i) => {
-                          const nr = nivelRisco(r.severidade, r.probabilidade)
-                          return (
-                            <tr key={i} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
-                              <td style={s.td}>
-                                <span style={{ padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:COR_AGENTE[r.tipo]||'#f3f4f6', color:TXT_AGENTE[r.tipo]||'#374151' }}>
-                                  {TIPO_AGENTE[r.tipo] || r.tipo}
-                                </span>
-                              </td>
-                              <td style={s.td}>
-                                <div style={{ fontWeight:500 }}>{r.nome || '—'}</div>
-                                {r.perigo && <div style={{ fontSize:11, color:'#9ca3af' }}>{r.perigo}</div>}
-                              </td>
-                              <td style={s.td}>{r.funcao || '—'}</td>
-                              <td style={{ ...s.td, fontSize:11, color:'#9ca3af' }}>{r.ghe}</td>
-                              <td style={s.td}>
-                                {nr ? (
-                                  <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:nr.bg, color:nr.cor }}>
-                                    {nr.faixa} ({nr.valor})
-                                  </span>
-                                ) : <span style={{ fontSize:11, color:'#d1d5db' }}>—</span>}
-                              </td>
-                              <td style={s.td}>{r.valor ? `${r.valor}${r.unidade ? ` ${r.unidade}` : ''}${r.limite ? ` / LT ${r.limite}` : ''}` : '—'}</td>
-                              <td style={{ ...s.td, fontSize:11 }}>{r.tipo_exposicao || '—'}</td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
+                  <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:10 }}>
+                    {pgrSel.inventario.map((g, gi) => (
+                      <div key={gi} style={{ border:'0.5px solid #e5e7eb', borderRadius:10, padding:14 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color:'#111' }}>{g.nome || '—'}</div>
+                          <div style={{ fontSize:11, color:'#6b7280' }}>
+                            {g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados} · ` : ''}
+                            {g.jornada_trabalho ? `Jornada: ${g.jornada_trabalho} · ` : ''}
+                            {g.numero_empregados ? `${g.numero_empregados} empregado(s)` : ''}
+                          </div>
+                        </div>
+                        {g.funcoes?.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
+                            {g.funcoes.map((fn,fi) => (
+                              <span key={fi} title={fn.atividades || ''} style={{ padding:'3px 10px', borderRadius:99, fontSize:11, background:'#f3f4f6', color:'#374151' }}>{fn.nome}</span>
+                            ))}
+                          </div>
+                        )}
+                        {g.riscos?.length > 0 ? (
+                          <div style={{ overflowX:'auto', marginBottom:10 }}>
+                            <table style={s.table}>
+                              <thead>
+                                <tr style={{ background:'#f9fafb' }}>
+                                  {['Tipo','Perigo / Risco','Cód. eSocial','Nível de risco','Medição','Exposição'].map(h => <th key={h} style={s.th}>{h}</th>)}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {g.riscos.map((r,ri) => {
+                                  const nr = nivelRisco(r.severidade, r.probabilidade)
+                                  return (
+                                    <tr key={ri} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                                      <td style={s.td}>
+                                        <span style={{ padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:COR_AGENTE[r.tipo]||'#f3f4f6', color:TXT_AGENTE[r.tipo]||'#374151' }}>
+                                          {TIPO_AGENTE[r.tipo] || r.tipo}
+                                        </span>
+                                      </td>
+                                      <td style={s.td}>
+                                        <div style={{ fontWeight:500 }}>{r.nome || '—'}</div>
+                                        {r.perigo && <div style={{ fontSize:11, color:'#9ca3af' }}>{r.perigo}</div>}
+                                      </td>
+                                      <td style={{ ...s.td, fontSize:11, fontFamily:'monospace' }}>{r.codigo_esocial || '—'}</td>
+                                      <td style={s.td}>
+                                        {nr ? (
+                                          <span style={{ padding:'3px 10px', borderRadius:99, fontSize:11, fontWeight:600, background:nr.bg, color:nr.cor }}>
+                                            {nr.faixa} ({nr.valor})
+                                          </span>
+                                        ) : <span style={{ fontSize:11, color:'#d1d5db' }}>—</span>}
+                                      </td>
+                                      <td style={s.td}>{r.valor ? `${r.valor}${r.unidade ? ` ${r.unidade}` : ''}${r.limite ? ` / LT ${r.limite}` : ''}` : '—'}</td>
+                                      <td style={{ ...s.td, fontSize:11 }}>{r.tipo_exposicao || '—'}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : <div style={{ fontSize:12, color:'#9ca3af', marginBottom:10 }}>Nenhum risco cadastrado neste GHE.</div>}
+                        {g.epis?.length > 0 && (
+                          <div style={{ overflowX:'auto', marginBottom:10 }}>
+                            <table style={s.table}>
+                              <thead>
+                                <tr style={{ background:'#f9fafb' }}>{['EPI','Atenuação','Eficácia'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                              </thead>
+                              <tbody>
+                                {g.epis.map((e,ei) => (
+                                  <tr key={ei} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                                    <td style={s.td}>{e.nome || '—'}</td>
+                                    <td style={s.td}>{e.atenuacao || '—'}</td>
+                                    <td style={s.td}>{e.eficaz ? 'Sim' : 'Não'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {g.medidas_administrativas?.length > 0 && (
+                          <div style={{ overflowX:'auto' }}>
+                            <table style={s.table}>
+                              <thead>
+                                <tr style={{ background:'#f9fafb' }}>{['Risco','Medida administrativa'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                              </thead>
+                              <tbody>
+                                {g.medidas_administrativas.map((m,mi) => (
+                                  <tr key={mi} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                                    <td style={s.td}>{m.risco || '—'}</td>
+                                    <td style={s.td}>{m.medida || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum risco cadastrado.</div>}
+                ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum GHE cadastrado.</div>}
               </div>
 
               <div style={s.card}>
@@ -706,68 +875,121 @@ export default function PGR() {
             </div>
           </div>
 
-          {/* ── Inventário de riscos ── */}
+          {/* ── Inventário de riscos por GHE ── */}
           <div style={{ marginBottom:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <label style={s.label}>Inventário de riscos ({form.inventario?.length || 0})</label>
-              <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addRiscoManual}>+ Adicionar risco</button>
+              <label style={s.label}>Inventário de riscos por GHE ({form.inventario?.length || 0})</label>
+              <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addGhe}>+ Adicionar GHE</button>
             </div>
-            {(form.inventario || []).map((r, i) => {
-              const nr = nivelRisco(r.severidade, r.probabilidade)
-              return (
-                <div key={i} style={s.blocoItem}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span style={{ fontSize:10, color:'#9ca3af' }}>{r.ghe}</span>
-                    <button onClick={() => removerRisco(i)} style={s.btnRemover}>×</button>
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 1fr 1fr', gap:6, marginBottom:8 }}>
-                    <select style={s.inputSm} value={r.tipo} onChange={e => setRisco(i, 'tipo', e.target.value)}>
-                      {Object.entries(TIPO_AGENTE).map(([k,l]) => <option key={k} value={k}>{l}</option>)}
-                    </select>
-                    <input style={s.inputSm} placeholder="Agente / risco (ex: Ruído)" value={r.nome} onChange={e => setRisco(i, 'nome', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Perigo (ex: Intensidade)" value={r.perigo} onChange={e => setRisco(i, 'perigo', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Função / cargo" value={r.funcao} onChange={e => setRisco(i, 'funcao', e.target.value)} />
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:6, marginBottom:8 }}>
-                    <input style={s.inputSm} placeholder="Fontes / circunstâncias" value={r.fontes_circunstancias} onChange={e => setRisco(i, 'fontes_circunstancias', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Código eSocial" list="lista-codigo-esocial" value={r.codigo_esocial} onChange={e => setRisco(i, 'codigo_esocial', e.target.value)} />
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, alignItems:'center', marginBottom:8 }}>
-                    <select style={s.inputSm} value={r.severidade} onChange={e => setRisco(i, 'severidade', e.target.value ? parseInt(e.target.value,10) : '')}>
-                      <option value="">Severidade</option>
-                      {SEVERIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l} ({o.v})</option>)}
-                    </select>
-                    <select style={s.inputSm} value={r.probabilidade} onChange={e => setRisco(i, 'probabilidade', e.target.value ? parseInt(e.target.value,10) : '')}>
-                      <option value="">Probabilidade</option>
-                      {PROBABILIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l} ({o.v})</option>)}
-                    </select>
-                    {nr ? (
-                      <span style={{ textAlign:'center', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:600, background:nr.bg, color:nr.cor }}>
-                        {nr.faixa} ({nr.valor})
-                      </span>
-                    ) : <span style={{ textAlign:'center', fontSize:11, color:'#9ca3af' }}>Nível de risco</span>}
-                  </div>
-                  <input style={{ ...s.inputSm, marginBottom:8 }} placeholder="Possíveis danos à saúde" value={r.possiveis_danos} onChange={e => setRisco(i, 'possiveis_danos', e.target.value)} />
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:8 }}>
-                    <input style={s.inputSm} placeholder="Valor medido" value={r.valor} onChange={e => setRisco(i, 'valor', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Medida" list="unidades-medida-pgr" value={r.unidade} onChange={e => setRisco(i, 'unidade', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Limite de tolerância" value={r.limite} onChange={e => setRisco(i, 'limite', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Equipamento de medição" value={r.equipamento} onChange={e => setRisco(i, 'equipamento', e.target.value)} />
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-                    <select style={s.inputSm} value={r.trajetoria} onChange={e => setRisco(i, 'trajetoria', e.target.value)}>
-                      <option value="">Trajetória</option>
-                      {TRAJETORIA_OPCOES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <select style={s.inputSm} value={r.tipo_exposicao} onChange={e => setRisco(i, 'tipo_exposicao', e.target.value)}>
-                      <option value="">Tipo de exposição</option>
-                      {TIPO_EXPOSICAO_OPCOES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
+            {(form.inventario || []).map((g, gi) => (
+              <div key={gi} style={{ ...s.blocoItem, background:'#fff', border:'1px solid #d1d5db' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>GHE {gi + 1}</div>
+                  <button onClick={() => removerGhe(gi)} style={s.btnRemover}>×</button>
                 </div>
-              )
-            })}
-            {!(form.inventario || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum risco. Cadastre um LTCAT vigente ou adicione manualmente.</div>}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
+                  <input style={s.inputSm} placeholder="Nome do GHE (ex: ALMOXARIFADO)" value={g.nome} onChange={e => setGhe(gi, 'nome', e.target.value)} />
+                  <input style={s.inputSm} placeholder="Ambientes relacionados" value={g.ambientes_relacionados} onChange={e => setGhe(gi, 'ambientes_relacionados', e.target.value)} />
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:6, marginBottom:10 }}>
+                  <input style={s.inputSm} placeholder="Jornada de trabalho (ex: Seg/Sex 08:00-12:00/14:00-18:00)" value={g.jornada_trabalho} onChange={e => setGhe(gi, 'jornada_trabalho', e.target.value)} />
+                  <input style={s.inputSm} type="number" min="0" placeholder="Nº de empregados" value={g.numero_empregados} onChange={e => setGhe(gi, 'numero_empregados', e.target.value)} />
+                </div>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FUNÇÕES DESTE GHE</div>
+                {(g.funcoes || []).map((fn, fi) => (
+                  <div key={fi} style={{ display:'grid', gridTemplateColumns:'1fr 2fr 28px', gap:6, marginBottom:6, alignItems:'center' }}>
+                    <input style={s.inputSm} placeholder="Função (ex: Auxiliar Adm.)" value={fn.nome} onChange={e => setFuncaoGhe(gi, fi, 'nome', e.target.value)} />
+                    <input style={s.inputSm} placeholder="Descrição das atividades" value={fn.atividades} onChange={e => setFuncaoGhe(gi, fi, 'atividades', e.target.value)} />
+                    <button onClick={() => removerFuncaoGhe(gi, fi)} style={s.btnRemover}>×</button>
+                  </div>
+                ))}
+                <button style={{ ...s.btnAcao, fontSize:11, marginBottom:12 }} onClick={() => addFuncaoGhe(gi)}>+ Função</button>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>RISCOS DESTE GHE</div>
+                {(g.riscos || []).map((r, ri) => {
+                  const nr = nivelRisco(r.severidade, r.probabilidade)
+                  return (
+                    <div key={ri} style={{ border:'0.5px solid #e5e7eb', borderRadius:6, padding:10, marginBottom:8, background:'#fafbfc' }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                        <button onClick={() => removerRiscoGhe(gi, ri)} style={s.btnRemover}>×</button>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 1fr', gap:6, marginBottom:8 }}>
+                        <select style={s.inputSm} value={r.tipo} onChange={e => setRiscoGhe(gi, ri, 'tipo', e.target.value)}>
+                          {Object.entries(TIPO_AGENTE).map(([k,l]) => <option key={k} value={k}>{l}</option>)}
+                        </select>
+                        <input style={s.inputSm} placeholder="Agente / risco (ex: Ruído)" value={r.nome}
+                          onChange={e => setRiscoGhe(gi, ri, 'nome', e.target.value)}
+                          onBlur={() => aoSairDoNomeRisco(gi, ri)} />
+                        <input style={s.inputSm} placeholder="Perigo (ex: Intensidade)" value={r.perigo} onChange={e => setRiscoGhe(gi, ri, 'perigo', e.target.value)} />
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:6, marginBottom:8 }}>
+                        <input style={s.inputSm} placeholder="Fontes / circunstâncias" value={r.fontes_circunstancias} onChange={e => setRiscoGhe(gi, ri, 'fontes_circunstancias', e.target.value)} />
+                        <input style={s.inputSm} placeholder="Código eSocial (Tabela 24)" list="lista-codigo-esocial" value={r.codigo_esocial} onChange={e => setRiscoGhe(gi, ri, 'codigo_esocial', e.target.value)} />
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, alignItems:'center', marginBottom:8 }}>
+                        <select style={s.inputSm} value={r.severidade} onChange={e => setRiscoGhe(gi, ri, 'severidade', e.target.value ? parseInt(e.target.value,10) : '')}>
+                          <option value="">Severidade</option>
+                          {SEVERIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l} ({o.v})</option>)}
+                        </select>
+                        <select style={s.inputSm} value={r.probabilidade} onChange={e => setRiscoGhe(gi, ri, 'probabilidade', e.target.value ? parseInt(e.target.value,10) : '')}>
+                          <option value="">Probabilidade</option>
+                          {PROBABILIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l} ({o.v})</option>)}
+                        </select>
+                        {nr ? (
+                          <span style={{ textAlign:'center', padding:'6px 10px', borderRadius:8, fontSize:12, fontWeight:600, background:nr.bg, color:nr.cor }}>
+                            {nr.faixa} ({nr.valor})
+                          </span>
+                        ) : <span style={{ textAlign:'center', fontSize:11, color:'#9ca3af' }}>Nível de risco</span>}
+                      </div>
+                      <input style={{ ...s.inputSm, marginBottom:8 }} placeholder="Possíveis danos à saúde" value={r.possiveis_danos} onChange={e => setRiscoGhe(gi, ri, 'possiveis_danos', e.target.value)} />
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:8 }}>
+                        <input style={s.inputSm} placeholder="Valor medido" value={r.valor} onChange={e => setRiscoGhe(gi, ri, 'valor', e.target.value)} />
+                        <input style={s.inputSm} placeholder="Medida" list="unidades-medida-pgr" value={r.unidade} onChange={e => setRiscoGhe(gi, ri, 'unidade', e.target.value)} />
+                        <input style={s.inputSm} placeholder="Limite de tolerância" value={r.limite} onChange={e => setRiscoGhe(gi, ri, 'limite', e.target.value)} />
+                        <input style={s.inputSm} placeholder="Equipamento de medição" value={r.equipamento} onChange={e => setRiscoGhe(gi, ri, 'equipamento', e.target.value)} />
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                        <select style={s.inputSm} value={r.trajetoria} onChange={e => setRiscoGhe(gi, ri, 'trajetoria', e.target.value)}>
+                          <option value="">Trajetória</option>
+                          {TRAJETORIA_OPCOES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <select style={s.inputSm} value={r.tipo_exposicao} onChange={e => setRiscoGhe(gi, ri, 'tipo_exposicao', e.target.value)}>
+                          <option value="">Tipo de exposição</option>
+                          {TIPO_EXPOSICAO_OPCOES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )
+                })}
+                <button style={{ ...s.btnAcao, fontSize:11, marginBottom:12 }} onClick={() => addRiscoGhe(gi)}>+ Risco</button>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>EPI (COM ATENUAÇÃO E EFICÁCIA)</div>
+                {(g.epis || []).map((e, ei) => (
+                  <div key={ei} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 28px', gap:6, marginBottom:6, alignItems:'center' }}>
+                    <input style={s.inputSm} placeholder="Nome do EPI" value={e.nome} onChange={ev => setEpiGhe(gi, ei, 'nome', ev.target.value)} />
+                    <input style={s.inputSm} placeholder="Atenuação" value={e.atenuacao} onChange={ev => setEpiGhe(gi, ei, 'atenuacao', ev.target.value)} />
+                    <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer' }}>
+                      <input type="checkbox" checked={!!e.eficaz} onChange={ev => setEpiGhe(gi, ei, 'eficaz', ev.target.checked)} />
+                      Eficaz
+                    </label>
+                    <button onClick={() => removerEpiGhe(gi, ei)} style={s.btnRemover}>×</button>
+                  </div>
+                ))}
+                <button style={{ ...s.btnAcao, fontSize:11, marginBottom:12 }} onClick={() => addEpiGhe(gi)}>+ EPI</button>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>MEDIDAS ADMINISTRATIVAS</div>
+                {(g.medidas_administrativas || []).map((m, mi) => (
+                  <div key={mi} style={{ display:'grid', gridTemplateColumns:'1fr 2fr 28px', gap:6, marginBottom:6, alignItems:'center' }}>
+                    <input style={s.inputSm} placeholder="Risco" value={m.risco} onChange={ev => setMedidaAdmGhe(gi, mi, 'risco', ev.target.value)} />
+                    <input style={s.inputSm} placeholder="Medida administrativa" value={m.medida} onChange={ev => setMedidaAdmGhe(gi, mi, 'medida', ev.target.value)} />
+                    <button onClick={() => removerMedidaAdmGhe(gi, mi)} style={s.btnRemover}>×</button>
+                  </div>
+                ))}
+                <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => addMedidaAdmGhe(gi)}>+ Medida administrativa</button>
+              </div>
+            ))}
+            {!(form.inventario || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum GHE. Cadastre um LTCAT vigente ou adicione manualmente.</div>}
             <datalist id="lista-codigo-esocial">
               {ESOCIAL_TABELA24.map(a => <option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
             </datalist>
@@ -797,24 +1019,13 @@ export default function PGR() {
                 </div>
                 <textarea style={{ ...s.inputSm, minHeight:40, marginBottom:8 }} placeholder="O que — medida de controle/prevenção" value={a.medida_controle} onChange={e => setAcao(i, 'medida_controle', e.target.value)} />
                 <textarea style={{ ...s.inputSm, minHeight:40, marginBottom:8 }} placeholder="Por que — justificativa da ação" value={a.justificativa} onChange={e => setAcao(i, 'justificativa', e.target.value)} />
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:8 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6 }}>
                   <input style={s.inputSm} placeholder="Como" value={a.como} onChange={e => setAcao(i, 'como', e.target.value)} />
                   <input style={s.inputSm} placeholder="Onde" value={a.onde} onChange={e => setAcao(i, 'onde', e.target.value)} />
                   <input type="date" style={s.inputSm} value={a.prazo || ''} onChange={e => setAcao(i, 'prazo', e.target.value)} />
                   <select style={s.inputSm} value={a.priorizacao} onChange={e => setAcao(i, 'priorizacao', e.target.value)}>
                     {PRIORIZACAO_OPCOES.map(p => <option key={p.v} value={p.v}>{p.l}</option>)}
                   </select>
-                </div>
-                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>EPIS APLICÁVEIS</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                  {(a.epis || []).map((e,ei) => (
-                    <span key={ei} style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 8px', borderRadius:99, fontSize:11, background:'#EAF3DE' }}>
-                      <input style={{ border:'none', background:'transparent', fontSize:11, color:'#27500A', width:100 }} placeholder="EPI" value={e.nome} onChange={ev => setEpiAcao(i, ei, 'nome', ev.target.value)} />
-                      <input style={{ border:'none', background:'transparent', fontSize:11, color:'#27500A', width:60 }} placeholder="CA" value={e.ca} onChange={ev => setEpiAcao(i, ei, 'ca', ev.target.value)} />
-                      <button onClick={() => removerEpiAcao(i, ei)} style={{ background:'none', border:'none', cursor:'pointer', color:'#27500A' }}>×</button>
-                    </span>
-                  ))}
-                  <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => addEpiAcao(i)}>+ EPI</button>
                 </div>
               </div>
             ))}
@@ -901,7 +1112,7 @@ const s = {
   label:      { display:'block', fontSize:12, fontWeight:500, color:'#374151', marginBottom:4 },
   input:      { width:'100%', padding:'8px 10px', fontSize:13, border:'1px solid #d1d5db', borderRadius:8, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' },
   inputSm:    { width:'100%', padding:'5px 8px', fontSize:12, border:'1px solid #d1d5db', borderRadius:6, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' },
-  table:      { width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 },
+  table:      { width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:640 },
   th:         { padding:'8px 10px', textAlign:'left', fontSize:10, fontWeight:600, color:'#6b7280', borderBottom:'0.5px solid #e5e7eb', textTransform:'uppercase', letterSpacing:'.04em', whiteSpace:'nowrap' },
   td:         { padding:'8px 10px', verticalAlign:'top', color:'#374151' },
   btnAcao:    { padding:'3px 10px', fontSize:11, background:'transparent', border:'0.5px solid #d1d5db', borderRadius:6, cursor:'pointer', color:'#374151' },
