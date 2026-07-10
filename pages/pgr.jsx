@@ -40,7 +40,7 @@ const medidaAdmVazia = (risco = '') => ({ risco, medida: '' })
 function gheVazio() {
   return {
     nome: '', ambientes_relacionados: '', jornada_trabalho: '', numero_empregados: '',
-    funcoes: [], riscos: [], epis: [], medidas_administrativas: [],
+    funcoes: [], riscos: [], epis: [], medidas_administrativas: [], imagem: null,
   }
 }
 
@@ -68,6 +68,7 @@ function gheInventarioDoLtcat(ltcat) {
         const sugestao = sugerirParaRisco(nome)
         return { risco: nome, medida: sugestao?.medida_administrativa || '' }
       }),
+      imagem: null,
     }
   })
 }
@@ -425,21 +426,22 @@ export default function PGR() {
       return { ...p, ambientes }
     })
   }
-  async function addImagensAnexas(fileList) {
-    const arquivos = Array.from(fileList || [])
-    if (!arquivos.length) return
-    const dataUrls = await Promise.all(arquivos.map(f => redimensionarImagem(f)))
-    setForm(p => ({ ...p, imagens_anexas: [...(p.imagens_anexas || []), ...dataUrls.map(dataUrl => ({ dataUrl, legenda: '' }))] }))
-  }
-  function setLegendaImagemAnexa(idx, legenda) {
+  async function addImagemGhe(gi, fileList) {
+    const arquivo = fileList?.[0]
+    if (!arquivo) return
+    const dataUrl = await redimensionarImagem(arquivo)
     setForm(p => {
-      const imagens_anexas = [...p.imagens_anexas]
-      imagens_anexas[idx] = { ...imagens_anexas[idx], legenda }
-      return { ...p, imagens_anexas }
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].imagem = dataUrl
+      return { ...p, inventario }
     })
   }
-  function removerImagemAnexa(idx) {
-    setForm(p => ({ ...p, imagens_anexas: p.imagens_anexas.filter((_, i) => i !== idx) }))
+  function removerImagemGhe(gi) {
+    setForm(p => {
+      const inventario = JSON.parse(JSON.stringify(p.inventario))
+      inventario[gi].imagem = null
+      return { ...p, inventario }
+    })
   }
 
   function exportarPdf(pgr) {
@@ -624,6 +626,9 @@ export default function PGR() {
                             {g.numero_empregados ? `${g.numero_empregados} empregado(s)` : ''}
                           </div>
                         </div>
+                        {g.imagem && (
+                          <img src={g.imagem} alt={`Foto de ${g.nome || 'GHE'}`} style={{ width:100, height:100, objectFit:'cover', borderRadius:8, border:'0.5px solid #e5e7eb', marginBottom:10 }} />
+                        )}
                         {g.funcoes?.length > 0 && (
                           <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
                             {g.funcoes.map((fn,fi) => (
@@ -854,27 +859,6 @@ export default function PGR() {
             {!(form.ambientes || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum ambiente cadastrado.</div>}
           </div>
 
-          {/* ── Imagens anexas ── */}
-          <div style={{ marginBottom:20 }}>
-            <label style={s.label}>Imagens anexas ({form.imagens_anexas?.length || 0})</label>
-            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Fotos gerais, layout, croqui do local, etc. — vão no PDF como apêndice.</div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-start' }}>
-              {(form.imagens_anexas || []).map((img, i) => (
-                <div key={i} style={{ ...s.blocoItem, width:150, textAlign:'center' }}>
-                  <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                    <button onClick={() => removerImagemAnexa(i)} style={s.btnRemover}>×</button>
-                  </div>
-                  <img src={img.dataUrl} alt={img.legenda || `Imagem ${i+1}`} style={{ width:'100%', height:100, objectFit:'cover', borderRadius:6, marginBottom:6 }} />
-                  <input style={s.inputSm} placeholder="Legenda" value={img.legenda} onChange={e => setLegendaImagemAnexa(i, e.target.value)} />
-                </div>
-              ))}
-              <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer', height:'fit-content' }}>
-                + Adicionar imagem
-                <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { addImagensAnexas(e.target.files); e.target.value = '' }} />
-              </label>
-            </div>
-          </div>
-
           {/* ── Inventário de riscos por GHE ── */}
           <div style={{ marginBottom:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
@@ -894,6 +878,21 @@ export default function PGR() {
                 <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:6, marginBottom:10 }}>
                   <input style={s.inputSm} placeholder="Jornada de trabalho (ex: Seg/Sex 08:00-12:00/14:00-18:00)" value={g.jornada_trabalho} onChange={e => setGhe(gi, 'jornada_trabalho', e.target.value)} />
                   <input style={s.inputSm} type="number" min="0" placeholder="Nº de empregados" value={g.numero_empregados} onChange={e => setGhe(gi, 'numero_empregados', e.target.value)} />
+                </div>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FOTO DO GHE</div>
+                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
+                  {g.imagem ? (
+                    <div style={{ position:'relative' }}>
+                      <img src={g.imagem} alt={`Foto de ${g.nome || 'GHE'}`} style={{ width:56, height:56, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
+                      <button onClick={() => removerImagemGhe(gi)} style={{ position:'absolute', top:-6, right:-6, width:18, height:18, borderRadius:'50%', background:'#E24B4A', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:'18px', padding:0 }}>×</button>
+                    </div>
+                  ) : (
+                    <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer' }}>
+                      + Foto
+                      <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => { addImagemGhe(gi, e.target.files); e.target.value = '' }} />
+                    </label>
+                  )}
                 </div>
 
                 <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FUNÇÕES DESTE GHE</div>
