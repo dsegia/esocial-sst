@@ -85,7 +85,7 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .stat-label{font-size:13px;color:#64748b;margin-top:6px;font-weight:500;}
 
 /* ── SECTION COMMON ── */
-.section-wrap{max-width:1180px;margin:0 auto;padding:88px 24px;}
+.section-wrap{max-width:1180px;margin:0 auto;padding:0 24px;}
 .section-center{text-align:center;}
 .section-label{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#185FA5;margin-bottom:14px;}
 .section-label::before{content:"";width:24px;height:2px;background:linear-gradient(90deg,#185FA5,#3b82f6);border-radius:2px;}
@@ -288,7 +288,7 @@ footer{background:#0f172a;padding:56px 24px 32px;}
   .hero h1{font-size:32px;letter-spacing:-.5px;}
   .hero-btns{flex-direction:column;align-items:stretch;}
   .btn-hero-main,.btn-hero-sec{justify-content:center;text-align:center;}
-  .section-wrap{padding:56px 16px;}
+  .section-wrap{padding:0 16px;}
   .blog-grid,.pricing-grid{grid-template-columns:1fr;}
   .pipeline-node{gap:16px;}
   .pipeline-badge{width:44px;height:44px;font-size:16px;border-radius:12px;}
