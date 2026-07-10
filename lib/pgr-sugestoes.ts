@@ -35,9 +35,9 @@ const BASE_CONHECIMENTO: Sugestao[] = [
     medida_administrativa: 'Reduzir o tempo de exposição; uso de protetor auditivo tipo concha; manutenção preventiva de equipamentos.',
   },
   {
-    chaves: ['altura', 'trabalho em altura', 'queda de altura'],
+    chaves: ['altura', 'trabalho em altura', 'queda de altura', 'escada', 'escada de uso individual'],
     codigo_esocial: '09.01.001',
-    medida_administrativa: 'Uso de cinto de segurança com talabarte e trava-quedas; treinamentos na função (NR-35); inspeção periódica dos equipamentos de proteção contra quedas.',
+    medida_administrativa: 'Priorizar acesso por solo, rampa ou escada coletiva antes de escada de uso individual (hierarquia NR-35); quando inevitável o uso de talabarte para retenção de quedas, este deve ser dotado de absorvedor de energia integrado (NR-35, item 35.6.9.1.1); uso de cinto de segurança e trava-quedas; treinamentos na função, incluindo uso seguro de escadas (NR-35, Anexo III — Portaria MTE nº 1.680/2025); inspeção periódica dos equipamentos de proteção contra quedas.',
   },
   {
     chaves: ['choque eletrico', 'eletricidade', 'corrente eletrica'],
