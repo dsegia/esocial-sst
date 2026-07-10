@@ -258,8 +258,8 @@ export default function TransmissaoManual() {
         })
         const transmitirData = await transmitirResp.json()
 
-        if (transmitirResp.status === 402 || transmitirData.sem_creditos) {
-          throw new Error('Créditos de envio esgotados. Acesse /planos para adquirir mais envios.')
+        if (transmitirResp.status === 402) {
+          throw new Error(transmitirData.erro || 'Acesso expirado. Acesse /planos para continuar transmitindo.')
         }
 
         if (transmitirData.sucesso) {

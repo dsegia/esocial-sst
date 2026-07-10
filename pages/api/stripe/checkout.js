@@ -1,51 +1,13 @@
 // pages/api/stripe/checkout.js
 //
-// Stripe setup necessário para cada plano:
-//   1. Criar um Price recorrente mensal (flat rate) → STRIPE_PRICE_<PLANO>
-//   2. Criar um Price recorrente metered com aggregate_usage=sum → STRIPE_PRICE_<PLANO>_EXCEDENTE
-//      (unit_amount em centavos: micro=190, starter=150, pro=120)
+// Plano único por vidas: 1 Price metered (billing_scheme=tiered,
+// tiers_mode=volume, aggregate_usage=max) em STRIPE_PRICE_VIDAS.
+// O valor cobrado é definido automaticamente pelas faixas do Price,
+// a partir do usage record diário (qtd_funcionarios ativos) — ver
+// pages/api/cron/snapshot-vidas.js. Não há escolha de plano no checkout.
 //
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-
-const PLANOS = {
-  micro: {
-    nome: 'Micro',
-    priceId: process.env.STRIPE_PRICE_MICRO,
-    priceIdExcedente: process.env.STRIPE_PRICE_MICRO_EXCEDENTE,
-    creditos: 50,
-    maxFuncionarios: 50,
-  },
-  starter: {
-    nome: 'Starter',
-    priceId: process.env.STRIPE_PRICE_STARTER,
-    priceIdExcedente: process.env.STRIPE_PRICE_STARTER_EXCEDENTE,
-    creditos: 100,
-    maxFuncionarios: 200,
-  },
-  pro: {
-    nome: 'Pro',
-    priceId: process.env.STRIPE_PRICE_PRO,
-    priceIdExcedente: process.env.STRIPE_PRICE_PRO_EXCEDENTE,
-    creditos: 400,
-    maxFuncionarios: 1000,
-  },
-  // Planos legados mantidos para assinantes existentes
-  professional: {
-    nome: 'Professional',
-    priceId: process.env.STRIPE_PRICE_PROFESSIONAL,
-    priceIdExcedente: null,
-    creditos: 100,
-    maxFuncionarios: 200,
-  },
-  business: {
-    nome: 'Business',
-    priceId: process.env.STRIPE_PRICE_BUSINESS,
-    priceIdExcedente: null,
-    creditos: 9999,
-    maxFuncionarios: 500,
-  },
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
@@ -54,8 +16,10 @@ export default async function handler(req, res) {
     const stripeKey = process.env.STRIPE_SECRET_KEY
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://esocial-sst.vercel.app'
+    const priceVidas = process.env.STRIPE_PRICE_VIDAS
 
     if (!stripeKey) return res.status(500).json({ erro: 'STRIPE_SECRET_KEY não configurada' })
+    if (!priceVidas) return res.status(500).json({ erro: 'STRIPE_PRICE_VIDAS não configurado' })
 
     const token = req.headers.authorization?.replace('Bearer ', '')
     if (!token) return res.status(401).json({ erro: 'Não autenticado' })
@@ -73,11 +37,6 @@ export default async function handler(req, res) {
 
     if (!empresaId) return res.status(403).json({ erro: 'Empresa não encontrada para este usuário' })
 
-    const { plano } = req.body
-    const planoInfo = PLANOS[plano]
-    if (!planoInfo) return res.status(400).json({ erro: `Plano inválido: "${plano}"` })
-    if (!planoInfo.priceId) return res.status(500).json({ erro: `Price ID não configurado para ${plano}` })
-
     const stripe = new Stripe(stripeKey, { apiVersion: '2024-06-20' })
     const { data: empresa } = await sbAdmin.from('empresas')
       .select('id, razao_social, cnpj, stripe_customer_id').eq('id', empresaId).single()
@@ -93,22 +52,16 @@ export default async function handler(req, res) {
       await sbAdmin.from('empresas').update({ stripe_customer_id: customerId }).eq('id', empresaId)
     }
 
-    // Monta line_items: base + metered (excedente) quando disponível
-    const lineItems = [{ price: planoInfo.priceId, quantity: 1 }]
-    if (planoInfo.priceIdExcedente) {
-      lineItems.push({ price: planoInfo.priceIdExcedente })
-    }
-
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card', 'boleto'],
-      line_items: lineItems,
-      success_url: `${siteUrl}/dashboard?upgrade=ok&plano=${plano}`,
+      line_items: [{ price: priceVidas }],
+      success_url: `${siteUrl}/dashboard?upgrade=ok`,
       cancel_url: `${siteUrl}/planos?cancelado=1`,
-      metadata: { empresa_id: empresaId, plano },
+      metadata: { empresa_id: empresaId },
       subscription_data: {
-        metadata: { empresa_id: empresaId, plano },
+        metadata: { empresa_id: empresaId },
       },
     })
 

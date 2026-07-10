@@ -55,7 +55,7 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
   const [multi, setMulti] = useState(false)
   const [plano, setPlano] = useState<string>('trial')
   const [trialDias, setTrialDias] = useState<number>(14)
-  const [creditos, setCreditos] = useState<{ restantes: number; incluidos: number } | null>(null)
+  const [qtdFuncionarios, setQtdFuncionarios] = useState<number | null>(null)
 
   const PAGES_SEM_BLOQUEIO = ['/planos', '/conta', '/login', '/cadastro', '/aceitar-convite', '/']
   const CACHE_KEY = 'esst_layout'
@@ -75,7 +75,7 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
     try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() })) } catch {}
   }
 
-  function aplicarDados(usuario: any, emp: any) {
+  function aplicarDados(usuario: any, emp: any, qtdFuncs?: number | null) {
     if (!usuario || !emp) return
     setNomeUser(usuario.nome || '')
     const perfilAtual = usuario.perfil || 'operador'
@@ -84,9 +84,7 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
     setSemCert(!emp.cert_digital_validade)
     const planoAtual = emp.plano || 'trial'
     setPlano(planoAtual)
-    if (emp.creditos_restantes != null) {
-      setCreditos({ restantes: emp.creditos_restantes, incluidos: emp.creditos_incluidos ?? 0 })
-    }
+    if (qtdFuncs != null) setQtdFuncionarios(qtdFuncs)
 
     // Visualizador: redireciona para /relatorios se tentar acessar rota proibida
     if (perfilAtual === 'visualizador') {
@@ -118,7 +116,7 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
     // Aplica cache imediatamente — sidebar fica preenchida sem esperar queries
     const cache = lerCache()
     if (cache) {
-      aplicarDados(cache.usuario, cache.emp)
+      aplicarDados(cache.usuario, cache.emp, cache.qtdFuncionarios)
     }
 
     // Busca dados frescos em paralelo (atualiza em background)
@@ -127,20 +125,24 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
       const eId = getEmpresaId()
 
       // Promise.all: queries em paralelo em vez de sequencial (salva ~300ms)
-      const [{ data: usuario }, { data: emp }] = await Promise.all([
+      const [{ data: usuario }, { data: emp }, funcResp] = await Promise.all([
         supabase.from('usuarios').select('nome, empresa_id, perfil').eq('id', session.user.id).single(),
         eId
-          ? supabase.from('empresas').select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos').eq('id', eId).maybeSingle()
+          ? supabase.from('empresas').select('razao_social, cert_digital_validade, plano, trial_inicio').eq('id', eId).maybeSingle()
           : Promise.resolve({ data: null }),
+        eId
+          ? supabase.from('funcionarios').select('id', { count: 'exact', head: true }).eq('empresa_id', eId).eq('ativo', true)
+          : Promise.resolve({ count: null }),
       ])
+      const qtdFuncs = funcResp.count
 
       // Se empresa não veio ainda (empresa_id está no usuario), busca agora
       const empFinal = emp || await supabase.from('empresas')
-        .select('razao_social, cert_digital_validade, plano, trial_inicio, creditos_restantes, creditos_incluidos')
+        .select('razao_social, cert_digital_validade, plano, trial_inicio')
         .eq('id', usuario?.empresa_id).maybeSingle().then(r => r.data)
 
-      salvarCache({ usuario, emp: empFinal })
-      aplicarDados(usuario, empFinal)
+      salvarCache({ usuario, emp: empFinal, qtdFuncionarios: qtdFuncs })
+      aplicarDados(usuario, empFinal, qtdFuncs)
     })
   }, [])
 
@@ -233,30 +235,17 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
           })}
         </nav>
 
-        {/* Saldo de envios (assinantes ativos) */}
-        {creditos && !['trial','cancelado'].includes(plano) && (() => {
-          const usados = creditos.incluidos - creditos.restantes
-          const pct = creditos.incluidos > 0 ? Math.min(100, Math.round(usados / creditos.incluidos * 100)) : 0
-          const cor = creditos.restantes === 0 ? '#dc2626' : creditos.restantes <= Math.round(creditos.incluidos * 0.15) ? '#EF9F27' : '#27a048'
-          return (
+        {/* Vidas ativas (assinantes ativos) — cobrança escala com esse número */}
+        {qtdFuncionarios != null && !['trial','cancelado'].includes(plano) && (
           <div style={{ padding:'0 .75rem', marginBottom:'.5rem' }}>
             <a href="/planos" style={{ display:'block', padding:'8px 10px', borderRadius:8, background:'#f9fafb', border:'0.5px solid #e5e7eb', textDecoration:'none' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                <span style={{ fontSize:10, color:'#6b7280' }}>Envios este mês</span>
-                <span style={{ fontSize:11, fontWeight:700, color: cor }}>
-                  {usados}/{creditos.incluidos}
-                </span>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:10, color:'#6b7280' }}>Vidas ativas</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'#185FA5' }}>{qtdFuncionarios}</span>
               </div>
-              <div style={{ height:4, background:'#e5e7eb', borderRadius:99, overflow:'hidden' }}>
-                <div style={{ height:'100%', borderRadius:99, width:`${pct}%`, background: cor, transition:'width .3s' }} />
-              </div>
-              {creditos.restantes <= Math.round(creditos.incluidos * 0.3) && creditos.restantes > 0 && (
-                <div style={{ fontSize:9, color:'#9ca3af', marginTop:3 }}>{creditos.restantes} restante{creditos.restantes !== 1 ? 's' : ''}</div>
-              )}
             </a>
           </div>
-          )
-        })()}
+        )}
 
         {/* Banner trial / upgrade */}
         {(plano === 'trial' || plano === 'cancelado') && (

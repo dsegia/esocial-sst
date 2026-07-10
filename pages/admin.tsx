@@ -22,12 +22,9 @@ type Empresa = {
   trans_mes_passado: number
   variacao_pct: number | null
   funcionarios: number
+  mensalidade_estimada: number
   responsavel: { nome: string; email: string } | null
   created_at: string
-  creditos_incluidos: number
-  creditos_restantes: number
-  creditos_usados: number
-  divergencia: boolean
 }
 
 type Transmissao = {
@@ -46,11 +43,12 @@ type Totais = {
   pendente: number
   erros: number
   funcionarios: number
+  vidas_faturaveis: number
   mrr: number
   trials_ativos: number
 }
 
-const PLANOS = ['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'cancelado']
+const PLANOS = ['trial', 'vidas', 'cancelado']
 
 export default function Admin() {
   const router = useRouter()
@@ -77,7 +75,6 @@ export default function Admin() {
   const [salvandoPlano, setSalvandoPlano] = useState(false)
 
   // Renovação de créditos
-  const [renovandoId, setRenovandoId] = useState<string | null>(null)
 
   // Bloqueio inline
   const [bloqueandoId, setBloqueandoId] = useState<string | null>(null)
@@ -310,10 +307,8 @@ export default function Admin() {
   }
 
   function corPlano(plano: string) {
-    if (plano === 'starter')      return { bg: '#E6F1FB', cor: '#185FA5' }
-    if (plano === 'professional') return { bg: '#EAF3DE', cor: '#27500A' }
-    if (plano === 'business')     return { bg: '#FAEEDA', cor: '#633806' }
-    if (plano === 'cancelado')    return { bg: '#FCEBEB', cor: '#791F1F' }
+    if (plano === 'vidas')     return { bg: '#E6F1FB', cor: '#185FA5' }
+    if (plano === 'cancelado') return { bg: '#FCEBEB', cor: '#791F1F' }
     return { bg: '#f3f4f6', cor: '#6b7280' } // trial
   }
 
@@ -441,7 +436,8 @@ export default function Admin() {
                   { label: 'Trials ativos', valor: totais.trials_ativos.toLocaleString('pt-BR'), cor: '#633806', bg: '#FAEEDA', icon: 'M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zM12 6v6l4 2' },
                   { label: 'Envios este mês', valor: totais.trans_mes.toLocaleString('pt-BR'), cor: '#185FA5', bg: '#E6F1FB', icon: 'M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z' },
                   { label: 'Com erro', valor: totais.erros.toLocaleString('pt-BR'), cor: '#791F1F', bg: '#FCEBEB', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
-                  { label: 'Funcionários', valor: totais.funcionarios.toLocaleString('pt-BR'), cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
+                  { label: 'Vidas ativas (total)', valor: totais.funcionarios.toLocaleString('pt-BR'), cor: '#374151', bg: '#f3f4f6', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
+                  { label: 'Vidas faturáveis', valor: totais.vidas_faturaveis.toLocaleString('pt-BR'), cor: '#185FA5', bg: '#E6F1FB', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8z' },
                 ].map(c => (
                   <div key={c.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '1rem 1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -594,24 +590,9 @@ export default function Admin() {
                               </span>
                             </td>
                             <td style={{ padding: '10px 12px', minWidth: 110 }}>
-                              {emp.creditos_incluidos > 0 ? (() => {
-                                const pct = Math.min(100, Math.round(emp.creditos_usados / emp.creditos_incluidos * 100))
-                                const cor = pct >= 100 ? '#dc2626' : pct >= 80 ? '#EF9F27' : '#27a048'
-                                return (
-                                  <div>
-                                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, fontWeight:600, color: cor, marginBottom:3 }}>
-                                      <span>{emp.creditos_usados}/{emp.creditos_incluidos}</span>
-                                      <span style={{ color:'#9ca3af', fontWeight:400 }}>{pct}%{emp.divergencia ? ' ⚠' : ''}</span>
-                                    </div>
-                                    <div style={{ height:4, background:'#e5e7eb', borderRadius:99, overflow:'hidden' }}>
-                                      <div style={{ height:'100%', width:`${pct}%`, background: cor, borderRadius:99 }} />
-                                    </div>
-                                  </div>
-                                )
-                              })() : (
-                                <span style={{ color:'#9ca3af', fontSize:11 }}>
-                                  {emp.plano === 'trial' ? `${emp.trans_mes} envios` : '—'}
-                                </span>
+                              <span style={{ fontSize: 12, color: '#374151' }}>{emp.trans_mes} envios</span>
+                              {emp.plano === 'vidas' && (
+                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>R$ {emp.mensalidade_estimada}/mês</div>
                               )}
                             </td>
                             <td style={{ padding: '10px 12px' }}>
@@ -829,29 +810,6 @@ export default function Admin() {
                             >
                               {bloqueandoId === emp.id ? '...' : emp.bloqueado ? '✓ Desbloquear' : '⊘ Bloquear'}
                             </button>
-
-                            {/* Renovar créditos */}
-                            {emp.creditos_incluidos > 0 && (
-                              <button
-                                onClick={async () => {
-                                  if (!confirm(`Renovar ${emp.creditos_incluidos} créditos para ${emp.razao_social}?`)) return
-                                  setRenovandoId(emp.id)
-                                  const { data: { session } } = await supabase.auth.getSession()
-                                  await fetch('/api/admin/renovar-creditos', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-                                    body: JSON.stringify({ empresa_id: emp.id }),
-                                  })
-                                  setRenovandoId(null)
-                                  carregar()
-                                }}
-                                disabled={renovandoId === emp.id}
-                                title={`Renovar créditos (${emp.creditos_incluidos} créditos do plano ${emp.plano})`}
-                                style={{ padding: '4px 8px', background: emp.divergencia ? '#FEF3C7' : '#f3f4f6', color: emp.divergencia ? '#92400E' : '#374151', border: emp.divergencia ? '1px solid #D97706' : 'none', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                              >
-                                {renovandoId === emp.id ? '...' : emp.divergencia ? '⚠ Renovar' : '↺ Renovar'}
-                              </button>
-                            )}
 
                             {/* Resetar senha */}
                             <button

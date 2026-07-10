@@ -5,8 +5,8 @@
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/cron/reset-creditos",
-      "schedule": "0 6 1 * *"
+      "path": "/api/cron/snapshot-vidas",
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/alertas-trial",

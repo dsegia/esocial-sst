@@ -198,7 +198,7 @@ export default async function handler(req, res) {
 
   // ─── Executa as verificações que tocam rede/banco em paralelo ──
   const [
-    pingGov, empResult, transStuck, transRej, trans7d, logs24h, certVenc, divergencias, semResp,
+    pingGov, empResult, transStuck, transRej, trans7d, logs24h, certVenc, semResp,
   ] = await Promise.allSettled([
     // Ping Gov.br
     (async () => {
@@ -218,8 +218,6 @@ export default async function handler(req, res) {
     sb.from('api_logs').select('status, custo_usd, criado_em').gte('criado_em', ha24h),
     // Certificados vencidos / vencendo
     sb.from('empresas').select('razao_social, cert_digital_validade').not('cert_digital_validade', 'is', null),
-    // Divergência de créditos
-    sb.from('empresas').select('razao_social, creditos_incluidos, creditos_restantes').gt('creditos_incluidos', 0),
     // Empresas sem responsável (usuarios)
     sb.from('empresas').select('id, razao_social').neq('plano', 'cancelado'),
   ])
@@ -300,12 +298,6 @@ export default async function handler(req, res) {
 
   // ─── 7. DADOS & NEGÓCIO ────────────────────────────────────────
   const negChecks = []
-  const div = val(divergencias) || []
-  if (Array.isArray(div)) {
-    const comDiv = div.filter(e => (e.creditos_restantes ?? 0) > (e.creditos_incluidos ?? 0))
-    negChecks.push(check('Créditos consistentes', comDiv.length === 0 ? 'ok' : 'aviso',
-      comDiv.length === 0 ? 'Nenhuma empresa com créditos acima do incluído' : `${comDiv.length} empresa(s) com créditos restantes > incluídos`))
-  }
   // Empresas ativas sem responsável vinculado
   const ativas = val(semResp) || []
   if (Array.isArray(ativas) && ativas.length > 0) {

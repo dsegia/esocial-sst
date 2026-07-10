@@ -3,17 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const PLANOS_VALIDOS = ['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'enterprise']
-
-const CREDITOS_POR_PLANO = {
-  trial:        10,
-  micro:        50,
-  starter:      100,
-  pro:          400,
-  professional: 100,
-  business:     9999,
-  enterprise:   9999,
-}
+const PLANOS_VALIDOS = ['trial', 'vidas', 'cancelado']
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
@@ -58,15 +48,12 @@ export default async function handler(req, res) {
       return res.status(409).json({ erro: 'Este e-mail já possui cadastro no sistema' })
     }
 
-    const creditos = CREDITOS_POR_PLANO[plano] ?? 0
     // Cria empresa
     const { data: empresa, error: empErr } = await sb.from('empresas').insert({
       razao_social: razao_social.trim(),
       cnpj: cnpj?.trim() || null,
       plano,
       trial_inicio: plano === 'trial' ? new Date().toISOString() : null,
-      creditos_incluidos: creditos,
-      creditos_restantes: creditos,
     }).select().single()
 
     if (empErr) throw new Error('Erro ao criar empresa: ' + empErr.message)

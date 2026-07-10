@@ -3,6 +3,7 @@
 // Usa SUPABASE_SERVICE_ROLE_KEY para bypassar RLS e ver todos os dados
 
 import { createClient } from '@supabase/supabase-js'
+import { calcularMensalidade } from '../../../lib/vidas-planos'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ erro: 'Método não permitido' })
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
     // Busca todas as empresas — usa nomes reais das colunas (criado_em, ativo)
     const { data: empresas, error: errEmp } = await sb
       .from('empresas')
-      .select('id, razao_social, cnpj, plano, trial_inicio, ativo, criado_em, creditos_incluidos, creditos_restantes')
+      .select('id, razao_social, cnpj, plano, trial_inicio, ativo, criado_em')
       .order('criado_em', { ascending: false })
 
     if (errEmp) throw new Error('Erro ao buscar empresas: ' + errEmp.message)
@@ -125,6 +126,7 @@ export default async function handler(req, res) {
       const variacao = transAnterior > 0
         ? Math.round(((trans.total - transAnterior) / transAnterior) * 100)
         : null
+      const qtdFuncionarios = mapFuncs[emp.id] || 0
       return {
         id: emp.id,
         razao_social: emp.razao_social,
@@ -138,16 +140,9 @@ export default async function handler(req, res) {
         trans_transmitido: trans.enviado,
         trans_mes_passado: transAnterior,
         variacao_pct: variacao,
-        funcionarios: mapFuncs[emp.id] || 0,
+        funcionarios: qtdFuncionarios,
+        mensalidade_estimada: emp.plano === 'vidas' ? calcularMensalidade(qtdFuncionarios) : 0,
         responsavel: mapUsuario[emp.id] || null,
-        creditos_incluidos: emp.creditos_incluidos ?? 0,
-        creditos_restantes: emp.creditos_restantes ?? 0,
-        creditos_usados: (emp.creditos_incluidos ?? 0) - (emp.creditos_restantes ?? 0),
-        // divergencia: créditos consumidos ≠ transmissões enviadas/rejeitadas (indica anomalia)
-        divergencia: Math.abs(
-          ((emp.creditos_incluidos ?? 0) - (emp.creditos_restantes ?? 0)) -
-          ((mapTrans[emp.id]?.enviado ?? 0) + (mapTrans[emp.id]?.erro ?? 0))
-        ) > 0,
         trial_restante: emp.plano === 'trial' && emp.trial_inicio
           ? Math.max(0, 14 - Math.ceil((Date.now() - new Date(emp.trial_inicio).getTime()) / 86400000))
           : null,
@@ -174,17 +169,17 @@ export default async function handler(req, res) {
     const totalErros    = (transAtual || []).filter(t => t.status === 'rejeitado').length
     const totalFuncs    = Object.values(mapFuncs).reduce((a, b) => a + b, 0)
 
-    const PRECO_PLANO = { micro: 49, starter: 97, pro: 197, professional: 197, business: 497, enterprise: 997 }
     // Exclui do MRR a empresa do próprio admin (conta interna)
     const adminEmpresaId = (() => {
       const adminUser = (authUsers?.users || []).find(u => u.email === adminEmail)
       if (!adminUser) return null
       return (usuarios || []).find(u => u.id === adminUser.id)?.empresa_id || null
     })()
-    const mrr = (empresas || [])
-      .filter(e => e.id !== adminEmpresaId)
-      .reduce((acc, e) => acc + (PRECO_PLANO[e.plano] || 0), 0)
+    const empresasFaturaveis = (empresas || []).filter(e => e.plano === 'vidas' && e.id !== adminEmpresaId)
+    const mrr = empresasFaturaveis
+      .reduce((acc, e) => acc + calcularMensalidade(mapFuncs[e.id] || 0), 0)
     const trialsAtivos = (empresas || []).filter(e => e.plano === 'trial' && e.id !== adminEmpresaId).length
+    const totalVidasFaturaveis = empresasFaturaveis.reduce((acc, e) => acc + (mapFuncs[e.id] || 0), 0)
 
     // AI usage/cost — mês atual e mês passado, agrupado por modelo
     const { data: logsAtual } = await sb
@@ -219,7 +214,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      totais: { empresas: totalEmpresas, trans_mes: totalTrans, pendente: totalPendente, erros: totalErros, funcionarios: totalFuncs, mrr, trials_ativos: trialsAtivos },
+      totais: { empresas: totalEmpresas, trans_mes: totalTrans, pendente: totalPendente, erros: totalErros, funcionarios: totalFuncs, vidas_faturaveis: totalVidasFaturaveis, mrr, trials_ativos: trialsAtivos },
       empresas: empresasEnriquecidas,
       recentes: recentesEnriquecidas,
       ia_uso: {

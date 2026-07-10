@@ -2,7 +2,6 @@
 // Transmite eventos assinados ao webservice SOAP do eSocial
 
 import https from 'node:https'
-import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { requireAuth } from '../../lib/auth-middleware'
@@ -126,20 +125,21 @@ export default async function handler(req, res) {
 
   if (!empresaId) return res.status(403).json({ erro: 'Empresa não encontrada para este usuário' })
 
-  // Verifica e consome crédito de envio
+  // Transmissão é ilimitada dentro do plano por vidas — só checa se a
+  // empresa está com o acesso ativo (trial vigente, plano pago ou bloqueio).
   const { data: empresa } = await sbAdmin
     .from('empresas')
-    .select('id, cnpj, plano, creditos_restantes, stripe_customer_id, tipo_acesso, ecac_cnpj_procurador, cert_pfx_path, cert_senha_enc, trial_inicio, bloqueado')
+    .select('id, cnpj, plano, tipo_acesso, ecac_cnpj_procurador, cert_pfx_path, cert_senha_enc, trial_inicio, bloqueado')
     .eq('id', empresaId).single()
 
   if (!empresa) return res.status(403).json({ erro: 'Empresa não encontrada' })
 
   if (empresa.bloqueado) {
-    return res.status(403).json({ erro: 'Conta bloqueada. Acesse /planos para reativar.', sem_creditos: true })
+    return res.status(403).json({ erro: 'Conta bloqueada. Acesse /planos para reativar.' })
   }
 
   if (empresa.plano === 'cancelado') {
-    return res.status(403).json({ erro: 'Assinatura cancelada. Acesse /planos para reativar.', sem_creditos: true })
+    return res.status(403).json({ erro: 'Assinatura cancelada. Acesse /planos para reativar.' })
   }
 
   if (empresa.plano === 'trial') {
@@ -148,37 +148,6 @@ export default async function handler(req, res) {
     if (new Date() > expira) {
       return res.status(402).json({ erro: 'Período de trial expirado. Acesse /planos para continuar transmitindo.', trial_expirado: true })
     }
-  }
-
-  if (empresa.creditos_restantes > 0) {
-    // Dedução atômica — evita race condition com requisições simultâneas
-    const { data: deduziu } = await sbAdmin.rpc('consumir_credito', { p_empresa_id: empresaId })
-    if (!deduziu) {
-      return res.status(402).json({
-        erro: 'Créditos de envio esgotados. Acesse Planos para adquirir um plano com mais envios.',
-        sem_creditos: true,
-      })
-    }
-  } else if (empresa.stripe_customer_id && process.env.STRIPE_SECRET_KEY && process.env.STRIPE_METER_ENVIOS) {
-    // Créditos esgotados — registra evento no meter do Stripe (cobrado no fechamento do ciclo)
-    try {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' })
-      await stripe.billing.meterEvents.create({
-        event_name: 'esocial_envio',
-        payload: {
-          value: '1',
-          stripe_customer_id: empresa.stripe_customer_id,
-        },
-      })
-    } catch (err) {
-      console.error('[transmitir] erro ao registrar uso metered:', err?.message)
-      return res.status(500).json({ erro: 'Erro ao registrar envio excedente. Tente novamente.' })
-    }
-  } else if (empresa.plano !== 'trial' && empresa.plano !== 'enterprise') {
-    return res.status(402).json({
-      erro: 'Créditos de envio esgotados. Acesse Planos para adquirir um plano com mais envios.',
-      sem_creditos: true,
-    })
   }
 
   const { xml_assinado, cnpj_empregador, ambiente = 'producao', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body

@@ -194,10 +194,6 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
-      consumir_credito: {
-        Args: { p_empresa_id: string }
-        Returns: boolean
-      }
       get_plano_empresa: {
         Args: { p_empresa_id: string }
         Returns: {
@@ -205,9 +201,7 @@ export type Database = {
           plano_expira_em: string | null
           trial_ativo: boolean
           trial_dias_restantes: number
-          max_funcionarios: number
           qtd_funcionarios: number
-          pode_adicionar: boolean
           tem_stripe: boolean
         }
       }
@@ -257,28 +251,19 @@ export type CAT = Database['public']['Tables']['cats']['Row']
 export type Transmissao = Database['public']['Tables']['transmissoes']['Row']
 export type Empresa = Database['public']['Tables']['empresas']['Row']
 
-// Plano / assinatura
-export type TipoPlano = 'trial' | 'micro' | 'starter' | 'pro' | 'professional' | 'business' | 'enterprise' | 'cancelado'
+// Plano / assinatura — plano único por vidas ativas (ver lib/vidas-planos.ts para as faixas)
+export type TipoPlano = 'trial' | 'vidas' | 'cancelado'
 export type PlanoStatus = {
   plano: TipoPlano
   plano_expira_em: string | null
   trial_ativo: boolean
   trial_dias_restantes: number
-  max_funcionarios: number
   qtd_funcionarios: number
-  pode_adicionar: boolean
   tem_stripe: boolean
-  creditos_restantes?: number
-  creditos_incluidos?: number
 }
 
-export const PLANOS: Record<string, { label: string; preco: number; max: number; cor: string; envios?: number; excedente?: string }> = {
-  trial:        { label: 'Trial',        preco: 0,   max: 50,     cor: '#9ca3af' },
-  micro:        { label: 'Micro',        preco: 49,  max: 50,     cor: '#185FA5', envios: 50,  excedente: 'R$ 1,90/envio extra' },
-  starter:      { label: 'Starter',      preco: 97,  max: 200,    cor: '#27500A', envios: 100, excedente: 'R$ 1,50/envio extra' },
-  pro:          { label: 'Pro',          preco: 197, max: 1000,   cor: '#633806', envios: 400, excedente: 'R$ 1,20/envio extra' },
-  professional: { label: 'Professional', preco: 97,  max: 200,    cor: '#27500A' },
-  business:     { label: 'Business',     preco: 697, max: 1000,   cor: '#633806' },
-  enterprise:   { label: 'Enterprise',   preco: 0,   max: 999999, cor: '#059669' },
-  cancelado:    { label: 'Cancelado',    preco: 0,   max: 0,      cor: '#ef4444' },
+export const PLANOS: Record<TipoPlano, { label: string; cor: string }> = {
+  trial:     { label: 'Trial',     cor: '#9ca3af' },
+  vidas:     { label: 'Por Vidas', cor: '#185FA5' },
+  cancelado: { label: 'Cancelado', cor: '#ef4444' },
 }

@@ -12,26 +12,6 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const PLANOS_VALIDOS = new Set(['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'enterprise'])
-
-const CREDITOS_POR_PLANO: Record<string, number> = {
-  micro:        50,
-  starter:      100,
-  pro:          400,
-  professional: 100,
-  business:     9999,
-  enterprise:   9999,
-}
-
-const MAX_FUNCIONARIOS: Record<string, number> = {
-  micro:        999999,
-  starter:      999999,
-  pro:          999999,
-  professional: 999999,
-  business:     999999,
-  enterprise:   999999,
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
 
@@ -51,26 +31,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   switch (event.type) {
 
-    // Assinatura criada / atualizada
+    // Assinatura criada / atualizada — plano por vidas (item único metered)
     case 'customer.subscription.created':
     case 'customer.subscription.updated': {
       const sub = event.data.object as Stripe.Subscription
-      const plano = sub.metadata?.plano as string
       const empresaId = empresaIdDe(sub)
-      if (!empresaId || !plano) break
-      if (!PLANOS_VALIDOS.has(plano)) {
-        console.error('[webhook] plano inválido recebido do Stripe:', plano)
-        break
-      }
+      if (!empresaId) break
 
       const ativo = sub.status === 'active' || sub.status === 'trialing'
       const expira = sub.current_period_end
         ? new Date(sub.current_period_end * 1000).toISOString()
         : null
 
-      const creditosIncluidos = CREDITOS_POR_PLANO[plano] ?? 0
-
-      // Extrai o subscription item metered (excedente), se presente
       const meteredItem = (sub.items?.data ?? []).find(
         (item: any) => item.price?.recurring?.usage_type === 'metered'
       )
@@ -78,12 +50,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { error: updateErr } = await supabaseAdmin
         .from('empresas')
         .update({
-          plano: ativo ? plano : 'cancelado',
+          plano: ativo ? 'vidas' : 'cancelado',
           plano_expira_em: expira,
           stripe_subscription_id: sub.id,
-          max_funcionarios: ativo ? (MAX_FUNCIONARIOS[plano] ?? 50) : 0,
-          creditos_incluidos: ativo ? creditosIncluidos : 0,
-          creditos_restantes: ativo ? creditosIncluidos : 0,
           stripe_metered_item_id: meteredItem?.id ?? null,
         })
         .eq('id', empresaId)
@@ -109,9 +78,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           plano_expira_em: null,
           stripe_subscription_id: null,
           stripe_metered_item_id: null,
-          max_funcionarios: 0,
-          creditos_restantes: 0,
-          creditos_incluidos: 0,
         })
         .eq('id', empresaId)
 
@@ -120,31 +86,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'DB update failed' })
       }
 
-      break
-    }
-
-    // Fatura paga — renova créditos do ciclo mensal
-    case 'invoice.paid': {
-      const invoice = event.data.object as Stripe.Invoice
-      const subscriptionId = invoice.subscription as string
-      if (!subscriptionId) break
-
-      const { data: empresa } = await supabaseAdmin
-        .from('empresas')
-        .select('id, creditos_incluidos')
-        .eq('stripe_subscription_id', subscriptionId)
-        .single()
-
-      if (empresa && empresa.creditos_incluidos > 0) {
-        const { error: renewErr } = await supabaseAdmin
-          .from('empresas')
-          .update({ creditos_restantes: empresa.creditos_incluidos })
-          .eq('id', empresa.id)
-        if (renewErr) {
-          console.error('[webhook] erro ao renovar créditos:', empresa.id, renewErr.message)
-          return res.status(500).json({ error: 'DB update failed' })
-        }
-      }
       break
     }
 

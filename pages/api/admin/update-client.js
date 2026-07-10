@@ -3,11 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-const PLANOS_VALIDOS = ['trial', 'micro', 'starter', 'pro', 'professional', 'business', 'enterprise', 'cancelado']
-
-const CREDITOS_POR_PLANO = {
-  micro: 50, starter: 100, pro: 400, professional: 100, business: 9999, enterprise: 9999,
-}
+const PLANOS_VALIDOS = ['trial', 'vidas', 'cancelado']
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erro: 'Método não permitido' })
@@ -41,17 +37,7 @@ export default async function handler(req, res) {
 
   try {
     const patch = {}
-    if (plano !== undefined) {
-      patch.plano = plano
-      // Ao mudar plano, ajusta créditos conforme o novo plano
-      if (plano === 'cancelado') {
-        patch.creditos_incluidos = 0
-        patch.creditos_restantes = 0
-      } else if (CREDITOS_POR_PLANO[plano]) {
-        patch.creditos_incluidos = CREDITOS_POR_PLANO[plano]
-        patch.creditos_restantes = CREDITOS_POR_PLANO[plano]
-      }
-    }
+    if (plano !== undefined) patch.plano = plano
     if (bloqueado !== undefined) patch.ativo = !bloqueado
     if (plano === 'trial') patch.trial_inicio = new Date().toISOString()
 
