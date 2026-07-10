@@ -179,11 +179,31 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .price-list{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:28px;}
 .price-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#475569;}
 .chk{color:#16a34a;font-weight:800;flex-shrink:0;font-size:14px;}
-.price-btn{width:100%;padding:14px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:block;text-align:center;transition:transform .15s,box-shadow .15s;}
+.price-btn{width:100%;padding:14px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:block;text-align:center;transition:transform .15s,box-shadow .15s;border:none;font-family:inherit;}
 .price-btn-main{background:linear-gradient(135deg,#185FA5,#3b82f6);color:#fff;border:none;box-shadow:0 4px 16px rgba(24,95,165,.25);}
 .price-btn-main:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(24,95,165,.35);}
 .price-btn-ghost{background:transparent;color:#185FA5;border:1.5px solid rgba(24,95,165,.25);}
 .price-btn-ghost:hover{border-color:#185FA5;background:rgba(24,95,165,.04);}
+
+/* ── DOCUMENTOS SST ── */
+.docs-bg{background:#fff;padding:80px 0;}
+.docs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;}
+.doc-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:24px;transition:box-shadow .2s,transform .2s,border-color .2s;}
+.doc-card:hover{box-shadow:0 12px 40px rgba(24,95,165,.1);transform:translateY(-4px);border-color:rgba(24,95,165,.2);}
+.doc-nr{display:inline-block;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:800;background:rgba(24,95,165,.1);color:#185FA5;margin-bottom:12px;letter-spacing:.3px;}
+.doc-card h3{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px;}
+.doc-card p{font-size:12.5px;color:#64748b;line-height:1.65;}
+
+/* ── PROPOSAL MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fade-up .2s ease both;}
+.modal-box{background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;overflow-y:auto;padding:32px;position:relative;box-shadow:0 24px 80px rgba(15,23,42,.3);}
+.modal-close{position:absolute;top:16px;right:16px;background:#f1f5f9;border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;}
+.modal-close:hover{background:#e2e8f0;}
+.modal-field{margin-bottom:14px;text-align:left;}
+.modal-field label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;}
+.modal-field input,.modal-field select,.modal-field textarea{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:inherit;color:#0f172a;transition:border-color .15s;}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{outline:none;border-color:#185FA5;}
+.modal-field textarea{resize:vertical;min-height:70px;}
 
 /* ── TESTIMONIALS ── */
 .testi-section{background:#fff;padding:80px 0;}
@@ -663,11 +683,124 @@ function LiveDemo() {
   )
 }
 
+// ─── DOCUMENTOS SST ──────────────────────────────────────────────────────────
+const DOCUMENTOS_SST = [
+  { nr:'NR-1',           nome:'PGR',    desc:'Programa de Gerenciamento de Riscos — inventário de riscos e plano de ação por função.' },
+  { nr:'NR-9 / S-2240',  nome:'LTCAT',  desc:'Laudo Técnico das Condições Ambientais — GHEs, agentes nocivos e aposentadoria especial.' },
+  { nr:'NR-7',           nome:'PCMSO',  desc:'Programa de Controle Médico — exames por função e periodicidade, com médico coordenador.' },
+  { nr:'NR-17',          nome:'AET',    desc:'Análise Ergonômica do Trabalho — postos de trabalho e fatores ergonômicos por função.' },
+  { nr:'Gestão de risco',nome:'APR',    desc:'Análise Preliminar de Risco por atividade/tarefa, com classificação de probabilidade x severidade.' },
+  { nr:'NR-15 / NR-16',  nome:'LIP',    desc:'Laudo de Insalubridade e Periculosidade — grau de enquadramento por função.' },
+  { nr:'Previdenciário', nome:'PPP',    desc:'Perfil Profissiográfico Previdenciário — histórico de exposição por funcionário, herdado do LTCAT vigente.' },
+]
+
+// ─── FORMULÁRIO DE PROPOSTA ──────────────────────────────────────────────────
+type LeadForm = { nome: string; empresa: string; email: string; telefone: string; funcionarios: string; mensagem: string }
+
+function ProposalModal({ plano, onClose }: { plano: string; onClose: () => void }) {
+  const [form, setForm] = useState<LeadForm>({ nome:'', empresa:'', email:'', telefone:'', funcionarios:'', mensagem:'' })
+  const [status, setStatus] = useState<'idle'|'enviando'|'ok'|'erro'>('idle')
+  const [erro, setErro] = useState('')
+
+  function set(field: keyof LeadForm, value: string) { setForm(f => ({ ...f, [field]: value })) }
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault()
+    setStatus('enviando'); setErro('')
+    try {
+      const resp = await fetch('/api/leads/proposta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, plano_interesse: plano }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao enviar solicitação')
+      setStatus('ok')
+    } catch (err: any) {
+      setStatus('erro'); setErro(err.message)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Fechar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+
+        {status === 'ok' ? (
+          <div style={{ textAlign:'center', padding:'20px 0' }}>
+            <div style={{ width:52, height:52, borderRadius:'50%', background:'rgba(22,163,74,.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+            </div>
+            <h3 style={{ fontSize:17, fontWeight:800, color:'#0f172a', marginBottom:8 }}>Solicitação enviada!</h3>
+            <p style={{ fontSize:13, color:'#64748b', lineHeight:1.7 }}>
+              Recebemos seus dados. Em breve entramos em contato com uma proposta personalizada{form.empresa ? ` para ${form.empresa}` : ''}.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:'#185FA5', textTransform:'uppercase', letterSpacing:'1px', marginBottom:4 }}>
+              Plano {plano}
+            </div>
+            <h3 style={{ fontSize:19, fontWeight:800, color:'#0f172a', marginBottom:6 }}>Solicitar proposta</h3>
+            <p style={{ fontSize:13, color:'#64748b', marginBottom:20, lineHeight:1.6 }}>
+              Preencha seus dados e retornamos com uma proposta sob medida para o tamanho da sua operação.
+            </p>
+            <form onSubmit={enviar}>
+              <div className="modal-field">
+                <label>Nome *</label>
+                <input required value={form.nome} onChange={e => set('nome', e.target.value)} placeholder="Seu nome" />
+              </div>
+              <div className="modal-field">
+                <label>Empresa</label>
+                <input value={form.empresa} onChange={e => set('empresa', e.target.value)} placeholder="Nome da empresa" />
+              </div>
+              <div className="modal-field">
+                <label>E-mail *</label>
+                <input required type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="voce@empresa.com" />
+              </div>
+              <div className="modal-field">
+                <label>Telefone / WhatsApp</label>
+                <input value={form.telefone} onChange={e => set('telefone', e.target.value)} placeholder="(00) 00000-0000" />
+              </div>
+              <div className="modal-field">
+                <label>Nº de funcionários</label>
+                <select value={form.funcionarios} onChange={e => set('funcionarios', e.target.value)}>
+                  <option value="">Selecione...</option>
+                  <option value="1-20">1 a 20</option>
+                  <option value="21-50">21 a 50</option>
+                  <option value="51-200">51 a 200</option>
+                  <option value="200+">Mais de 200</option>
+                </select>
+              </div>
+              <div className="modal-field">
+                <label>Mensagem (opcional)</label>
+                <textarea value={form.mensagem} onChange={e => set('mensagem', e.target.value)} placeholder="Conte um pouco sobre sua necessidade..." />
+              </div>
+              {status === 'erro' && (
+                <div style={{ background:'#FCEBEB', color:'#791F1F', borderRadius:8, padding:'8px 12px', fontSize:12, marginBottom:14 }}>{erro}</div>
+              )}
+              <button type="submit" disabled={status === 'enviando'} className="price-btn price-btn-main" style={{ opacity: status === 'enviando' ? .6 : 1, cursor: status === 'enviando' ? 'not-allowed' : 'pointer' }}>
+                {status === 'enviando' ? 'Enviando...' : 'Enviar solicitação'}
+              </button>
+            </form>
+            <p style={{ fontSize:11, color:'#94a3b8', textAlign:'center', marginTop:14 }}>
+              Prefere falar direto? <a href="tel:+5564992090277" style={{ color:'#185FA5', fontWeight:600 }}>(64) 99209-0277</a> ou <a href="mailto:dseg.sst@gmail.com" style={{ color:'#185FA5', fontWeight:600 }}>dseg.sst@gmail.com</a>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [aiStep, setAiStep] = useState(0)
+  const [modalPlano, setModalPlano] = useState<string | null>(null)
   const tiltRef = useTilt(6)
   useReveal()
 
@@ -685,11 +818,11 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>eSocial SST — Transmissão automática com IA</title>
-        <meta name="description" content="Transmita os eventos SST do eSocial (S-2210, S-2220, S-2221, S-2240) com inteligência artificial. Leia PDF de LTCAT, PCMSO e ASO automaticamente." />
+        <title>eSocial SST — Transmissão e Documentos com IA</title>
+        <meta name="description" content="Transmita os eventos SST do eSocial (S-2210, S-2220, S-2221, S-2240) e gere os 7 documentos exigidos (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) com inteligência artificial." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta property="og:title" content="eSocial SST — Transmissão automática com IA" />
-        <meta property="og:description" content="Transmita os eventos SST do eSocial com IA. Leia PDF de LTCAT, PCMSO e ASO automaticamente." />
+        <meta property="og:title" content="eSocial SST — Transmissão e Documentos com IA" />
+        <meta property="og:description" content="Transmita os eventos SST do eSocial e gere os 7 documentos exigidos pelas NRs com IA." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://esocial-sst.vercel.app" />
         <link rel="canonical" href="https://esocial-sst.vercel.app" />
@@ -701,9 +834,8 @@ export default function Home() {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
           url: 'https://esocial-sst.vercel.app',
-          description: 'Software SaaS brasileiro para transmissão automática de eventos de Saúde e Segurança do Trabalho (SST) ao eSocial Gov.br.',
-          offers: { '@type': 'AggregateOffer', lowPrice: '49', highPrice: '197', priceCurrency: 'BRL' },
-          featureList: ['Leitura de PDF com IA (ASO, LTCAT, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento', 'Multi-empresa', 'Trial 14 dias grátis'],
+          description: 'Software SaaS brasileiro para transmissão automática de eventos de Saúde e Segurança do Trabalho (SST) ao eSocial Gov.br, com módulo completo de documentos (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP).',
+          featureList: ['Leitura de PDF com IA (ASO, LTCAT, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento', 'Multi-empresa', 'Trial 14 dias grátis'],
           aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '12' },
         }) }} />
         <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
@@ -718,6 +850,7 @@ export default function Home() {
           <div className="nav-links">
             <a href="#eventos">Eventos SST</a>
             <a href="#ia">IA &amp; Documentos</a>
+            <a href="#documentos">Documentos SST</a>
             <a href="#funcionalidades">Funcionalidades</a>
             <a href="#precos">Preços</a>
             <Link href="/noticias">Blog</Link>
@@ -738,7 +871,7 @@ export default function Home() {
         </div>
         {menuOpen && (
           <div style={{ background:'#fff', borderTop:'1px solid #f1f5f9', padding:'16px 20px', display:'flex', flexDirection:'column', gap:4 }}>
-            {[['#eventos','Eventos SST'],['#ia','IA & Documentos'],['#funcionalidades','Funcionalidades'],['#precos','Preços'],['/noticias','Blog'],['#contato','Contato']].map(([href,label]) => (
+            {[['#eventos','Eventos SST'],['#ia','IA & Documentos'],['#documentos','Documentos SST'],['#funcionalidades','Funcionalidades'],['#precos','Preços'],['/noticias','Blog'],['#contato','Contato']].map(([href,label]) => (
               href.startsWith('/') ? (
                 <Link key={href} href={href} style={{ fontSize:14, color:'#475569', textDecoration:'none', padding:'9px 8px', borderRadius:8 }} onClick={() => setMenuOpen(false)}>{label}</Link>
               ) : (
@@ -828,7 +961,7 @@ export default function Home() {
         <div className="stats-inner">
           {[
             { target:4,   suffix:'',  label:'Eventos SST suportados' },
-            { target:3,   suffix:'',  label:'Documentos lidos por IA' },
+            { target:7,   suffix:'',  label:'Documentos SST completos' },
             { target:14,  suffix:'d', label:'Trial gratuito' },
             { target:100, suffix:'%', label:'Conforme eSocial' },
           ].map((s,i) => (
@@ -932,6 +1065,26 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── DOCUMENTOS SST ── */}
+      <section id="documentos" className="docs-bg">
+        <div className="section-wrap section-center">
+          <div className="section-label">Documentos SST</div>
+          <h2 className="section-h2">Os <span className="grad">7 documentos</span> que sua empresa precisa</h2>
+          <p className="section-desc">
+            Todo o conjunto de laudos e programas exigidos pelas Normas Regulamentadoras, gerados e mantidos em um só lugar — com dados que se propagam automaticamente do LTCAT vigente para os demais documentos.
+          </p>
+          <div className="docs-grid">
+            {DOCUMENTOS_SST.map((d,i) => (
+              <div key={i} className="doc-card reveal">
+                <div className="doc-nr">{d.nr}</div>
+                <h3>{d.nome}</h3>
+                <p>{d.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── FUNCIONALIDADES ── */}
       <section id="funcionalidades" className="features-bg">
         <div className="section-wrap section-center">
@@ -946,6 +1099,7 @@ export default function Home() {
               { bg:'rgba(245,158,11,.1)', ic:'#d97706', svg:<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>, title:'Painel administrativo', desc:'Visão completa do SaaS: clientes, planos, uso de IA, transmissões e status.' },
               { bg:'rgba(239,68,68,.1)', ic:'#dc2626', svg:<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/></>, title:'Cadastro de funcionários', desc:'Base centralizada com CPF, função, CBO, setor e histórico de exames de toda a empresa.' },
               { bg:'rgba(20,184,166,.1)', ic:'#0d9488', svg:<polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>, title:'Histórico de transmissões', desc:'Consulte todos os eventos enviados, recibos, XML gerado e status de cada envio.' },
+              { bg:'rgba(139,92,246,.1)', ic:'#7c3aed', svg:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></>, title:'Documentos SST completos', desc:'PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — todos gerados e atualizados a partir dos mesmos dados da empresa.' },
             ].map((f,i) => (
               <div key={i} className="feat-card reveal">
                 <div className="feat-icon" style={{ background:f.bg }}>
@@ -986,49 +1140,50 @@ export default function Home() {
       <section id="precos" className="pricing-bg">
         <div className="section-wrap section-center">
           <div className="section-label">Planos</div>
-          <h2 className="section-h2">Simples e <span className="grad">transparente</span></h2>
-          <p className="section-desc">Comece grátis e escolha o plano ideal para sua operação.</p>
+          <h2 className="section-h2">Uma proposta <span className="grad">sob medida</span> para sua operação</h2>
+          <p className="section-desc">
+            O investimento varia conforme volume de envios, número de CNPJs e documentos SST necessários. Fale com a gente e monte um plano do tamanho certo.
+          </p>
           <div className="pricing-grid">
             <div className="price-card reveal">
               <div className="price-plan">Micro</div>
-              <div className="price-amount">R$ 49<span>/mês</span></div>
-              <p className="price-desc">50 envios incluídos · R$ 1,90 por envio extra.</p>
+              <p className="price-desc" style={{ marginTop:8 }}>Para empresas com poucos funcionários e volume de envio baixo.</p>
               <ul className="price-list" style={{ textAlign:'left' }}>
-                {['50 envios/mês incluídos','Importação por IA (PDF)','ASO, LTCAT e PCMSO','Transmissão S-2210/2220/2221/2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
+                {['Envios mensais sob medida','Importação por IA (PDF)','ASO, LTCAT e PCMSO','Transmissão S-2210/2220/2221/2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
-              <Link href="/cadastro" className="price-btn price-btn-ghost">Começar grátis</Link>
+              <button className="price-btn price-btn-ghost" onClick={() => setModalPlano('Micro')}>Solicitar proposta</button>
             </div>
             <div className="price-card featured reveal">
               <div className="price-pill">Mais popular</div>
               <div className="price-plan">Starter</div>
-              <div className="price-amount">R$ 97<span>/mês</span></div>
-              <p className="price-desc">100 envios incluídos · R$ 1,50 por envio extra.</p>
+              <p className="price-desc" style={{ marginTop:8 }}>Para operações em crescimento com múltiplas empresas.</p>
               <ul className="price-list" style={{ textAlign:'left' }}>
-                {['100 envios/mês incluídos','Tudo do Micro','Multi-empresa (até 5 CNPJs)','Convite de usuários','Relatórios avançados','Suporte por e-mail'].map((item,i) => (
+                {['Envios mensais sob medida','Tudo do Micro','Multi-empresa (múltiplos CNPJs)','Convite de usuários','Relatórios avançados','Suporte por e-mail'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
-              <Link href="/cadastro" className="price-btn price-btn-main">Começar grátis</Link>
+              <button className="price-btn price-btn-main" onClick={() => setModalPlano('Starter')}>Solicitar proposta</button>
             </div>
             <div className="price-card reveal">
               <div className="price-plan">Pro</div>
-              <div className="price-amount">R$ 197<span>/mês</span></div>
-              <p className="price-desc">400 envios incluídos · R$ 1,20 por envio extra.</p>
+              <p className="price-desc" style={{ marginTop:8 }}>Para consultorias e empresas com maior volume de CNPJs e envios.</p>
               <ul className="price-list" style={{ textAlign:'left' }}>
-                {['400 envios/mês incluídos','Tudo do Starter','Até 10 CNPJs','Suporte prioritário','Onboarding dedicado','Envios excedentes automáticos'].map((item,i) => (
+                {['Envios mensais sob medida','Tudo do Starter','Maior volume de CNPJs','Suporte prioritário','Onboarding dedicado','Módulo completo de Documentos SST'].map((item,i) => (
                   <li key={i}><span className="chk">✓</span>{item}</li>
                 ))}
               </ul>
-              <Link href="/cadastro" className="price-btn price-btn-ghost">Começar grátis</Link>
+              <button className="price-btn price-btn-ghost" onClick={() => setModalPlano('Pro')}>Solicitar proposta</button>
             </div>
           </div>
           <p style={{ textAlign:'center', marginTop:28, fontSize:12, color:'#94a3b8' }}>
-            Todos os planos incluem 14 dias grátis · Mensalidade fixa + envios incluídos · Cancele quando quiser
+            Resposta em até 24h · Sem compromisso · Ou <Link href="/cadastro" style={{ color:'#185FA5', fontWeight:600 }}>comece um trial grátis de 14 dias</Link> enquanto isso
           </p>
         </div>
       </section>
+
+      {modalPlano && <ProposalModal plano={modalPlano} onClose={() => setModalPlano(null)} />}
 
       {/* ── DEPOIMENTOS ── */}
       <section className="testi-section">
@@ -1155,6 +1310,7 @@ export default function Home() {
               <ul>
                 <li><a href="#eventos">Eventos SST</a></li>
                 <li><a href="#ia">IA &amp; Documentos</a></li>
+                <li><a href="#documentos">Documentos SST</a></li>
                 <li><a href="#funcionalidades">Funcionalidades</a></li>
                 <li><a href="#precos">Preços</a></li>
               </ul>
