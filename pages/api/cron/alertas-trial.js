@@ -37,7 +37,7 @@ export default async function handler(req, res) {
 
   const { data: trials, error: trialsErr } = await sb
     .from('empresas')
-    .select('id, razao_social, trial_inicio')
+    .select('id, razao_social, trial_inicio, ultimo_alerta_trial_dias')
     .eq('plano', 'trial')
     .not('trial_inicio', 'is', null)
 
@@ -55,7 +55,18 @@ export default async function handler(req, res) {
     expira.setDate(expira.getDate() + 14)
     const diasRestantes = Math.ceil((expira - hoje) / 86400000)
 
-    if (!DIAS_ALERTA.includes(diasRestantes)) continue
+    // Trial já expirado — o cron bloquear-trials-expirados cuida do bloqueio,
+    // não faz sentido mandar "expira hoje" atrasado para um trial já vencido.
+    if (diasRestantes < 0) continue
+
+    // Idempotente + recupera alerta perdido: dispara o limiar (7/3/0) mais
+    // urgente que ainda não foi enviado para esta empresa. Se o cron falhar
+    // no dia exato de um limiar, ele é pego no dia seguinte em vez de perdido
+    // para sempre; se já rodou hoje, não reenvia o mesmo e-mail.
+    const jaEnviado = emp.ultimo_alerta_trial_dias
+    const pendentes = DIAS_ALERTA.filter(d => diasRestantes <= d && (jaEnviado == null || d < jaEnviado))
+    if (pendentes.length === 0) continue
+    const limiarAlvo = Math.min(...pendentes)
 
     const { data: admin } = await sb
       .from('usuarios')
@@ -74,11 +85,14 @@ export default async function handler(req, res) {
 
     let assunto, mensagem, cta
 
-    if (diasRestantes === 0) {
+    // Usa o limiar (limiarAlvo) para decidir o texto, não diasRestantes bruto —
+    // no caso de catch-up (cron perdeu o dia exato), diasRestantes já pode ser
+    // menor que o limiar sendo notificado agora.
+    if (limiarAlvo === 0) {
       assunto = `[eSocial SST] Seu trial expira hoje — não perca o acesso`
       mensagem = `Seu período de avaliação gratuito do eSocial SST <strong>expira hoje</strong>. Para continuar transmitindo eventos ao Gov.br sem interrupção, escolha um plano agora.`
       cta = 'Escolher meu plano →'
-    } else if (diasRestantes === 3) {
+    } else if (limiarAlvo === 3) {
       assunto = `[eSocial SST] 3 dias restantes no seu trial`
       mensagem = `Seu período de avaliação do eSocial SST termina em <strong>3 dias</strong>. Faça o upgrade agora para garantir continuidade nas transmissões.`
       cta = 'Ver planos e preços →'
@@ -110,7 +124,11 @@ export default async function handler(req, res) {
 </div>`
 
     const enviado = await enviarEmail(email, assunto, html)
-    resultados.push({ empresa_id: emp.id, razao_social: emp.razao_social, dias_restantes: diasRestantes, email, enviado })
+    if (enviado) {
+      const { error: updErr } = await sb.from('empresas').update({ ultimo_alerta_trial_dias: limiarAlvo }).eq('id', emp.id)
+      if (updErr) console.error('[alertas-trial] falha ao registrar ultimo_alerta_trial_dias', emp.id, updErr.message)
+    }
+    resultados.push({ empresa_id: emp.id, razao_social: emp.razao_social, dias_restantes: diasRestantes, limiar: limiarAlvo, email, enviado })
   }
 
   const enviados = resultados.filter(r => r.enviado).length
