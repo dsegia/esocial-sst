@@ -5,8 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { gerarPdfPgr } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
-import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, nivelRisco } from '../lib/pgr-conteudo'
+import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, nivelRisco, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
+import { redimensionarImagem } from '../lib/imagem-util'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -50,6 +51,7 @@ function ambientesDoLtcat(ltcat) {
     nome: ghe.nome || ghe.setor || 'Ambiente',
     descricao: '', tipo: 'proprio', data_inicio: '',
     epcs: (ghe.epc || []).map(e => ({ nome: e.nome || '' })),
+    imagens: [],
   }))
 }
 
@@ -60,7 +62,7 @@ const riscoVazio = () => ({
   valor: '', unidade: '', limite: '', equipamento: '', trajetoria: '', tipo_exposicao: '',
 })
 
-const ambienteVazio = () => ({ nome: '', descricao: '', tipo: 'proprio', data_inicio: '', epcs: [] })
+const ambienteVazio = () => ({ nome: '', descricao: '', tipo: 'proprio', data_inicio: '', epcs: [], imagens: [] })
 
 const acaoVazia = (risco = '') => ({
   risco, medida_controle: '', justificativa: '', como: '', onde: 'Ambiente da empresa',
@@ -83,6 +85,8 @@ export default function PGR() {
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  const [textoAberto, setTextoAberto] = useState(null)
+  const [modalTextos, setModalTextos] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -124,6 +128,8 @@ export default function PGR() {
       ambientes,
       inventario,
       plano_acao: [...new Set(inventario.map(i => i.nome))].map(acaoVazia),
+      textos_legais_custom: {},
+      imagens_anexas: [],
     })
     setAba('editar')
     setSucesso(''); setErro('')
@@ -155,6 +161,8 @@ export default function PGR() {
       ambientes: form.ambientes || [],
       inventario: form.inventario || [],
       plano_acao: form.plano_acao || [],
+      textos_legais_custom: form.textos_legais_custom || {},
+      imagens_anexas: form.imagens_anexas || [],
       atualizado_em: new Date().toISOString(),
     }
 
@@ -276,6 +284,56 @@ export default function PGR() {
     })
   }
 
+  // ── Textos legais editáveis ───────────────────────────
+  function setTextoCustom(titulo, paragrafos) {
+    setForm(p => ({ ...p, textos_legais_custom: { ...(p.textos_legais_custom || {}), [titulo]: paragrafos } }))
+  }
+  function restaurarTextoPadrao(titulo) {
+    setForm(p => {
+      const textos = { ...(p.textos_legais_custom || {}) }
+      delete textos[titulo]
+      return { ...p, textos_legais_custom: textos }
+    })
+  }
+  function paragrafosDoTexto(titulo, padrao) {
+    return form.textos_legais_custom?.[titulo] || padrao
+  }
+
+  // ── Imagens ────────────────────────────────────────────
+  async function addImagensAmbiente(ai, fileList) {
+    const arquivos = Array.from(fileList || [])
+    if (!arquivos.length) return
+    const dataUrls = await Promise.all(arquivos.map(f => redimensionarImagem(f)))
+    setForm(p => {
+      const ambientes = JSON.parse(JSON.stringify(p.ambientes))
+      ambientes[ai].imagens = [...(ambientes[ai].imagens || []), ...dataUrls]
+      return { ...p, ambientes }
+    })
+  }
+  function removerImagemAmbiente(ai, imgIdx) {
+    setForm(p => {
+      const ambientes = JSON.parse(JSON.stringify(p.ambientes))
+      ambientes[ai].imagens = (ambientes[ai].imagens || []).filter((_, idx) => idx !== imgIdx)
+      return { ...p, ambientes }
+    })
+  }
+  async function addImagensAnexas(fileList) {
+    const arquivos = Array.from(fileList || [])
+    if (!arquivos.length) return
+    const dataUrls = await Promise.all(arquivos.map(f => redimensionarImagem(f)))
+    setForm(p => ({ ...p, imagens_anexas: [...(p.imagens_anexas || []), ...dataUrls.map(dataUrl => ({ dataUrl, legenda: '' }))] }))
+  }
+  function setLegendaImagemAnexa(idx, legenda) {
+    setForm(p => {
+      const imagens_anexas = [...p.imagens_anexas]
+      imagens_anexas[idx] = { ...imagens_anexas[idx], legenda }
+      return { ...p, imagens_anexas }
+    })
+  }
+  function removerImagemAnexa(idx) {
+    setForm(p => ({ ...p, imagens_anexas: p.imagens_anexas.filter((_, i) => i !== idx) }))
+  }
+
   function exportarPdf(pgr) {
     gerarPdfPgr(
       {
@@ -289,6 +347,8 @@ export default function PGR() {
         ambientes: pgr.ambientes || [],
         inventario: pgr.inventario || [],
         plano_acao: pgr.plano_acao || [],
+        textos_legais_custom: pgr.textos_legais_custom || {},
+        imagens_anexas: pgr.imagens_anexas || [],
       },
       { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, numero_empregados: totalFuncionarios }
     )
@@ -313,7 +373,10 @@ export default function PGR() {
         </div>
         <div style={{ display:'flex', gap:6 }}>
           {pgrSel && (
-            <button style={s.btnOutline} onClick={() => exportarPdf(pgrSel)}>📄 Exportar PDF</button>
+            <>
+              <button style={s.btnOutline} onClick={() => setModalTextos(true)}>📃 Ver textos do documento</button>
+              <button style={s.btnOutline} onClick={() => exportarPdf(pgrSel)}>📄 Exportar PDF</button>
+            </>
           )}
           <button style={s.btnPrimary} onClick={abrirNovo}>+ Novo PGR</button>
         </div>
@@ -408,11 +471,32 @@ export default function PGR() {
                             ))}
                           </div>
                         )}
+                        {a.imagens?.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+                            {a.imagens.map((img,ii) => (
+                              <img key={ii} src={img} alt={`${a.nome} — foto ${ii+1}`} style={{ width:64, height:64, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum ambiente cadastrado.</div>}
               </div>
+
+              {pgrSel.imagens_anexas?.length > 0 && (
+                <div style={s.card}>
+                  <div style={s.cardTit}>Imagens anexas ({pgrSel.imagens_anexas.length})</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginTop:10 }}>
+                    {pgrSel.imagens_anexas.map((img,i) => (
+                      <div key={i} style={{ textAlign:'center' }}>
+                        <img src={img.dataUrl} alt={img.legenda || `Imagem ${i+1}`} style={{ width:120, height:120, objectFit:'cover', borderRadius:8, border:'0.5px solid #e5e7eb' }} />
+                        {img.legenda && <div style={{ fontSize:11, color:'#6b7280', marginTop:4, maxWidth:120 }}>{img.legenda}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div style={s.card}>
                 <div style={s.cardTit}>Inventário de riscos ({pgrSel.inventario?.length || 0})</div>
@@ -583,9 +667,43 @@ export default function PGR() {
                   ))}
                   <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => addEpcAmbiente(ai)}>+ EPC</button>
                 </div>
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FOTOS DO AMBIENTE</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  {(a.imagens || []).map((img, ii) => (
+                    <div key={ii} style={{ position:'relative' }}>
+                      <img src={img} alt={`Foto ${ii+1}`} style={{ width:56, height:56, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
+                      <button onClick={() => removerImagemAmbiente(ai, ii)} style={{ position:'absolute', top:-6, right:-6, width:18, height:18, borderRadius:'50%', background:'#E24B4A', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:'18px', padding:0 }}>×</button>
+                    </div>
+                  ))}
+                  <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer' }}>
+                    + Foto
+                    <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { addImagensAmbiente(ai, e.target.files); e.target.value = '' }} />
+                  </label>
+                </div>
               </div>
             ))}
             {!(form.ambientes || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum ambiente cadastrado.</div>}
+          </div>
+
+          {/* ── Imagens anexas ── */}
+          <div style={{ marginBottom:20 }}>
+            <label style={s.label}>Imagens anexas ({form.imagens_anexas?.length || 0})</label>
+            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Fotos gerais, layout, croqui do local, etc. — vão no PDF como apêndice.</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-start' }}>
+              {(form.imagens_anexas || []).map((img, i) => (
+                <div key={i} style={{ ...s.blocoItem, width:150, textAlign:'center' }}>
+                  <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                    <button onClick={() => removerImagemAnexa(i)} style={s.btnRemover}>×</button>
+                  </div>
+                  <img src={img.dataUrl} alt={img.legenda || `Imagem ${i+1}`} style={{ width:'100%', height:100, objectFit:'cover', borderRadius:6, marginBottom:6 }} />
+                  <input style={s.inputSm} placeholder="Legenda" value={img.legenda} onChange={e => setLegendaImagemAnexa(i, e.target.value)} />
+                </div>
+              ))}
+              <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer', height:'fit-content' }}>
+                + Adicionar imagem
+                <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { addImagensAnexas(e.target.files); e.target.value = '' }} />
+              </label>
+            </div>
           </div>
 
           {/* ── Inventário de riscos ── */}
@@ -703,11 +821,66 @@ export default function PGR() {
             {!(form.plano_acao || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhuma ação cadastrada.</div>}
           </div>
 
+          {/* ── Textos legais do documento ── */}
+          <div style={{ marginBottom:16 }}>
+            <label style={s.label}>Textos legais do documento (NR-1)</label>
+            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
+            {TEXTOS_LEGAIS_PGR.map(secaoTexto => {
+              const aberto = textoAberto === secaoTexto.titulo
+              const custom = form.textos_legais_custom?.[secaoTexto.titulo]
+              return (
+                <div key={secaoTexto.titulo} style={s.blocoItem}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:12, fontWeight:600 }}>
+                      {secaoTexto.titulo}
+                      {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
+                    </div>
+                    <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
+                      {aberto ? 'Fechar' : 'Ver / Editar'}
+                    </button>
+                  </div>
+                  {aberto && (
+                    <div style={{ marginTop:10 }}>
+                      <textarea
+                        style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
+                        value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
+                        onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
+                      />
+                      <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                        {custom && <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
+                        <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => setTextoAberto(null)}>Concluído</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
           {erro && <div style={s.erroBox}>{erro}</div>}
 
           <div style={{ display:'flex', gap:8 }}>
             <button style={s.btnPrimary} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar PGR'}</button>
             <button style={s.btnOutline} onClick={cancelarEdicao}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {modalTextos && pgrSel && (
+        <div style={s.overlay} onClick={() => setModalTextos(false)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Textos do documento (NR-1)</div>
+              <button onClick={() => setModalTextos(false)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+            </div>
+            {TEXTOS_LEGAIS_PGR.map(secaoTexto => (
+              <div key={secaoTexto.titulo} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#185FA5', marginBottom:6 }}>{secaoTexto.titulo}</div>
+                {(pgrSel.textos_legais_custom?.[secaoTexto.titulo] || secaoTexto.paragrafos).map((p, i) => (
+                  <div key={i} style={{ fontSize:12, color:'#374151', lineHeight:1.6, marginBottom:8 }}>{p}</div>
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -738,4 +911,6 @@ const s = {
   erroBox:    { background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   sucessoBox: { background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   blocoItem:  { border:'0.5px solid #e5e7eb', borderRadius:8, padding:12, marginBottom:8, background:'#fafbfc' },
+  overlay:    { position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'1rem' },
+  modal:      { background:'#fff', borderRadius:12, padding:'1.5rem', width:620, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' },
 }

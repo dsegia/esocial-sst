@@ -461,6 +461,24 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     }
     return yy + 2
   }
+  function inserirImagens(imagens: string[], yPos: number, legendas?: (string | undefined)[]): number {
+    if (!imagens?.length) return yPos
+    const tam = 35, gap = 5
+    const porLinha = Math.max(1, Math.floor((W - mg * 2 + gap) / (tam + gap)))
+    let x = mg, yy = yPos
+    for (let i = 0; i < imagens.length; i++) {
+      if (i > 0 && i % porLinha === 0) { x = mg; yy += tam + (legendas ? 8 : 4) }
+      if (yy + tam > 285) { doc.addPage(); yy = 20; x = mg }
+      try { doc.addImage(imagens[i], 'JPEG', x, yy, tam, tam) } catch { /* imagem inválida, ignora */ }
+      if (legendas?.[i]) {
+        doc.setFontSize(7); doc.setTextColor(120)
+        doc.text(doc.splitTextToSize(legendas[i] as string, tam), x, yy + tam + 3)
+      }
+      x += tam + gap
+    }
+    const linhas = Math.ceil(imagens.length / porLinha)
+    return yPos + linhas * (tam + (legendas ? 8 : 4)) + 2
+  }
 
   const dg = dados?.dados_gerais || {}
   const ambientes = dados?.ambientes || []
@@ -503,10 +521,12 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   y += 12; linha(y); y += 6
 
   // ── Textos legais (NR-1) ──────────────────────────────
+  const textosCustom = dados?.textos_legais_custom || {}
   for (const secaoTexto of TEXTOS_LEGAIS_PGR) {
     if (y > 250) { doc.addPage(); y = 20 }
     y = secao(secaoTexto.titulo, y)
-    for (const p of secaoTexto.paragrafos) y = paragrafo(p, y)
+    const paragrafos = textosCustom[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
     y += 2
   }
   if (y > 240) { doc.addPage(); y = 20 }
@@ -539,6 +559,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         doc.text(`EPC: ${a.epcs.map((e: any) => e.nome).filter(Boolean).join(', ') || '—'}`, mg + 2, y)
         y += 5
       }
+      if (a.imagens?.length) y = inserirImagens(a.imagens, y)
       doc.setDrawColor(240); doc.line(mg, y, W - mg, y); y += 4
     }
   } else {
@@ -612,6 +633,18 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhuma ação cadastrada.', mg + 2, y); y += 6
+  }
+
+  // ── Imagens anexas ────────────────────────────────────
+  const imagensAnexas = dados?.imagens_anexas || []
+  if (imagensAnexas.length) {
+    doc.addPage(); y = 20
+    y = secao(`IMAGENS ANEXAS (${imagensAnexas.length})`, y)
+    y = inserirImagens(
+      imagensAnexas.map((im: any) => im.dataUrl),
+      y,
+      imagensAnexas.map((im: any) => im.legenda),
+    )
   }
 
   // ── Anexo I — Plano de Emergência ─────────────────────
