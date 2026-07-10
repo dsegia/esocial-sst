@@ -13,10 +13,9 @@ const supabase = createClient(
 )
 
 const PLANO_INFO: Record<string, { label: string; cor: string; bg: string }> = {
-  trial:        { label: 'Trial 14 dias', cor: '#6b7280', bg: '#f3f4f6' },
-  starter:      { label: 'Starter',       cor: '#185FA5', bg: '#E6F1FB' },
-  professional: { label: 'Professional',  cor: '#27500A', bg: '#EAF3DE' },
-  business:     { label: 'Business',      cor: '#633806', bg: '#FAEEDA' },
+  trial:     { label: 'Trial 14 dias', cor: '#6b7280', bg: '#f3f4f6' },
+  vidas:     { label: 'Por Vidas',     cor: '#185FA5', bg: '#E6F1FB' },
+  cancelado: { label: 'Cancelado',     cor: '#791F1F', bg: '#FCEBEB' },
 }
 
 export default function AceitarConvite() {

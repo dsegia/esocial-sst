@@ -1,6 +1,7 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { FAIXAS_VIDAS, formatarFaixaLabel } from '../lib/vidas-planos'
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const globalCSS = `
@@ -1110,48 +1111,45 @@ export default function Home() {
       <section id="precos" className="pricing-bg">
         <div className="section-wrap section-center">
           <div className="section-label">Planos</div>
-          <h2 className="section-h2">Uma proposta <span className="grad">sob medida</span> para sua operação</h2>
+          <h2 className="section-h2">Um plano só, <span className="grad">por número de vidas</span></h2>
           <p className="section-desc">
-            O investimento varia conforme volume de envios, número de CNPJs e documentos SST necessários. Fale com a gente e monte um plano do tamanho certo.
+            Sem escolha manual de pacote: a mensalidade escala com o número de funcionários ativos cadastrados. Transmissão eSocial e os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) inclusos e ilimitados em qualquer faixa.
           </p>
           <div className="pricing-grid">
-            <div className="price-card reveal">
-              <div className="price-index">01</div>
-              <div className="price-plan">Micro</div>
-              <p className="price-desc" style={{ marginTop:8 }}>Para empresas com poucos funcionários e volume de envio baixo.</p>
-              <ul className="price-list" style={{ textAlign:'left' }}>
-                {['Envios mensais sob medida','Importação por IA (PDF)','ASO, LTCAT e PCMSO','Transmissão S-2210/2220/2221/2240','Alertas de vencimento','Exportação de PDF'].map((item,i) => (
-                  <li key={i}><span className="chk">✓</span>{item}</li>
-                ))}
-              </ul>
-              <button className="price-btn price-btn-ghost" onClick={() => setModalPlano('Micro')}>Solicitar proposta</button>
-            </div>
-            <div className="price-card featured reveal">
-              <div className="price-pill">Mais popular</div>
-              <div className="price-index">02</div>
-              <div className="price-plan">Starter</div>
-              <p className="price-desc" style={{ marginTop:8 }}>Para operações em crescimento com múltiplas empresas.</p>
-              <ul className="price-list" style={{ textAlign:'left' }}>
-                {['Envios mensais sob medida','Tudo do Micro','Multi-empresa (múltiplos CNPJs)','Convite de usuários','Relatórios avançados','Suporte por e-mail'].map((item,i) => (
-                  <li key={i}><span className="chk">✓</span>{item}</li>
-                ))}
-              </ul>
-              <button className="price-btn price-btn-main" onClick={() => setModalPlano('Starter')}>Solicitar proposta</button>
-            </div>
-            <div className="price-card reveal">
-              <div className="price-index">03</div>
-              <div className="price-plan">Pro</div>
-              <p className="price-desc" style={{ marginTop:8 }}>Para consultorias e empresas com maior volume de CNPJs e envios.</p>
-              <ul className="price-list" style={{ textAlign:'left' }}>
-                {['Envios mensais sob medida','Tudo do Starter','Maior volume de CNPJs','Suporte prioritário','Onboarding dedicado','Módulo completo de Documentos SST'].map((item,i) => (
-                  <li key={i}><span className="chk">✓</span>{item}</li>
-                ))}
-              </ul>
-              <button className="price-btn price-btn-ghost" onClick={() => setModalPlano('Pro')}>Solicitar proposta</button>
-            </div>
+            {[
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 69), destaque: false, desc: 'Para empresas com poucos funcionários.' },
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 179), destaque: true, desc: 'Para operações em crescimento com múltiplas empresas.' },
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 399), destaque: false, desc: 'Para consultorias e empresas com maior volume de CNPJs.' },
+            ].map(({ idx, destaque, desc }, i) => {
+              const faixa = FAIXAS_VIDAS[idx]
+              const preco = 'preco' in faixa ? faixa.preco : null
+              const label = formatarFaixaLabel(idx)
+              return (
+                <div key={i} className={destaque ? 'price-card featured reveal' : 'price-card reveal'}>
+                  {destaque && <div className="price-pill">Mais popular</div>}
+                  <div className="price-index">0{i + 1}</div>
+                  <div className="price-plan">{label} vidas</div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '6px 0 2px' }}>
+                    R$ {preco}<span style={{ fontSize: 13, fontWeight: 500, color: '#94a3b8' }}>/mês</span>
+                  </div>
+                  <p className="price-desc" style={{ marginTop: 4 }}>{desc}</p>
+                  <ul className="price-list" style={{ textAlign: 'left' }}>
+                    {['Transmissão eSocial ilimitada (S-2210/2220/2221/2240)', 'Os 7 documentos SST ilimitados', 'Importação por IA (PDF)', 'Alertas de vencimento', 'Múltiplos CNPJs', 'Exportação de PDF'].map((item, j) => (
+                      <li key={j}><span className="chk">✓</span>{item}</li>
+                    ))}
+                  </ul>
+                  <button
+                    className={destaque ? 'price-btn price-btn-main' : 'price-btn price-btn-ghost'}
+                    onClick={() => setModalPlano(`${label} vidas (R$ ${preco}/mês)`)}
+                  >
+                    Solicitar proposta
+                  </button>
+                </div>
+              )
+            })}
           </div>
           <p style={{ textAlign:'center', marginTop:28, fontSize:12, color:'#94a3b8' }}>
-            Resposta em até 24h · Sem compromisso · Ou <Link href="/cadastro" style={{ color:'#185FA5', fontWeight:600 }}>comece um trial grátis de 14 dias</Link> enquanto isso
+            A faixa é recalculada automaticamente pelo pico de funcionários ativos no ciclo · Resposta em até 24h · Ou <Link href="/cadastro" style={{ color:'#185FA5', fontWeight:600 }}>comece um trial grátis de 14 dias</Link> enquanto isso
           </p>
         </div>
       </section>

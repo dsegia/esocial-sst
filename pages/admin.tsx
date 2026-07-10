@@ -1222,11 +1222,7 @@ export default function Admin() {
                       onChange={e => setConviteForm(f => ({ ...f, plano: e.target.value }))}
                     >
                       <option value="trial">Trial (14 dias grátis)</option>
-                      <option value="micro">Micro (R$ 49/mês)</option>
-                      <option value="starter">Starter (R$ 97/mês)</option>
-                      <option value="pro">Pro (R$ 197/mês)</option>
-                      <option value="professional">Professional (legado)</option>
-                      <option value="business">Business (legado)</option>
+                      <option value="vidas">Por Vidas (cobrança automática pela faixa)</option>
                     </select>
                   </div>
 

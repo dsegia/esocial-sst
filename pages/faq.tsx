@@ -40,7 +40,7 @@ const FAQ_ITEMS = [
   },
   {
     pergunta: 'Quanto custa o eSocial SST (software)?',
-    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito, com até 50 funcionários e 50 transmissões. Os planos pagos são: Micro (R$ 49/mês, 50 transmissões), Starter (R$ 97/mês, 100 transmissões — mais popular) e Pro (R$ 197/mês, 400 transmissões). Todos os planos incluem leitura de PDF com IA, transmissão ao Gov.br, assinatura digital e alertas de vencimento. Transmissões acima do limite são cobradas por excedente.`,
+    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 69/mês para até 10 vidas até R$ 599/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital, alertas de vencimento e os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) sem limite de uso.`,
   },
   {
     pergunta: 'Como funciona a multa por não transmitir eSocial SST?',
