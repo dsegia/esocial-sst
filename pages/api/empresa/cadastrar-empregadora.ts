@@ -46,6 +46,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let empresa: any
 
   if (existe) {
+    // Empresa já existe — só permite vincular a procuração se ela ainda não tiver
+    // nenhum responsável cadastrado (empresa "órfã"), ou se o próprio solicitante
+    // já for um dos vínculos. Sem essa checagem, qualquer usuário autenticado que
+    // soubesse o CNPJ (dado público) conseguiria se auto-conceder admin sobre uma
+    // empresa de terceiros e assumir a procuração eCAC dela.
+    const { data: vinculos } = await sbAdmin.from('usuario_empresas').select('usuario_id').eq('empresa_id', existe.id)
+    const { data: usuariosDaEmpresa } = await sbAdmin.from('usuarios').select('id').eq('empresa_id', existe.id)
+    const temResponsavel = (vinculos && vinculos.length > 0) || (usuariosDaEmpresa && usuariosDaEmpresa.length > 0)
+    const solicitanteJaVinculado = (vinculos || []).some((v: any) => v.usuario_id === user.id)
+      || (usuariosDaEmpresa || []).some((u: any) => u.id === user.id)
+
+    if (temResponsavel && !solicitanteJaVinculado) {
+      return res.status(409).json({ erro: 'Esta empresa já possui um responsável cadastrado no sistema. Peça para que ele configure a procuração ou envie um convite.' })
+    }
+
     // Empresa já existe — apenas vincula a procuração e o usuário
     const { data: atualizada, error: errUp } = await sbAdmin.from('empresas').update({
       ecac_cnpj_procurador: cnpjProcLimpo,

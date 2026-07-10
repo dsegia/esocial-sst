@@ -31,6 +31,17 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
+  // get_alertas_vencimento() não é SECURITY DEFINER e valida auth.uid() internamente
+  // (necessário porque a função também é chamável direto via RPC por 'authenticated').
+  // Com o client de service role, auth.uid() é NULL e a função sempre nega acesso —
+  // por isso essa chamada específica precisa do JWT do usuário, não da service role key.
+  const tokenUsuario = req.headers.authorization?.replace('Bearer ', '')
+  const sbUsuario = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${tokenUsuario}` } } }
+  )
+
   try {
     const { data: empresa } = await sb
       .from('empresas')
@@ -40,7 +51,7 @@ export default async function handler(req, res) {
 
     if (!empresa) return res.status(404).json({ erro: 'Empresa não encontrada' })
 
-    const { data: alertas } = await sb
+    const { data: alertas } = await sbUsuario
       .rpc('get_alertas_vencimento', { p_empresa_id: empresa_id })
 
     if (!alertas || alertas.length === 0) {

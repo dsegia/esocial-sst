@@ -35,11 +35,16 @@ export default async function handler(req, res) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  const { data: trials } = await sb
+  const { data: trials, error: trialsErr } = await sb
     .from('empresas')
     .select('id, razao_social, trial_inicio')
     .eq('plano', 'trial')
     .not('trial_inicio', 'is', null)
+
+  if (trialsErr) {
+    console.error('[alertas-trial] falha ao buscar trials:', trialsErr.message)
+    return res.status(500).json({ ok: false, erro: trialsErr.message })
+  }
 
   const hoje = new Date()
   const resultados = []

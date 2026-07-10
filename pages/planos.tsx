@@ -123,9 +123,12 @@ export default function Planos() {
   }
 
   if (carregando) return (
-    <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', fontFamily:'sans-serif', fontSize:14, color:'#6b7280' }}>
-      Carregando...
-    </div>
+    <>
+      <Head><title>Planos e Preços — eSocial SST Transmissor</title></Head>
+      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', fontFamily:'sans-serif', fontSize:14, color:'#6b7280' }}>
+        Carregando...
+      </div>
+    </>
   )
 
   const pctCreditos = creditosIncluidos > 0 ? Math.min(100, Math.round((creditosRestantes ?? 0) / creditosIncluidos * 100)) : 0

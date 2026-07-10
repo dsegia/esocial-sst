@@ -7,7 +7,6 @@ export default function Document() {
     <Html lang="pt-BR">
       <Head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
         <meta name="theme-color" content="#185FA5" />
         <meta name="description" content="eSocial SST Transmissor — plataforma SaaS para transmissão de eventos SST ao eSocial. Importe ASO, LTCAT e PCMSO via IA e transmita S-2220, S-2240 e S-2221 com facilidade." />
         <meta name="keywords" content="eSocial SST, transmissão eSocial, S-2220, S-2240, S-2221, ASO eSocial, LTCAT, PCMSO, saúde segurança trabalho" />

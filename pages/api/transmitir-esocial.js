@@ -187,6 +187,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ erro: 'XML assinado e CNPJ são obrigatórios' })
   }
 
+  // O CNPJ do empregador transmitido deve ser sempre o da empresa já validada
+  // acima (empresaId) — nunca confiar em cnpj_empregador do body sem checar,
+  // ou um usuário poderia transmitir evento em nome de um CNPJ alheio.
+  if (cnpj_empregador.replace(/\D/g, '') !== (empresa.cnpj || '').replace(/\D/g, '')) {
+    return res.status(403).json({ erro: 'CNPJ do empregador não corresponde à empresa autorizada.' })
+  }
+
   // Valida que xml_assinado é um XML eSocial legítimo — deve começar com
   // a declaração XML ou com a tag <eSocial e conter a assinatura digital.
   // Rejeita qualquer conteúdo que tente escapar do elemento <evento>.

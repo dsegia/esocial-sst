@@ -107,7 +107,14 @@ export default function Empresas() {
       resp_cpf: form.resp_cpf.trim() || null,
     }).select().single()
 
-    if (empErr) { setErro('Erro ao criar empresa: ' + empErr.message); setSalvando(false); return }
+    if (empErr) {
+      // Mensagem genérica em violação de CNPJ único — não confirmar a terceiros
+      // que aquele CNPJ já está cadastrado por outra conta no sistema.
+      const msg = empErr.code === '23505' || /duplicate key|unique constraint/i.test(empErr.message)
+        ? 'Não foi possível cadastrar esta empresa. Se o CNPJ já estiver em uso, solicite um convite ao administrador responsável.'
+        : 'Erro ao criar empresa. Tente novamente.'
+      setErro(msg); setSalvando(false); return
+    }
 
     // Vincular ao usuário
     await supabase.from('usuario_empresas').upsert({
