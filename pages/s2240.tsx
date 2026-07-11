@@ -96,7 +96,7 @@ export default function S2240() {
     setEmpresaId(empId)
 
     const [funcsRes, ltcatRes, txRes, asosRes] = await Promise.all([
-      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor,data_adm,data_nasc,ghe_id').eq('empresa_id', empId).eq('ativo', true).order('nome').limit(2000),
+      supabase.from('funcionarios').select('id,nome,cpf,matricula_esocial,funcao,setor,data_adm,data_nasc,ghe_id,ghe_uuid').eq('empresa_id', empId).eq('ativo', true).order('nome').limit(2000),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('transmissoes').select('id,status,evento,funcionario_id,recibo,dt_envio,criado_em,erro_descricao').eq('empresa_id', empId).eq('evento', 'S-2240').order('criado_em', { ascending: false }).limit(1000),
       supabase.from('asos').select('id,funcionario_id,tipo_aso,data_exame,exames').eq('empresa_id', empId).order('data_exame', { ascending: false }).limit(5000),
@@ -160,7 +160,15 @@ export default function S2240() {
   function gheDoFuncionario(func: any) {
     if (!ltcatAtivo?.ghes) return null
 
-    // 1. GHE fixado manualmente (ghe_id salvo no funcionário)
+    // 0. GHE vinculado por id estável (ghe_uuid) — robusto a reordenação do array,
+    // diferente da resolução por índice abaixo. Só funciona para LTCATs já
+    // atualizadas a partir do cadastro central (que grava `id` em cada GHE do snapshot).
+    if (func.ghe_uuid) {
+      const porUuid = ltcatAtivo.ghes.find((g: any) => g.id === func.ghe_uuid)
+      if (porUuid) return porUuid
+    }
+
+    // 1. GHE fixado manualmente por índice (legado, ghe_id salvo no funcionário)
     if (func.ghe_id !== undefined && func.ghe_id !== null) {
       return ltcatAtivo.ghes[func.ghe_id] ?? null
     }
@@ -227,7 +235,10 @@ export default function S2240() {
   async function vincularGHE(func: any) {
     if (gheSelecionado === '') { setErro('Selecione um GHE.'); return }
     const idx = parseInt(gheSelecionado)
-    const { error } = await supabase.from('funcionarios').update({ ghe_id: idx }).eq('id', func.id)
+    const gheEscolhido = ltcatAtivo.ghes[idx]
+    // Grava índice (legado) e id estável (novo) juntos — o id só existe se a LTCAT
+    // já foi atualizada a partir do cadastro central em /ghes.
+    const { error } = await supabase.from('funcionarios').update({ ghe_id: idx, ghe_uuid: gheEscolhido?.id || null }).eq('id', func.id)
     if (error) { setErro('Erro ao vincular: ' + error.message); return }
     setSucesso(`GHE "${ltcatAtivo.ghes[idx]?.nome||'GHE '+(idx+1)}" vinculado a ${func.nome}.`)
     setMapeandoFunc(null); setGheSelecionado('')

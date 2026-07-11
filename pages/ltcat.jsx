@@ -19,17 +19,10 @@ const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergo
 const COR_AGENTE  = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB' }
 const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
 
-const gheVazio = () => ({
-  nome: '', setor: '', qtd_trabalhadores: 1, aposentadoria_especial: false,
-  agentes: [], epc: [], epi: [], funcoes: []
-})
 const ltcatVazio = () => ({
   data_emissao: new Date().toISOString().split('T')[0], data_vigencia: '', prox_revisao: '',
   resp_nome: '', resp_conselho: 'CREA', resp_registro: '', resp_cpf: '', ghes: [],
 })
-const agenteVazio = () => ({ tipo:'fis', nome:'', valor:'', limite:'', supera_lt:false })
-const epiVazio    = () => ({ nome:'', ca:'', eficaz:true })
-const epcVazio    = () => ({ nome:'', eficaz:true })
 
 export default function LTCAT() {
   const router = useRouter()
@@ -127,79 +120,40 @@ export default function LTCAT() {
     init()
   }
 
-  // Helpers para edição de GHEs
-  function setGhe(field, value) {
-    setFormLtcat(p => {
-      const ghes = [...p.ghes]
-      ghes[gheAtivo] = { ...ghes[gheAtivo], [field]: value }
-      return { ...p, ghes }
-    })
+  // GHEs deixaram de ser editados aqui — fonte única é o cadastro central (/ghes).
+  // Estas funções só trazem um snapshot fresco de lá para dentro da LTCAT.
+  async function buscarGhesDoCadastro() {
+    const { data, error } = await supabase.from('ghes').select('*').eq('empresa_id', _empresaId).eq('ativo', true).order('criado_em')
+    if (error) { setErro('Erro ao buscar cadastro de GHEs: ' + error.message); return null }
+    return (data || []).map(g => ({
+      id: g.id, nome: g.nome, setor: g.setor, qtd_trabalhadores: g.qtd_trabalhadores,
+      aposentadoria_especial: g.aposentadoria_especial, funcoes: g.funcoes || [],
+      agentes: (g.riscos || []).map(r => ({
+        tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
+        supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
+      })),
+      epc: g.epc || [], epi: g.epi || [],
+    }))
   }
 
-  function addGhe() {
-    setFormLtcat(p => ({ ...p, ghes: [...(p.ghes||[]), gheVazio()] }))
-    setGheAtivo((formLtcat?.ghes?.length) || 0)
-  }
-
-  function removeGhe(i) {
-    setFormLtcat(p => ({ ...p, ghes: p.ghes.filter((_,idx)=>idx!==i) }))
+  // Modo edição: só atualiza o formulário local — persiste junto com "Salvar alterações"
+  async function atualizarGhesNoForm() {
+    const snapshot = await buscarGhesDoCadastro()
+    if (!snapshot) return
+    setFormLtcat(p => ({ ...p, ghes: snapshot }))
     setGheAtivo(0)
+    setSucesso(`${snapshot.length} GHE(s) trazido(s) do cadastro. Clique em "Salvar alterações" para confirmar.`)
   }
 
-  function addAgente() {
-    setFormLtcat(p => {
-      const ghes = [...p.ghes]
-      ghes[gheAtivo].agentes = [...(ghes[gheAtivo].agentes||[]), agenteVazio()]
-      return { ...p, ghes }
-    })
-  }
-
-  function setAgente(ai, field, value) {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].agentes[ai][field] = value
-      return { ...p, ghes }
-    })
-  }
-
-  function removeAgente(ai) {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].agentes = ghes[gheAtivo].agentes.filter((_,idx)=>idx!==ai)
-      return { ...p, ghes }
-    })
-  }
-
-  function addEPI() {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].epi = [...(ghes[gheAtivo].epi||[]), epiVazio()]
-      return { ...p, ghes }
-    })
-  }
-
-  function setEPI(ei, field, value) {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].epi[ei][field] = value
-      return { ...p, ghes }
-    })
-  }
-
-  function addEPC() {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].epc = [...(ghes[gheAtivo].epc||[]), epcVazio()]
-      return { ...p, ghes }
-    })
-  }
-
-  function setEPC(ei, field, value) {
-    setFormLtcat(p => {
-      const ghes = JSON.parse(JSON.stringify(p.ghes))
-      ghes[gheAtivo].epc[ei][field] = value
-      return { ...p, ghes }
-    })
+  // Modo visualização: LTCAT já existe salva — grava direto no banco
+  async function atualizarGhesDoLtcat(ltcatId) {
+    const snapshot = await buscarGhesDoCadastro()
+    if (!snapshot) return
+    const { error } = await supabase.from('ltcats').update({ ghes: snapshot }).eq('id', ltcatId)
+    if (error) { setErro('Erro ao atualizar GHEs: ' + error.message); return }
+    setSucesso('GHEs atualizados a partir do cadastro central.')
+    setGheAtivo(0)
+    init()
   }
 
   function fmtData(d) {
@@ -312,6 +266,10 @@ export default function LTCAT() {
                     <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                       <button style={{ ...s.btnPrimary, padding:'6px 14px', fontSize:12 }} onClick={() => abrirEdicao(ltcatSel)}>
                         ✏ Editar LTCAT
+                      </button>
+                      <button style={{ ...s.btnOutline, color:'#0C447C', borderColor:'#B5D4F4', padding:'6px 14px', fontSize:12 }}
+                        onClick={() => atualizarGhesDoLtcat(ltcatSel.id)} title="Traz o cadastro de GHEs/riscos mais atual de /ghes para esta LTCAT">
+                        ↻ Atualizar do cadastro
                       </button>
                       <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
                         onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
@@ -507,166 +465,25 @@ export default function LTCAT() {
                   </div>
                 </div>
 
-                {/* GHEs */}
+                {/* GHEs — não são mais editados aqui, só trazidos do cadastro central */}
                 <div style={{ marginBottom:16 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                     <div style={s.secLabel}>Grupos Homogêneos de Exposição (GHEs)</div>
-                    <button style={{ ...s.btnOutline, padding:'4px 10px', fontSize:11 }} onClick={addGhe}>+ Novo GHE</button>
-                  </div>
-
-                  {/* Tabs GHE */}
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
-                    {(formLtcat.ghes||[]).map((g,i) => (
-                      <button key={i} onClick={() => setGheAtivo(i)} style={{
-                        padding:'5px 12px', fontSize:11, fontWeight:500, borderRadius:99, cursor:'pointer',
-                        border: i===gheAtivo?'1.5px solid #185FA5':'1px solid #d1d5db',
-                        background: i===gheAtivo?'#185FA5':'#fff', color: i===gheAtivo?'#fff':'#374151',
-                        display:'flex', alignItems:'center', gap:6
-                      }}>
-                        {g.nome||`GHE ${i+1}`}
-                        {i===gheAtivo && (formLtcat.ghes||[]).length > 1 && (
-                          <span onClick={e=>{e.stopPropagation();removeGhe(i)}} style={{ fontWeight:700, fontSize:14, lineHeight:1 }}>×</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* GHE ativo */}
-                  {ghe !== undefined && (
-                    <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, padding:14 }}>
-                      {/* Info básica do GHE */}
-                      <div style={{ display:'grid', gridTemplateColumns:'2fr 2fr 1fr 1fr', gap:10, marginBottom:12 }}>
-                        <div>
-                          <label style={s.label}>Nome do GHE</label>
-                          <input style={s.input} value={ghe.nome||''} onChange={e=>setGhe('nome',e.target.value)} placeholder="Ex: GHE 01 — Produção"/>
-                        </div>
-                        <div>
-                          <label style={s.label}>Setor</label>
-                          <input style={s.input} value={ghe.setor||''} onChange={e=>setGhe('setor',e.target.value)} placeholder="Ex: Linha de Produção"/>
-                        </div>
-                        <div>
-                          <label style={s.label}>Qtd. trabalhadores</label>
-                          <input style={s.input} type="number" min="1" value={ghe.qtd_trabalhadores||1} onChange={e=>setGhe('qtd_trabalhadores',parseInt(e.target.value))}/>
-                        </div>
-                        <div>
-                          <label style={s.label}>Aposent. especial</label>
-                          <select style={s.input} value={ghe.aposentadoria_especial?'sim':'nao'} onChange={e=>setGhe('aposentadoria_especial',e.target.value==='sim')}>
-                            <option value="nao">Não</option><option value="sim">Sim</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Funções/Cargos do GHE */}
-                      <div style={{ marginBottom:12 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                          <label style={s.label}>Funções/Cargos neste GHE</label>
-                          <span style={{ fontSize:11, color:'#9ca3af' }}>Usado para vincular funcionários automaticamente</span>
-                        </div>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:6 }}>
-                          {(ghe.funcoes||[]).map((fn,fi) => (
-                            <span key={fi} style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:99, fontSize:12, background:'#E6F1FB', color:'#0C447C' }}>
-                              {fn}
-                              <button onClick={()=>{
-                                setFormLtcat(p=>{const g=JSON.parse(JSON.stringify(p.ghes));g[gheAtivo].funcoes=g[gheAtivo].funcoes.filter((_,i)=>i!==fi);return{...p,ghes:g}})
-                              }} style={{background:'none',border:'none',cursor:'pointer',color:'#0C447C',fontSize:14,lineHeight:1,padding:0}}>×</button>
-                            </span>
-                          ))}
-                        </div>
-                        <div style={{ display:'flex', gap:8 }}>
-                          <input id="inp-funcao-ghe" style={{ ...s.input, flex:1 }}
-                            placeholder="Ex: Operador de Produção, Soldador, Cargo/Função..."
-                            list="funcoes-existentes"
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' && e.target.value.trim()) {
-                                const fn = e.target.value.trim()
-                                setFormLtcat(p => {
-                                  const g = JSON.parse(JSON.stringify(p.ghes))
-                                  g[gheAtivo].funcoes = [...(g[gheAtivo].funcoes||[]), fn]
-                                  return { ...p, ghes: g }
-                                })
-                                e.target.value = ''
-                              }
-                            }}/>
-                          <datalist id="funcoes-existentes">
-                            {todosFunc.map(f=>f.funcao).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).map(fn=>(
-                              <option key={fn} value={fn}/>
-                            ))}
-                          </datalist>
-                          <button style={{ ...s.btnOutline, padding:'6px 12px', fontSize:12, whiteSpace:'nowrap' }}
-                            onClick={() => {
-                              const inp = document.getElementById('inp-funcao-ghe')
-                              if (inp?.value.trim()) {
-                                const fn = inp.value.trim()
-                                setFormLtcat(p => {
-                                  const g = JSON.parse(JSON.stringify(p.ghes))
-                                  g[gheAtivo].funcoes = [...(g[gheAtivo].funcoes||[]), fn]
-                                  return { ...p, ghes: g }
-                                })
-                                inp.value = ''
-                              }
-                            }}>+ Adicionar</button>
-                        </div>
-                      </div>
-
-                      {/* Agentes */}
-                      <div style={{ marginBottom:12 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                          <div style={s.secLabel}>Agentes de risco</div>
-                          <button style={{ ...s.btnOutline, padding:'3px 8px', fontSize:11 }} onClick={addAgente}>+ Agente</button>
-                        </div>
-                        {(ghe.agentes||[]).map((ag,ai) => (
-                          <div key={ai} style={{ display:'grid', gridTemplateColumns:'100px 1fr 80px 80px 80px 30px', gap:8, marginBottom:6, alignItems:'center' }}>
-                            <select style={s.input} value={ag.tipo||'fis'} onChange={e=>setAgente(ai,'tipo',e.target.value)}>
-                              <option value="fis">Físico</option><option value="qui">Químico</option>
-                              <option value="bio">Biológico</option><option value="erg">Ergonômico</option>
-                            </select>
-                            <input style={s.input} value={ag.nome||''} onChange={e=>setAgente(ai,'nome',e.target.value)} placeholder="Nome do agente"/>
-                            <input style={s.input} value={ag.valor||''} onChange={e=>setAgente(ai,'valor',e.target.value)} placeholder="Medição"/>
-                            <input style={s.input} value={ag.limite||''} onChange={e=>setAgente(ai,'limite',e.target.value)} placeholder="Limite"/>
-                            <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, whiteSpace:'nowrap' }}>
-                              <input type="checkbox" checked={ag.supera_lt||false} onChange={e=>setAgente(ai,'supera_lt',e.target.checked)}/>
-                              Supera LT
-                            </label>
-                            <button onClick={()=>removeAgente(ai)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, padding:0 }}>×</button>
-                          </div>
-                        ))}
-                        {!(ghe.agentes?.length) && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum agente. Clique em + Agente.</div>}
-                      </div>
-
-                      {/* EPI e EPC */}
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                        <div>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                            <div style={s.secLabel}>EPC</div>
-                            <button style={{ ...s.btnOutline, padding:'2px 7px', fontSize:10 }} onClick={addEPC}>+ EPC</button>
-                          </div>
-                          {(ghe.epc||[]).map((e,ei) => (
-                            <div key={ei} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                              <input style={{ ...s.input, flex:1 }} value={e.nome||''} onChange={v=>setEPC(ei,'nome',v.target.value)} placeholder="Nome do EPC"/>
-                              <select style={{ ...s.input, width:90 }} value={e.eficaz?'sim':'nao'} onChange={v=>setEPC(ei,'eficaz',v.target.value==='sim')}>
-                                <option value="sim">Eficaz</option><option value="nao">Ineficaz</option>
-                              </select>
-                            </div>
-                          ))}
-                        </div>
-                        <div>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                            <div style={s.secLabel}>EPI</div>
-                            <button style={{ ...s.btnOutline, padding:'2px 7px', fontSize:10 }} onClick={addEPI}>+ EPI</button>
-                          </div>
-                          {(ghe.epi||[]).map((e,ei) => (
-                            <div key={ei} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                              <input style={{ ...s.input, flex:2 }} value={e.nome||''} onChange={v=>setEPI(ei,'nome',v.target.value)} placeholder="Nome do EPI"/>
-                              <input style={{ ...s.input, width:70 }} value={e.ca||''} onChange={v=>setEPI(ei,'ca',v.target.value)} placeholder="CA"/>
-                              <select style={{ ...s.input, width:90 }} value={e.eficaz?'sim':'nao'} onChange={v=>setEPI(ei,'eficaz',v.target.value==='sim')}>
-                                <option value="sim">Eficaz</option><option value="nao">Ineficaz</option>
-                              </select>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <button style={{ ...s.btnOutline, padding:'4px 10px', fontSize:11 }} onClick={() => router.push('/ghes')}>Gerenciar em /ghes</button>
+                      <button style={{ ...s.btnOutline, color:'#0C447C', borderColor:'#B5D4F4', padding:'4px 10px', fontSize:11 }} onClick={atualizarGhesNoForm}>↻ Trazer do cadastro</button>
                     </div>
-                  )}
+                  </div>
+                  <div style={{ border:'0.5px solid #e5e7eb', borderRadius:10, padding:14, fontSize:12, color:'#6b7280' }}>
+                    {(formLtcat.ghes||[]).length === 0 ? (
+                      <>Nenhum GHE trazido ainda. Cadastre os GHEs em <strong>/ghes</strong> e clique em &quot;Trazer do cadastro&quot;.</>
+                    ) : (
+                      <>
+                        {formLtcat.ghes.length} GHE(s) neste rascunho: {formLtcat.ghes.map(g=>g.nome||'—').join(', ')}.
+                        {' '}Para adicionar, remover ou editar um GHE, use <strong>/ghes</strong> e clique em &quot;Trazer do cadastro&quot; de novo.
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {erro && <div style={s.erroBox}>{erro}</div>}

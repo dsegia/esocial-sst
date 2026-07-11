@@ -53,6 +53,17 @@ function normalizeExames(prog) {
   return result
 }
 
+// Tipos de consulta (admissional/periodico/...) em que um exame aparece.
+// Backward compat com exames que só tinham `periodicidade` (texto livre).
+function tiposExame(ex) {
+  if (ex.tipos?.length) return ex.tipos
+  if (ex.periodicidade) {
+    const p = ex.periodicidade.toLowerCase()
+    return [p.includes('admissional') ? 'admissional' : p.includes('demissional') ? 'demissional' : 'periodico']
+  }
+  return ['periodico']
+}
+
 function todosRiscos(riscos) {
   if (!riscos) return []
   if (Array.isArray(riscos)) return riscos
@@ -74,6 +85,7 @@ export default function PCMSO() {
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
   const [funcionarios, setFuncionarios] = useState([])
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
+  const [ghesCadastro, setGhesCadastro] = useState([])
   const [asos, setAsos] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aba, setAba] = useState('programa') // programa | funcionarios | novo
@@ -85,7 +97,7 @@ export default function PCMSO() {
   const [programa, setPrograma] = useState([])
   const [editandoFunc, setEditandoFunc] = useState(null)
   const [formFunc, setFormFunc] = useState({
-    funcao: '', setor: '', riscos: [], exames: []
+    funcao: '', setor: '', ghe_id: null, riscos: [], exames: []
   })
   const [novoExame, setNovoExame] = useState({ nome:'', tipos:['periodico'], obrigatorio:true })
   const [salvandoProg, setSalvandoProg] = useState(false)
@@ -108,9 +120,10 @@ export default function PCMSO() {
     supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
-    const [funcsRes, ltcatRes, asosRes, progRes, medicoRes] = await Promise.all([
+    const [funcsRes, ltcatRes, ghesRes, asosRes, progRes, medicoRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome').limit(2000),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo',true).order('data_emissao',{ascending:false}).limit(1).maybeSingle(),
+      supabase.from('ghes').select('*').eq('empresa_id', empId).eq('ativo', true).order('criado_em'),
       supabase.from('asos').select('funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,exames').eq('empresa_id', empId).order('data_exame',{ascending:false}).limit(5000),
       supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).order('funcao').limit(200),
       supabase.from('pcmso_dados').select('*').eq('empresa_id', empId).maybeSingle(),
@@ -118,6 +131,7 @@ export default function PCMSO() {
 
     setFuncionarios(funcsRes.data || [])
     setLtcatAtivo(ltcatRes.data || null)
+    setGhesCadastro(ghesRes.data || [])
     setAsos(asosRes.data || [])
     setPrograma(progRes.data || [])
     setMedico(medicoRes.data || null)
@@ -168,35 +182,46 @@ export default function PCMSO() {
     return { label:'Em dia', cor:'#1D9E75', bg:'#EAF3DE' }
   }
 
-  function agentesDoFuncionario(func) {
-    if (!ltcatAtivo?.ghes) return []
-    for (const ghe of ltcatAtivo.ghes) {
+  // GHE sugerido para pré-selecionar ao abrir um novo programa — só um palpite
+  // inicial por setor; o vínculo real fica em formFunc.ghe_id, escolhido pelo usuário.
+  function gheSugeridoParaFuncionario(func) {
+    for (const ghe of ghesCadastro) {
       const setorGHE = (ghe.setor||'').toLowerCase()
       const setorFunc = (func.setor||'').toLowerCase()
       if (setorGHE && setorFunc && (setorGHE.includes(setorFunc) || setorFunc.includes(setorGHE))) {
-        return ghe.agentes || []
+        return ghe
       }
     }
-    return []
+    return null
   }
 
-  function examesRecomendados(agentes) {
+  function examesRecomendados(riscos) {
     const set = new Set(['Avaliação clínica'])
-    agentes.forEach(ag => (EXAMES_POR_RISCO[ag.tipo]||[]).forEach(e => set.add(e)))
+    riscos.forEach(r => (EXAMES_POR_RISCO[r.tipo]||[]).forEach(e => set.add(e)))
     return [...set]
+  }
+
+  // Recalcula os riscos do formulário a partir do GHE vinculado no cadastro central
+  function atualizarRiscosDoCadastro() {
+    const ghe = ghesCadastro.find(g => g.id === formFunc.ghe_id)
+    if (!ghe) { setErro('Selecione um GHE vinculado primeiro.'); return }
+    setFormFunc(p => ({ ...p, riscos: (ghe.riscos||[]).map(r => r.nome) }))
+    setSucesso(`Riscos atualizados a partir do GHE "${ghe.nome}".`)
   }
 
   // Abrir formulário de novo programa para função
   function abrirNovoPrograma(func) {
-    const agentes = agentesDoFuncionario(func)
-    const examesRec = examesRecomendados(agentes)
+    const gheSugerido = gheSugeridoParaFuncionario(func)
+    const riscos = gheSugerido?.riscos || []
+    const examesRec = examesRecomendados(riscos)
     const progExistente = programa.find(p => p.funcao === func.funcao && p.setor === func.setor)
 
     setEditandoFunc(func)
     setFormFunc({
       funcao: func.funcao || '',
       setor: func.setor || '',
-      riscos: agentes.map(a => a.nome),
+      ghe_id: gheSugerido?.id || null,
+      riscos: riscos.map(r => r.nome),
       exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true }))
     })
     setAba('novo')
@@ -221,6 +246,7 @@ export default function PCMSO() {
       empresa_id: empresaId,
       funcao: formFunc.funcao,
       setor: formFunc.setor,
+      ghe_id: formFunc.ghe_id || null,
       riscos: formFunc.riscos,
       exames: formFunc.exames,
       atualizado_em: new Date().toISOString(),
@@ -276,7 +302,7 @@ export default function PCMSO() {
           <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar PDF</button>
           <button style={s.btnPrimary} onClick={() => {
             setEditandoFunc(null)
-            setFormFunc({ funcao:'', setor:'', riscos:[], exames:[] })
+            setFormFunc({ funcao:'', setor:'', ghe_id:null, riscos:[], exames:[] })
             setAba('novo')
           }}>+ Novo manual</button>
         </div>
@@ -387,7 +413,7 @@ export default function PCMSO() {
               <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16 }}>
                 Defina os exames obrigatórios por função/setor
               </div>
-              <button style={s.btnPrimary} onClick={() => { setFormFunc({funcao:'',setor:'',riscos:[],exames:[]}); setAba('novo') }}>
+              <button style={s.btnPrimary} onClick={() => { setFormFunc({funcao:'',setor:'',ghe_id:null,riscos:[],exames:[]}); setAba('novo') }}>
                 + Criar primeiro programa
               </button>
             </div>
@@ -411,7 +437,7 @@ export default function PCMSO() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))) })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))) })
                         setAba('novo')
                       }}>Editar</button>
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
@@ -503,7 +529,6 @@ export default function PCMSO() {
                   const st = statusAso(aso)
                   const prog = programa.find(p => p.funcao === f.funcao && (!p.setor || p.setor === f.setor))
                     || programa.find(p => p.funcao === f.funcao)
-                  const _agentes = agentesDoFuncionario(f)
                   return (
                     <tr key={f.id} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
                       <td style={s.td}>
@@ -585,25 +610,42 @@ export default function PCMSO() {
             </div>
           </div>
 
-          {/* Riscos vinculados */}
-          {ltcatAtivo && (
-            <div style={{ marginBottom:14 }}>
-              <label style={s.label}>Riscos vinculados (do LTCAT — automático)</label>
-              {formFunc.riscos.length > 0 ? (
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                  {formFunc.riscos.map((r,i) => (
-                    <span key={i} style={{ padding:'3px 10px', borderRadius:99, fontSize:11, background:'#FAEEDA', color:'#633806' }}>
-                      {r}
-                      <button onClick={() => setFormFunc(p=>({...p, riscos:p.riscos.filter((_,idx)=>idx!==i)}))}
-                        style={{ marginLeft:6, background:'none', border:'none', cursor:'pointer', color:'#633806', fontSize:12 }}>×</button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum risco vinculado. Preencha o setor para vincular ao LTCAT automaticamente.</div>
-              )}
+          {/* GHE vinculado (cadastro central) */}
+          <div style={{ marginBottom:14 }}>
+            <label style={s.label}>GHE vinculado (cadastro central)</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <select style={{ ...s.input, flex:1 }} value={formFunc.ghe_id || ''} onChange={e => {
+                const id = e.target.value || null
+                const ghe = ghesCadastro.find(g => g.id === id)
+                setFormFunc(p => ({ ...p, ghe_id: id, riscos: ghe ? (ghe.riscos||[]).map(r=>r.nome) : p.riscos }))
+              }}>
+                <option value="">— nenhum —</option>
+                {ghesCadastro.map(g => <option key={g.id} value={g.id}>{g.nome}{g.setor ? ` (${g.setor})` : ''}</option>)}
+              </select>
+              <button style={s.btnOutline} onClick={atualizarRiscosDoCadastro} disabled={!formFunc.ghe_id}>↻ Atualizar riscos</button>
             </div>
-          )}
+            {!ghesCadastro.length && (
+              <div style={{ fontSize:12, color:'#9ca3af', marginTop:6 }}>Nenhum GHE cadastrado ainda. Cadastre em <strong>/ghes</strong> para vincular automaticamente.</div>
+            )}
+          </div>
+
+          {/* Riscos vinculados */}
+          <div style={{ marginBottom:14 }}>
+            <label style={s.label}>Riscos vinculados a este programa</label>
+            {formFunc.riscos.length > 0 ? (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {formFunc.riscos.map((r,i) => (
+                  <span key={i} style={{ padding:'3px 10px', borderRadius:99, fontSize:11, background:'#FAEEDA', color:'#633806' }}>
+                    {r}
+                    <button onClick={() => setFormFunc(p=>({...p, riscos:p.riscos.filter((_,idx)=>idx!==i)}))}
+                      style={{ marginLeft:6, background:'none', border:'none', cursor:'pointer', color:'#633806', fontSize:12 }}>×</button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum risco vinculado. Selecione um GHE acima.</div>
+            )}
+          </div>
 
           {/* Exames */}
           <div style={{ marginBottom:14 }}>

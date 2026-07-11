@@ -28,9 +28,11 @@ const STATUS_ACAO = [
 // ── Inventário de riscos por GHE ─────────────────────────
 function riscoVazio() {
   return {
+    risco_id: null, risco_sync: null,
     perigo: '', fontes_circunstancias: '', tipo: 'fis', codigo_esocial: '', nome: '',
     possiveis_danos: '', severidade: '', probabilidade: '',
     valor: '', unidade: '', limite: '', equipamento: '', trajetoria: '', tipo_exposicao: '',
+    medicao_quantitativa: false, metodologia: '',
   }
 }
 const funcaoVazia = () => ({ nome: '', atividades: '' })
@@ -39,25 +41,35 @@ const medidaAdmVazia = (risco = '') => ({ risco, medida: '' })
 
 function gheVazio() {
   return {
+    ghe_id: null, ghe_sync: null,
     nome: '', ambientes_relacionados: '', jornada_trabalho: '', numero_empregados: '',
     funcoes: [], riscos: [], epis: [], medidas_administrativas: [], imagens: [],
   }
 }
 
-function gheInventarioDoLtcat(ltcat) {
-  if (!ltcat?.ghes) return []
-  return ltcat.ghes.map(ghe => {
-    const riscos = (ghe.agentes || []).map(ag => {
-      const sugestao = sugerirParaRisco(ag.nome)
-      return {
-        ...riscoVazio(),
-        tipo: ag.tipo, nome: ag.nome,
-        codigo_esocial: sugestao?.codigo_esocial || '',
-        valor: ag.valor || '', unidade: ag.unidade || '', limite: ag.limite || '',
-      }
-    })
+// Campos do risco que vêm do cadastro central (/ghes) e podem ser sincronizados;
+// os demais (perigo, severidade, probabilidade, possiveis_danos, equipamento,
+// trajetoria, tipo_exposicao) são exclusivos do PGR e nunca são sobrescritos.
+const CAMPOS_RISCO_COMPARTILHADOS = ['nome', 'tipo', 'valor', 'unidade', 'limite', 'medicao_quantitativa', 'codigo_esocial', 'metodologia']
+
+function riscoDoCadastro(ag, atualizadoEm) {
+  const sugestao = sugerirParaRisco(ag.nome)
+  return {
+    ...riscoVazio(),
+    risco_id: ag.id, risco_sync: { atualizado_em: atualizadoEm },
+    tipo: ag.tipo, nome: ag.nome,
+    codigo_esocial: ag.codigo_esocial || sugestao?.codigo_esocial || '',
+    valor: ag.valor || '', unidade: ag.unidade || '', limite: ag.limite || '',
+    medicao_quantitativa: !!ag.medicao_quantitativa, metodologia: ag.metodologia || '',
+  }
+}
+
+function gheInventarioDoCadastro(ghesCadastro) {
+  return (ghesCadastro || []).map(ghe => {
+    const riscos = (ghe.riscos || []).map(ag => riscoDoCadastro(ag, ghe.atualizado_em))
     const nomesRiscos = [...new Set(riscos.map(r => r.nome).filter(Boolean))]
     return {
+      ghe_id: ghe.id, ghe_sync: { atualizado_em: ghe.atualizado_em },
       nome: ghe.nome || ghe.setor || 'GHE',
       ambientes_relacionados: ghe.nome || ghe.setor || '',
       jornada_trabalho: '', numero_empregados: '',
@@ -73,14 +85,78 @@ function gheInventarioDoLtcat(ltcat) {
   })
 }
 
-function ambientesDoLtcat(ltcat) {
-  if (!ltcat?.ghes) return []
-  return ltcat.ghes.map(ghe => ({
+function ambientesDoCadastro(ghesCadastro) {
+  return (ghesCadastro || []).map(ghe => ({
     nome: ghe.nome || ghe.setor || 'Ambiente',
     descricao: '', tipo: 'proprio', data_inicio: '',
     epcs: (ghe.epc || []).map(e => ({ nome: e.nome || '' })),
     imagens: [],
   }))
+}
+
+// Compara o inventário salvo no PGR contra o cadastro central e produz um novo
+// inventário + um changelog do que mudaria — nunca aplica sozinho (ver
+// prepararSincronizacao/aplicarSincronizacao no componente).
+function sincronizarInventarioComCadastro(inventarioAtual, ghesCadastro) {
+  const novoInventario = JSON.parse(JSON.stringify(inventarioAtual || []))
+  const changelog = { grupos_novos: [], riscos_novos: [], campos_atualizados: [], riscos_removidos_do_cadastro: [] }
+
+  for (const ghe of (ghesCadastro || [])) {
+    let grupo = novoInventario.find(g => g.ghe_id === ghe.id)
+
+    if (!grupo) {
+      const [novoGrupo] = gheInventarioDoCadastro([ghe])
+      novoInventario.push(novoGrupo)
+      changelog.grupos_novos.push(ghe.nome)
+      continue
+    }
+
+    if (grupo.ghe_sync?.atualizado_em === ghe.atualizado_em) continue
+
+    if (grupo.nome !== ghe.nome) changelog.campos_atualizados.push(`${grupo.nome} → nome`)
+    grupo.nome = ghe.nome
+
+    const nomesFuncoesAtuais = new Set((grupo.funcoes || []).map(f => f.nome))
+    for (const fn of (ghe.funcoes || [])) {
+      if (!nomesFuncoesAtuais.has(fn)) grupo.funcoes = [...(grupo.funcoes || []), { nome: fn, atividades: '' }]
+    }
+
+    for (const riscoCadastro of (ghe.riscos || [])) {
+      const riscoPgr = (grupo.riscos || []).find(r => r.risco_id === riscoCadastro.id)
+      if (!riscoPgr) {
+        grupo.riscos = [...(grupo.riscos || []), riscoDoCadastro(riscoCadastro, ghe.atualizado_em)]
+        changelog.riscos_novos.push(riscoCadastro.nome)
+        continue
+      }
+      for (const campo of CAMPOS_RISCO_COMPARTILHADOS) {
+        if (riscoCadastro[campo] !== undefined && riscoPgr[campo] !== riscoCadastro[campo]) {
+          changelog.campos_atualizados.push(`${riscoCadastro.nome} → ${campo}`)
+          riscoPgr[campo] = riscoCadastro[campo]
+        }
+      }
+      riscoPgr.risco_sync = { atualizado_em: ghe.atualizado_em }
+    }
+
+    for (const riscoPgr of (grupo.riscos || [])) {
+      if (riscoPgr.risco_id && !(ghe.riscos || []).find(r => r.id === riscoPgr.risco_id)) {
+        changelog.riscos_removidos_do_cadastro.push(riscoPgr.nome)
+      }
+    }
+
+    grupo.ghe_sync = { atualizado_em: ghe.atualizado_em }
+  }
+
+  return { novoInventario, changelog }
+}
+
+// GHE do inventário do PGR precisa de sincronização se o cadastro central mudou
+// desde a última vez que esse grupo foi trazido/sincronizado.
+function inventarioDesatualizado(inventario, ghesCadastro) {
+  return (inventario || []).some(g => {
+    if (!g.ghe_id) return false
+    const atual = (ghesCadastro || []).find(gc => gc.id === g.ghe_id)
+    return atual && g.ghe_sync?.atualizado_em !== atual.atualizado_em
+  })
 }
 
 const ambienteVazio = () => ({ nome: '', descricao: '', tipo: 'proprio', data_inicio: '', epcs: [], imagens: [] })
@@ -98,6 +174,8 @@ export default function PGR() {
   const [empresaCompleta, setEmpresaCompleta] = useState(null)
   const [totalFuncionarios, setTotalFuncionarios] = useState(0)
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
+  const [ghesCadastro, setGhesCadastro] = useState([])
+  const [syncPendente, setSyncPendente] = useState(null)
   const [pgrs, setPgrs] = useState([])
   const [pgrSel, setPgrSel] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -119,11 +197,12 @@ export default function PGR() {
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
 
-    const [empRes, funcCountRes, ltcatRes, pgrRes] = await Promise.all([
+    const [empRes, funcCountRes, ltcatRes, pgrRes, ghesRes] = await Promise.all([
       supabase.from('empresas').select('*').eq('id', empId).single(),
       supabase.from('funcionarios').select('*', { count: 'exact', head: true }).eq('empresa_id', empId).eq('ativo', true),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('pgr').select('*').eq('empresa_id', empId).order('criado_em', { ascending: false }),
+      supabase.from('ghes').select('*').eq('empresa_id', empId).eq('ativo', true).order('criado_em'),
     ])
     if (empRes.data) {
       setNomeEmpresa(empRes.data.razao_social)
@@ -132,14 +211,15 @@ export default function PGR() {
     }
     setTotalFuncionarios(funcCountRes.count || 0)
     setLtcatAtivo(ltcatRes.data || null)
+    setGhesCadastro(ghesRes.data || [])
     setPgrs(pgrRes.data || [])
     setPgrSel(pgrRes.data?.[0] || null)
     setCarregando(false)
   }
 
   function abrirNovo() {
-    const inventario = gheInventarioDoLtcat(ltcatAtivo)
-    const ambientes = ambientesDoLtcat(ltcatAtivo)
+    const inventario = gheInventarioDoCadastro(ghesCadastro)
+    const ambientes = ambientesDoCadastro(ghesCadastro)
     const nomesRiscos = [...new Set(inventario.flatMap(g => g.riscos.map(r => r.nome)).filter(Boolean))]
     setForm({
       data_elaboracao: new Date().toISOString().split('T')[0],
@@ -161,6 +241,21 @@ export default function PGR() {
     setForm(JSON.parse(JSON.stringify(pgr)))
     setAba('editar')
     setSucesso(''); setErro('')
+  }
+
+  // Traz do cadastro central (/ghes) o que mudou desde a última sincronização
+  // deste PGR, sem aplicar ainda — mostra um changelog para confirmação.
+  function prepararSincronizacao() {
+    const resultado = sincronizarInventarioComCadastro(form.inventario, ghesCadastro)
+    setSyncPendente(resultado)
+  }
+  function aplicarSincronizacao() {
+    setForm(p => ({ ...p, inventario: syncPendente.novoInventario }))
+    setSyncPendente(null)
+    setSucesso('Inventário sincronizado com o cadastro central.')
+  }
+  function cancelarSincronizacao() {
+    setSyncPendente(null)
   }
 
   function cancelarEdicao() {
@@ -499,10 +594,10 @@ export default function PGR() {
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
       {erro && aba !== 'editar' && <div style={s.erroBox}>{erro}</div>}
 
-      {!ltcatAtivo && (
+      {!ghesCadastro.length && (
         <div style={{ ...s.card, background:'#FAEEDA', border:'0.5px solid #F3D9A4' }}>
           <div style={{ fontSize:13, color:'#633806' }}>
-            Nenhum LTCAT vigente encontrado. O inventário de riscos e os ambientes podem ser cadastrados manualmente, mas recomendamos cadastrar o LTCAT primeiro para herdar os GHEs e agentes de risco automaticamente.
+            Nenhum GHE cadastrado. O inventário de riscos e os ambientes podem ser preenchidos manualmente, mas recomendamos cadastrar os GHEs em <strong>/ghes</strong> primeiro para herdar automaticamente aqui e no LTCAT/PCMSO.
           </div>
         </div>
       )}
@@ -866,8 +961,18 @@ export default function PGR() {
           {/* ── Inventário de riscos por GHE ── */}
           <div style={{ marginBottom:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <label style={s.label}>Inventário de riscos por GHE ({form.inventario?.length || 0})</label>
-              <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addGhe}>+ Adicionar GHE</button>
+              <label style={s.label}>
+                Inventário de riscos por GHE ({form.inventario?.length || 0})
+                {inventarioDesatualizado(form.inventario, ghesCadastro) && (
+                  <span style={{ marginLeft:8, padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:'#FAEEDA', color:'#633806' }}>
+                    ⚠ cadastro foi atualizado
+                  </span>
+                )}
+              </label>
+              <div style={{ display:'flex', gap:6 }}>
+                <button style={{ ...s.btnAcao, fontSize:11, color:'#0C447C', borderColor:'#B5D4F4' }} onClick={prepararSincronizacao}>↻ Sincronizar do cadastro</button>
+                <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addGhe}>+ Adicionar GHE</button>
+              </div>
             </div>
             {(form.inventario || []).map((g, gi) => (
               <div key={gi} style={{ ...s.blocoItem, background:'#fff', border:'1px solid #d1d5db' }}>
@@ -950,6 +1055,13 @@ export default function PGR() {
                         <input style={s.inputSm} placeholder="Medida" list="unidades-medida-pgr" value={r.unidade} onChange={e => setRiscoGhe(gi, ri, 'unidade', e.target.value)} />
                         <input style={s.inputSm} placeholder="Limite de tolerância" value={r.limite} onChange={e => setRiscoGhe(gi, ri, 'limite', e.target.value)} />
                         <input style={s.inputSm} placeholder="Equipamento de medição" value={r.equipamento} onChange={e => setRiscoGhe(gi, ri, 'equipamento', e.target.value)} />
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 140px', gap:6, marginBottom:8 }}>
+                        <input style={s.inputSm} placeholder="Metodologia de medição (ex: NHO-01)" value={r.metodologia||''} onChange={e => setRiscoGhe(gi, ri, 'metodologia', e.target.value)} />
+                        <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, whiteSpace:'nowrap' }}>
+                          <input type="checkbox" checked={r.medicao_quantitativa||false} onChange={e => setRiscoGhe(gi, ri, 'medicao_quantitativa', e.target.checked)} />
+                          Medição quantitativa
+                        </label>
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                         <select style={s.inputSm} value={r.trajetoria} onChange={e => setRiscoGhe(gi, ri, 'trajetoria', e.target.value)}>
@@ -1075,6 +1187,57 @@ export default function PGR() {
           <div style={{ display:'flex', gap:8 }}>
             <button style={s.btnPrimary} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando...' : 'Salvar PGR'}</button>
             <button style={s.btnOutline} onClick={cancelarEdicao}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {syncPendente && (
+        <div style={s.overlay} onClick={cancelarSincronizacao}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Sincronizar do cadastro central</div>
+              <button onClick={cancelarSincronizacao} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+            </div>
+            {(() => {
+              const c = syncPendente.changelog
+              const semMudancas = !c.grupos_novos.length && !c.riscos_novos.length && !c.campos_atualizados.length && !c.riscos_removidos_do_cadastro.length
+              if (semMudancas) return <div style={{ fontSize:13, color:'#6b7280' }}>Nada para sincronizar — o inventário já está em dia com o cadastro.</div>
+              return (
+                <>
+                  {c.grupos_novos.length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:'#27500A', marginBottom:4 }}>GHEs novos ({c.grupos_novos.length})</div>
+                      <div style={{ fontSize:12, color:'#374151' }}>{c.grupos_novos.join(', ')}</div>
+                    </div>
+                  )}
+                  {c.riscos_novos.length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:'#27500A', marginBottom:4 }}>Riscos novos ({c.riscos_novos.length})</div>
+                      <div style={{ fontSize:12, color:'#374151' }}>{c.riscos_novos.join(', ')}</div>
+                    </div>
+                  )}
+                  {c.campos_atualizados.length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:'#0C447C', marginBottom:4 }}>Campos atualizados ({c.campos_atualizados.length})</div>
+                      <div style={{ fontSize:12, color:'#374151' }}>{c.campos_atualizados.join(', ')}</div>
+                    </div>
+                  )}
+                  {c.riscos_removidos_do_cadastro.length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:'#791F1F', marginBottom:4 }}>Removidos do cadastro, mas mantidos aqui ({c.riscos_removidos_do_cadastro.length})</div>
+                      <div style={{ fontSize:12, color:'#374151' }}>{c.riscos_removidos_do_cadastro.join(', ')}</div>
+                    </div>
+                  )}
+                  <div style={{ fontSize:11, color:'#9ca3af', marginTop:8 }}>
+                    Campos exclusivos do PGR (severidade, probabilidade, medidas administrativas, jornada, nº de empregados) não são alterados por esta sincronização.
+                  </div>
+                </>
+              )
+            })()}
+            <div style={{ display:'flex', gap:8, marginTop:16 }}>
+              <button style={s.btnPrimary} onClick={aplicarSincronizacao}>Aplicar</button>
+              <button style={s.btnOutline} onClick={cancelarSincronizacao}>Cancelar</button>
+            </div>
           </div>
         </div>
       )}
