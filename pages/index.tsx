@@ -39,35 +39,47 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .nav-mobile-btn{display:none;background:none;border:none;cursor:pointer;padding:6px;}
 
 /* ── HERO ── */
-.hero{min-height:100vh;display:flex;align-items:center;padding:100px 24px 120px;background:#f8fafc;position:relative;overflow:hidden;}
-.hero-blob1{position:absolute;width:520px;height:520px;background:radial-gradient(circle,rgba(24,95,165,.14) 0%,transparent 70%);top:-120px;right:-100px;animation:blob 12s ease-in-out infinite;pointer-events:none;}
-.hero-blob2{position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,.1) 0%,transparent 70%);bottom:-80px;left:-80px;animation:blob 15s ease-in-out infinite reverse;pointer-events:none;}
-.hero-blob3{position:absolute;width:280px;height:280px;background:radial-gradient(circle,rgba(99,102,241,.08) 0%,transparent 70%);top:40%;left:40%;animation:blob 18s ease-in-out infinite .5s;pointer-events:none;}
-.hero-dots{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(24,95,165,.08) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;opacity:.6;}
+.hero{min-height:100vh;display:flex;align-items:center;padding:100px 24px 120px;background:radial-gradient(ellipse 900px 600px at 15% 0%,rgba(59,130,246,.22) 0%,transparent 60%),linear-gradient(160deg,#0a1628 0%,#0f2137 45%,#0f172a 100%);position:relative;overflow:hidden;}
+.hero-blob1{position:absolute;width:520px;height:520px;background:radial-gradient(circle,rgba(59,130,246,.28) 0%,transparent 70%);top:-120px;right:-100px;animation:blob 12s ease-in-out infinite;pointer-events:none;}
+.hero-blob2{position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%);bottom:-80px;left:-80px;animation:blob 15s ease-in-out infinite reverse;pointer-events:none;}
+.hero-blob3{position:absolute;width:280px;height:280px;background:radial-gradient(circle,rgba(56,189,248,.18) 0%,transparent 70%);top:40%;left:40%;animation:blob 18s ease-in-out infinite .5s;pointer-events:none;}
+.hero-dots{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;opacity:.6;}
 .hero-edge{position:absolute;left:0;right:0;bottom:-1px;line-height:0;z-index:2;}
 .hero-edge svg{display:block;width:100%;height:64px;}
 .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center;position:relative;z-index:1;}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#185FA5;border:1.5px solid rgba(24,95,165,.2);border-radius:99px;padding:6px 16px 6px 10px;font-size:12px;font-weight:700;margin-bottom:24px;box-shadow:0 2px 12px rgba(24,95,165,.1);animation:fade-up .6s ease both;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);color:#93c5fd;border:1.5px solid rgba(147,197,253,.25);border-radius:99px;padding:6px 16px 6px 10px;font-size:12px;font-weight:700;margin-bottom:24px;backdrop-filter:blur(8px);animation:fade-up .6s ease both;}
 .badge-dot{width:8px;height:8px;background:#22c55e;border-radius:50%;animation:pulse-dot 1.8s infinite;flex-shrink:0;}
-.badge-dot-ring{width:14px;height:14px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;animation:glow-pulse 2.5s infinite;}
-.hero h1{font-size:clamp(34px,4.6vw,58px);font-weight:900;line-height:1.08;letter-spacing:-1.5px;color:#0f172a;margin-bottom:22px;animation:fade-up .6s ease .1s both;}
-.hero h1 .grad{background:linear-gradient(135deg,#185FA5 0%,#3b82f6 50%,#6366f1 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.hero-sub{font-size:clamp(15px,1.8vw,18px);color:#64748b;line-height:1.8;margin-bottom:36px;max-width:520px;animation:fade-up .6s ease .2s both;}
+.badge-dot-ring{width:14px;height:14px;border-radius:50%;background:rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;animation:glow-pulse 2.5s infinite;}
+.hero h1{font-size:clamp(34px,4.6vw,60px);font-weight:900;line-height:1.08;letter-spacing:-1.5px;color:#fff;margin-bottom:22px;animation:fade-up .6s ease .1s both;}
+.hero h1 .grad{background:linear-gradient(135deg,#60a5fa 0%,#93c5fd 50%,#a5b4fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:clamp(15px,1.8vw,18px);color:rgba(226,232,240,.75);line-height:1.8;margin-bottom:36px;max-width:520px;animation:fade-up .6s ease .2s both;}
 .hero-btns{display:flex;gap:12px;flex-wrap:wrap;animation:fade-up .6s ease .3s both;}
-.btn-hero-main{padding:15px 30px;background:linear-gradient(135deg,#185FA5,#3b82f6);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:9px;box-shadow:0 6px 28px rgba(24,95,165,.35);transition:transform .15s,box-shadow .15s;}
-.btn-hero-main:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(24,95,165,.45);}
-.btn-hero-sec{padding:15px 28px;background:#fff;color:#185FA5;border:1.5px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:border-color .15s,box-shadow .15s;}
-.btn-hero-sec:hover{border-color:rgba(24,95,165,.3);box-shadow:0 4px 16px rgba(24,95,165,.1);}
-.hero-note{margin-top:16px;font-size:12px;color:#94a3b8;animation:fade-up .6s ease .4s both;}
-.hero-note span{color:#185FA5;font-weight:600;}
+.btn-hero-main{padding:15px 30px;background:linear-gradient(135deg,#185FA5,#3b82f6);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:9px;box-shadow:0 6px 28px rgba(59,130,246,.45);transition:transform .15s,box-shadow .15s;}
+.btn-hero-main:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(59,130,246,.6);}
+.btn-hero-sec{padding:15px 28px;background:rgba(255,255,255,.06);color:#e2e8f0;border:1.5px solid rgba(255,255,255,.18);border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;backdrop-filter:blur(8px);transition:border-color .15s,background .15s;}
+.btn-hero-sec:hover{border-color:rgba(147,197,253,.4);background:rgba(255,255,255,.1);}
+.hero-note{margin-top:16px;font-size:12px;color:rgba(226,232,240,.45);animation:fade-up .6s ease .4s both;}
+.hero-note span{color:#93c5fd;font-weight:600;}
 .hero-trust{display:flex;align-items:center;gap:10px;margin-top:28px;animation:fade-up .6s ease .5s both;}
 .hero-trust-avatars{display:flex;}
-.hero-trust-av{width:28px;height:28px;border-radius:50%;border:2px solid #fff;background:linear-gradient(135deg,#185FA5,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;margin-left:-8px;}
+.hero-trust-av{width:28px;height:28px;border-radius:50%;border:2px solid #0f172a;background:linear-gradient(135deg,#185FA5,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;margin-left:-8px;}
 .hero-trust-av:first-child{margin-left:0;}
-.hero-trust-text{font-size:12px;color:#64748b;}
-.hero-trust-text strong{color:#0f172a;}
+.hero-trust-text{font-size:12px;color:rgba(226,232,240,.55);}
+.hero-trust-text strong{color:#fff;}
 .hero-demo-scene{perspective:1200px;animation:slide-left .8s ease .2s both;}
 .hero-demo-wrap{transform-style:preserve-3d;transition:transform .12s ease-out;will-change:transform;}
+
+/* ── DOCUMENT DECK (hero) ── */
+.doc-deck{position:relative;height:400px;display:flex;align-items:flex-end;justify-content:center;}
+.doc-deck-card{position:absolute;bottom:26px;width:156px;height:218px;background:#fff;border-radius:14px;padding:16px 15px;box-shadow:0 20px 45px rgba(2,8,23,.5);transform-origin:bottom center;}
+.doc-deck-nr{display:inline-block;font-size:9px;font-weight:800;color:#185FA5;background:rgba(24,95,165,.1);border-radius:6px;padding:3px 8px;margin-bottom:12px;letter-spacing:.2px;}
+.doc-deck-name{font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;letter-spacing:-.2px;}
+.doc-deck-lines span{display:block;height:6px;border-radius:3px;background:#e2e8f0;margin-bottom:7px;}
+.doc-deck-lines span:nth-child(1){width:100%;}
+.doc-deck-lines span:nth-child(2){width:82%;}
+.doc-deck-lines span:nth-child(3){width:58%;}
+.doc-deck-check{position:absolute;bottom:14px;right:14px;width:22px;height:22px;border-radius:50%;background:rgba(22,163,74,.12);display:flex;align-items:center;justify-content:center;}
+.doc-deck-caption{text-align:center;font-size:12px;color:rgba(226,232,240,.55);margin-top:14px;font-weight:600;}
 
 /* ── MARQUEE ── */
 .marquee-strip{background:#fff;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;padding:18px 0;overflow:hidden;position:relative;z-index:1;}
@@ -720,6 +732,38 @@ function LiveDemo() {
   )
 }
 
+// ─── DECK DE DOCUMENTOS (hero) ────────────────────────────────────────────────
+function DocumentDeck() {
+  const cards = DOCUMENTOS_SST
+  const center = (cards.length - 1) / 2
+  return (
+    <div>
+      <div className="doc-deck">
+        {cards.map((d, i) => {
+          const offset = i - center
+          const angle = offset * 9
+          const lift = Math.abs(offset) * 13
+          return (
+            <div
+              key={d.nome}
+              className="doc-deck-card"
+              style={{ transform: `rotate(${angle}deg) translateY(${lift}px)`, zIndex: 10 - Math.abs(Math.round(offset)) }}
+            >
+              <div className="doc-deck-nr">{d.nr}</div>
+              <div className="doc-deck-name">{d.nome}</div>
+              <div className="doc-deck-lines"><span /><span /><span /></div>
+              <div className="doc-deck-check">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3"><polyline points="20,6 9,17 4,12" /></svg>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="doc-deck-caption">Os 7 documentos, sempre prontos e atualizados</p>
+    </div>
+  )
+}
+
 // ─── FORMULÁRIO DE PROPOSTA ──────────────────────────────────────────────────
 type LeadForm = { nome: string; empresa: string; email: string; telefone: string; funcionarios: string; mensagem: string }
 
@@ -966,10 +1010,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right — Demo Interativa com tilt 3D */}
+          {/* Right — Deck dos 7 documentos com tilt 3D */}
           <div className="hero-demo-scene">
             <div className="hero-demo-wrap" ref={tiltRef}>
-              <LiveDemo />
+              <DocumentDeck />
             </div>
           </div>
         </div>
@@ -1053,6 +1097,18 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── IA EM AÇÃO (demo interativa) ── */}
+      <section id="ia-demo" className="docs-bg" style={{ paddingTop:0 }}>
+        <div className="section-wrap section-center">
+          <div className="section-label">Leitura por IA</div>
+          <h2 className="section-h2">Veja a <span className="grad">IA lendo um documento</span></h2>
+          <p className="section-desc">Solte um PDF de ASO, LTCAT ou PCMSO e veja os dados sendo extraídos e transmitidos ao eSocial em segundos.</p>
+          <div style={{ maxWidth:420, margin:'0 auto' }}>
+            <LiveDemo />
           </div>
         </div>
       </section>
