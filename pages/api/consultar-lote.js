@@ -67,6 +67,7 @@ export default async function handler(req, res) {
   // Se transmissao_id foi informado, valida que o usuário tem acesso à empresa
   // dona da transmissão antes de permitir atualizar o status (evita IDOR).
   let transmissaoAutorizada = false
+  let empresaIdConsulta = null
   if (transmissao_id) {
     const { data: tx } = await sbAdmin
       .from('transmissoes').select('empresa_id').eq('id', transmissao_id).single()
@@ -83,10 +84,30 @@ export default async function handler(req, res) {
         return res.status(403).json({ erro: 'Acesso não autorizado a esta transmissão' })
       }
       transmissaoAutorizada = true
+      empresaIdConsulta = tx.empresa_id
     }
   }
 
+  // Sem transmissao_id, a consulta é sempre sobre a empresa padrão do usuário
+  // autenticado — nunca confiar em cnpj_empregador do body sem checar, ou um
+  // usuário poderia consultar o lote de um CNPJ alheio (mesma defesa já
+  // aplicada em transmitir-esocial.js).
+  if (!empresaIdConsulta) {
+    const { data: usuarioDb } = await sbAdmin
+      .from('usuarios').select('empresa_id').eq('id', user.id).single()
+    empresaIdConsulta = usuarioDb?.empresa_id || user.user_metadata?.empresa_id || null
+  }
+
+  if (!empresaIdConsulta) return res.status(403).json({ erro: 'Empresa não encontrada para este usuário' })
+
+  const { data: empresaConsulta } = await sbAdmin
+    .from('empresas').select('cnpj').eq('id', empresaIdConsulta).single()
+
   const cnpjLimpo = cnpj_empregador.replace(/\D/g, '')
+
+  if (!empresaConsulta || cnpjLimpo !== (empresaConsulta.cnpj || '').replace(/\D/g, '')) {
+    return res.status(403).json({ erro: 'CNPJ do empregador não corresponde à empresa autorizada.' })
+  }
 
   const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope
@@ -118,20 +139,10 @@ export default async function handler(req, res) {
     let certSenhaResolvida = cert_senha || null
 
     if (!pfxBuffer) {
-      const { data: usuarioDb } = await sbAdmin
-        .from('usuarios').select('empresa_id').eq('id', user.id).single()
-      let empresaId = usuarioDb?.empresa_id || user.user_metadata?.empresa_id
-      if (transmissao_id && transmissaoAutorizada) {
-        const { data: tx } = await sbAdmin
-          .from('transmissoes').select('empresa_id').eq('id', transmissao_id).single()
-        if (tx?.empresa_id) empresaId = tx.empresa_id
-      }
-      if (empresaId) {
-        const cred = await resolverCertEmpresa(empresaId, user)
-        if (cred) {
-          pfxBuffer = cred.pfxBuffer
-          certSenhaResolvida = cred.senha
-        }
+      const cred = await resolverCertEmpresa(empresaIdConsulta, user)
+      if (cred) {
+        pfxBuffer = cred.pfxBuffer
+        certSenhaResolvida = cred.senha
       }
     }
 

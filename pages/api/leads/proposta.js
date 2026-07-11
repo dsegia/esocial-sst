@@ -43,6 +43,7 @@ export default async function handler(req, res) {
   }
 
   if (process.env.RESEND_API_KEY) {
+    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     const htmlEmail = `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -56,13 +57,13 @@ export default async function handler(req, res) {
   </td></tr>
   <tr><td style="padding:24px 28px">
     <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#374151">
-      <tr><td style="padding:6px 0;color:#6b7280;width:140px">Nome</td><td style="padding:6px 0"><strong>${lead.nome}</strong></td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280">Empresa</td><td style="padding:6px 0">${lead.empresa || '—'}</td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280">E-mail</td><td style="padding:6px 0">${lead.email}</td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280">Telefone</td><td style="padding:6px 0">${lead.telefone || '—'}</td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280">Nº funcionários</td><td style="padding:6px 0">${lead.funcionarios || '—'}</td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280">Plano de interesse</td><td style="padding:6px 0">${lead.plano_interesse || '—'}</td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Mensagem</td><td style="padding:6px 0">${lead.mensagem ? lead.mensagem.replace(/\n/g, '<br>') : '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;width:140px">Nome</td><td style="padding:6px 0"><strong>${esc(lead.nome)}</strong></td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280">Empresa</td><td style="padding:6px 0">${esc(lead.empresa) || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280">E-mail</td><td style="padding:6px 0">${esc(lead.email)}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280">Telefone</td><td style="padding:6px 0">${esc(lead.telefone) || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280">Nº funcionários</td><td style="padding:6px 0">${esc(lead.funcionarios) || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280">Plano de interesse</td><td style="padding:6px 0">${esc(lead.plano_interesse) || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;vertical-align:top">Mensagem</td><td style="padding:6px 0">${lead.mensagem ? esc(lead.mensagem).replace(/\n/g, '<br>') : '—'}</td></tr>
     </table>
   </td></tr>
 </table>
