@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { gerarPdfAso } from '../lib/gerar-pdf'
+import { examesEsperados, programaDoFuncionario } from '../lib/pcmso-exames'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -91,6 +92,7 @@ export default function Aso() {
   const [empresaId, setEmpresaId] = useState('')
   const [asos, setAsos] = useState<any[]>([])
   const [funcionariosAtivos, setFuncionariosAtivos] = useState<any[]>([])
+  const [programaPcmso, setProgramaPcmso] = useState<any[]>([])
   const [carregando, setCarregando] = useState(true)
   const [filtro, setFiltro] = useState('todos')
 
@@ -135,6 +137,9 @@ export default function Aso() {
       .eq('empresa_id', empId).eq('ativo', true).order('nome').limit(2000)
     setFuncionariosAtivos(funcs || [])
 
+    const { data: prog } = await supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).limit(200)
+    setProgramaPcmso(prog || [])
+
     setCarregando(false)
   }
 
@@ -145,6 +150,22 @@ export default function Aso() {
     setNovoExameResultado('Normal')
     setCriando(true)
     setSucesso(''); setErro('')
+  }
+
+  // Carrega os exames já definidos no programa PCMSO do funcionário para o tipo de
+  // ASO selecionado — evita redigitar o que já está parametrizado.
+  function carregarExamesPcmso(funcId: string, tipoAso: string, { soSeVazio = false } = {}) {
+    if (soSeVazio && formExames.length > 0) return
+    const func = funcionariosAtivos.find(f => f.id === funcId)
+    if (!func) return
+    const esperados = examesEsperados(programaPcmso, func, tipoAso)
+    if (esperados.length === 0) return
+    setFormExames(esperados.map(e => ({ codigo: e.codigo_t27 || codigoDeExame(e.nome), nome: e.nome, resultado: 'Normal' })))
+  }
+
+  function programaDoFormNovo() {
+    const func = funcionariosAtivos.find(f => f.id === formNovo.funcionario_id)
+    return func ? programaDoFuncionario(programaPcmso, func) : null
   }
 
   async function salvarNovoAso() {
@@ -485,19 +506,38 @@ export default function Aso() {
             <div style={{ marginBottom:14 }}>
               <label style={s.label}>Funcionário *</label>
               <select style={s.input} value={formNovo.funcionario_id}
-                onChange={e => setFormNovo((p: any) => ({ ...p, funcionario_id: e.target.value }))}>
+                onChange={e => {
+                  const funcionario_id = e.target.value
+                  setFormNovo((p: any) => ({ ...p, funcionario_id }))
+                  carregarExamesPcmso(funcionario_id, formNovo.tipo_aso, { soSeVazio: true })
+                }}>
                 <option value="">— selecione —</option>
                 {funcionariosAtivos.map(f => (
                   <option key={f.id} value={f.id}>{f.nome} — {f.cpf}</option>
                 ))}
               </select>
+              {formNovo.funcionario_id && (
+                programaDoFormNovo() ? (
+                  <div style={{ fontSize:11, color:'#1D9E75', marginTop:4 }}>
+                    ✓ Programa PCMSO encontrado — exames carregados abaixo conforme o tipo de ASO.
+                  </div>
+                ) : (
+                  <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>
+                    Nenhum programa PCMSO cadastrado para esta função — adicione os exames manualmente.
+                  </div>
+                )
+              )}
             </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
               <div>
                 <label style={s.label}>Tipo de ASO *</label>
                 <select style={s.input} value={formNovo.tipo_aso}
-                  onChange={e => setFormNovo((p: any) => ({ ...p, tipo_aso: e.target.value }))}>
+                  onChange={e => {
+                    const tipo_aso = e.target.value
+                    setFormNovo((p: any) => ({ ...p, tipo_aso }))
+                    carregarExamesPcmso(formNovo.funcionario_id, tipo_aso, { soSeVazio: true })
+                  }}>
                   {Object.entries(TIPO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
@@ -532,6 +572,16 @@ export default function Aso() {
 
             {/* Exames — mesma lista/UI do modal de edição */}
             <div style={{ marginBottom:14 }}>
+              {programaDoFormNovo() && (
+                <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
+                  <button
+                    onClick={() => carregarExamesPcmso(formNovo.funcionario_id, formNovo.tipo_aso)}
+                    style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }}
+                    title="Substitui a lista abaixo pelos exames definidos no programa PCMSO para este tipo de ASO">
+                    ↻ Carregar do PCMSO
+                  </button>
+                </div>
+              )}
               {formExames.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'1.5rem', color:'#9ca3af', fontSize:12, background:'#f9fafb', borderRadius:8 }}>
                   Nenhum exame adicionado. Adicione abaixo.

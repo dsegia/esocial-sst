@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import { gerarPdfPcmso } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
+import { TIPOS_CONSULTA, normalizeExames, programaDoFuncionario } from '../lib/pcmso-exames'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,14 +21,6 @@ const EXAMES_POR_RISCO = {
   erg: ['Avaliação clínica','Avaliação psicossocial','Rx coluna lombar'],
 }
 
-const TIPOS_CONSULTA = [
-  { key:'admissional',     label:'Admissional', cor:'#1D9E75', bg:'#EAF3DE' },
-  { key:'periodico',       label:'Periódico',   cor:'#185FA5', bg:'#E6F1FB' },
-  { key:'retorno_trabalho',label:'Retorno',     cor:'#7C3AED', bg:'#EDE9FE' },
-  { key:'mudanca_risco',   label:'Mudança',     cor:'#D97706', bg:'#FEF3C7' },
-  { key:'demissional',     label:'Demissional', cor:'#DC2626', bg:'#FEE2E2' },
-]
-
 // Retorna todos os exames únicos de um programa (nova estrutura)
 function todosExamesGhe(prog) {
   const vistos = new Set()
@@ -39,18 +32,6 @@ function todosExamesGhe(prog) {
     }
   }
   return lista
-}
-
-// Backward compat: converte estrutura antiga (array de exames com tipos[]) para nova (objeto por tipo)
-function normalizeExames(prog) {
-  if (prog.exames && !Array.isArray(prog.exames)) return prog.exames // já é novo formato
-  const result = {}
-  for (const t of TIPOS_CONSULTA) result[t.key] = []
-  for (const ex of (prog.exames || [])) {
-    const tipos = ex.tipos?.length ? ex.tipos : ex.periodicidade ? [ex.periodicidade.toLowerCase().includes('admissional')?'admissional':ex.periodicidade.toLowerCase().includes('demissional')?'demissional':'periodico'] : ['periodico']
-    for (const t of tipos) { if (result[t]) result[t].push({ nome: ex.nome, codigo_t27: ex.codigo_t27 }) }
-  }
-  return result
 }
 
 // Tipos de consulta (admissional/periodico/...) em que um exame aparece.
@@ -214,7 +195,7 @@ export default function PCMSO() {
     const gheSugerido = gheSugeridoParaFuncionario(func)
     const riscos = gheSugerido?.riscos || []
     const examesRec = examesRecomendados(riscos)
-    const progExistente = programa.find(p => p.funcao === func.funcao && p.setor === func.setor)
+    const progExistente = programaDoFuncionario(programa, func)
 
     setEditandoFunc(func)
     setFormFunc({
@@ -527,8 +508,7 @@ export default function PCMSO() {
                 {funcsFiltradas.map(f => {
                   const aso = ultimoAso(f.id)
                   const st = statusAso(aso)
-                  const prog = programa.find(p => p.funcao === f.funcao && (!p.setor || p.setor === f.setor))
-                    || programa.find(p => p.funcao === f.funcao)
+                  const prog = programaDoFuncionario(programa, f)
                   return (
                     <tr key={f.id} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
                       <td style={s.td}>

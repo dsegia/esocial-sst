@@ -244,6 +244,39 @@ async function salvarAso(dados, funcId, empresaId) {
 // ── Salvar LTCAT / PCMSO ──────────────────────────────────
 async function salvarDocumento(tipo, dados, empresaId) {
   if (tipo === 'ltcat') {
+    // GHEs vão primeiro pro cadastro central (/ghes) — mesma fonte única que o
+    // cadastro manual usa — pra ganhar `id` estável. Sem isso, o vínculo GHE↔
+    // funcionário no S-2240 (ghe_uuid) nunca casa pra LTCATs importadas por PDF.
+    const ghesSnapshot = []
+    for (const g of (dados.ghes || [])) {
+      const { data: gheNovo, error: gheErr } = await supabase.from('ghes').insert({
+        empresa_id: empresaId,
+        nome: g.nome || '',
+        setor: g.setor || '',
+        qtd_trabalhadores: g.qtd_trabalhadores || 1,
+        aposentadoria_especial: !!g.aposentadoria_especial,
+        funcoes: g.funcoes || [],
+        riscos: (g.agentes || []).map(a => ({
+          id: crypto.randomUUID(), tipo: a.tipo, nome: a.nome,
+          valor: a.valor || '', limite: a.limite || '', unidade: '',
+          supera_lt: !!a.supera_lt, medicao_quantitativa: false,
+          metodologia: '', codigo_esocial: '', fonte_geradora: '',
+        })),
+        epc: g.epc || [], epi: g.epi || [],
+      }).select().single()
+      if (gheErr) throw new Error(gheErr.message)
+      ghesSnapshot.push({
+        id: gheNovo.id, nome: gheNovo.nome, setor: gheNovo.setor,
+        qtd_trabalhadores: gheNovo.qtd_trabalhadores, aposentadoria_especial: gheNovo.aposentadoria_especial,
+        funcoes: gheNovo.funcoes || [],
+        agentes: (gheNovo.riscos || []).map(r => ({
+          tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
+          supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
+        })),
+        epc: gheNovo.epc || [], epi: gheNovo.epi || [],
+      })
+    }
+
     const { error } = await supabase.from('ltcats').insert({
       empresa_id: empresaId,
       data_emissao: dados.dados_gerais?.data_emissao || null,
@@ -252,7 +285,7 @@ async function salvarDocumento(tipo, dados, empresaId) {
       resp_nome: dados.dados_gerais?.resp_nome || null,
       resp_conselho: dados.dados_gerais?.resp_conselho || 'CREA',
       resp_registro: dados.dados_gerais?.resp_registro || null,
-      ghes: dados.ghes || [],
+      ghes: ghesSnapshot,
       ativo: true,
     })
     if (error) throw new Error(error.message)
