@@ -43,6 +43,18 @@ const FAQ_ITEMS = [
     resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 69/mês para até 10 vidas até R$ 599/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital, alertas de vencimento e os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) sem limite de uso.`,
   },
   {
+    pergunta: 'O eSocial SST também emite os documentos de SST (PGR, LTCAT, PCMSO)?',
+    resposta: `Sim. Além de transmitir os eventos ao eSocial, a plataforma gera e mantém os 7 documentos exigidos pelas Normas Regulamentadoras: PGR (NR-1), LTCAT (NR-9), PCMSO (NR-7), AET (NR-17), APR, LIP (NR-15/16) e PPP. São dois módulos que funcionam juntos: você importa ou cadastra os dados uma única vez e eles alimentam tanto os documentos quanto os eventos S-2220/S-2240 transmitidos ao governo — sem retrabalho de digitar a mesma informação duas vezes. Os documentos ficam disponíveis para exportação em PDF, prontos para fiscalização ou auditoria.`,
+  },
+  {
+    pergunta: 'Qual a diferença entre a leitura de PDF por IA e a emissão de documentos SST?',
+    resposta: `São duas etapas complementares. A leitura por IA (Claude/Anthropic) serve para importar um PDF já pronto — como um ASO ou um LTCAT que a empresa já tem — e extrair os dados automaticamente para preencher e transmitir o evento correspondente ao eSocial (S-2220, S-2240 etc.), sem digitação manual. Já o módulo de documentos SST vai além: ele gera do zero (ou a partir dos dados já cadastrados) o PGR, LTCAT, PCMSO, AET, APR, LIP e PPP completos, com os textos legais exigidos por cada NR, matriz de risco e histórico de exposição — prontos para assinatura do responsável técnico e para uso em fiscalização, mesmo antes de qualquer transmissão ao Gov.br.`,
+  },
+  {
+    pergunta: 'Preciso ter o PGR, LTCAT e PCMSO prontos para usar o eSocial SST?',
+    resposta: `Não. Você pode começar de duas formas: importando um documento em PDF que já existe (a IA extrai os dados automaticamente) ou cadastrando os dados direto na plataforma para gerar o documento do zero. Como os 7 documentos compartilham a mesma base de dados — por exemplo, os agentes de risco cadastrados no LTCAT se propagam para o PGR, LIP e PPP — depois do primeiro cadastro os demais documentos ficam muito mais rápidos de montar.`,
+  },
+  {
     pergunta: 'Como funciona a multa por não transmitir eSocial SST?',
     resposta: `Empresas que não transmitem os eventos SST no prazo estão sujeitas a multas previstas no artigo 47 da CLT e na Portaria MTP 671/2021. O valor varia de R$ 402,53 a R$ 4.025,33 por infração, por evento e por funcionário afetado. Uma empresa com 10 funcionários com ASOs atrasados pode acumular multas superiores a R$ 40.000. A fiscalização é feita pela Auditoria-Fiscal do Trabalho com base nos dados do eSocial.`,
   },
@@ -65,21 +77,22 @@ const SCHEMA = {
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
       url: 'https://esocial-sst.vercel.app',
-      description: 'Software SaaS brasileiro para transmissão automática de eventos SST ao eSocial Gov.br. Lê ASO, LTCAT e CAT com IA, gera XML, assina digitalmente e transmite S-2210, S-2220, S-2221 e S-2240.',
+      description: 'Software SaaS brasileiro para transmissão automática de eventos SST ao eSocial Gov.br e emissão dos 7 documentos exigidos pelas NRs. Lê ASO, LTCAT e CAT com IA, gera XML, assina digitalmente, transmite S-2210, S-2220, S-2221 e S-2240, e emite PGR, LTCAT, PCMSO, AET, APR, LIP e PPP.',
       offers: {
         '@type': 'AggregateOffer',
-        lowPrice: '97',
-        highPrice: '197',
+        lowPrice: '69',
+        highPrice: '599',
         priceCurrency: 'BRL',
-        offerCount: 3,
+        offerCount: 6,
       },
       featureList: [
-        'Leitura automática de PDF com IA (ASO, LTCAT, CAT)',
+        'Leitura automática de PDF com IA (ASO, LTCAT, CAT, PCMSO)',
         'Transmissão S-2210, S-2220, S-2221, S-2240 ao Gov.br',
+        'Emissão dos 7 documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP',
         'Assinatura digital XMLDSig ICP-Brasil',
         'Certificado e-CNPJ A1',
         'Alertas de vencimento por e-mail',
-        'Multi-empresa',
+        'Multi-empresa e procuração eCAC',
         'Trial 14 dias grátis',
       ],
       author: {
@@ -106,11 +119,11 @@ export default function FAQ() {
   return (
     <>
       <Head>
-        <title>FAQ — eSocial SST: Perguntas Frequentes sobre Transmissão SST</title>
-        <meta name="description" content="Respostas completas sobre eSocial SST: como transmitir S-2220, S-2240, S-2210, S-2221, prazos, multas, certificado digital, LTCAT, ASO e mais." />
-        <meta name="keywords" content="esocial sst, s-2220, s-2240, s-2210, s-2221, ltcat esocial, aso esocial, transmissão sst, certificado digital esocial, multa esocial sst" />
-        <meta property="og:title" content="FAQ eSocial SST — Perguntas Frequentes" />
-        <meta property="og:description" content="Tudo sobre transmissão eSocial SST: eventos, prazos, multas, ASO, LTCAT, CAT, certificado digital e automação com IA." />
+        <title>FAQ — eSocial SST: Transmissão e Documentos SST</title>
+        <meta name="description" content="Respostas completas sobre eSocial SST: como transmitir S-2220, S-2240, S-2210, S-2221, prazos, multas, certificado digital, e como emitir PGR, LTCAT, PCMSO, AET, APR, LIP e PPP com IA." />
+        <meta name="keywords" content="esocial sst, s-2220, s-2240, s-2210, s-2221, ltcat esocial, aso esocial, transmissão sst, certificado digital esocial, multa esocial sst, pgr nr-1, pcmso nr-7, aet nr-17, ppp previdenciario" />
+        <meta property="og:title" content="FAQ eSocial SST — Transmissão e Documentos SST" />
+        <meta property="og:description" content="Tudo sobre transmissão eSocial SST e emissão dos 7 documentos SST: eventos, prazos, multas, ASO, LTCAT, PGR, PCMSO, certificado digital e automação com IA." />
         <meta property="og:url" content="https://esocial-sst.vercel.app/faq" />
         <link rel="canonical" href="https://esocial-sst.vercel.app/faq" />
         <script
@@ -153,8 +166,9 @@ export default function FAQ() {
               Tudo sobre eSocial SST
             </h1>
             <p style={{ fontSize: 16, color: '#6b7280', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
-              Respostas completas sobre transmissão de eventos SST, prazos, multas,
-              certificado digital, ASO, LTCAT e como automatizar o processo.
+              Respostas completas sobre transmissão de eventos SST, emissão dos 7 documentos
+              (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), prazos, multas, certificado digital
+              e como automatizar o processo com IA.
             </p>
           </div>
 
