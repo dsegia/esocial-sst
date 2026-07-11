@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import Link from 'next/link'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FAIXAS_VIDAS, formatarFaixaLabel } from '../lib/vidas-planos'
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
@@ -66,20 +66,20 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .hero-trust-av:first-child{margin-left:0;}
 .hero-trust-text{font-size:12px;color:rgba(226,232,240,.55);}
 .hero-trust-text strong{color:#fff;}
-.hero-demo-scene{perspective:1200px;animation:slide-left .8s ease .2s both;}
-.hero-demo-wrap{transform-style:preserve-3d;transition:transform .12s ease-out;will-change:transform;}
+.hero-demo-scene{animation:slide-left .8s ease .2s both;}
 
 /* ── DOCUMENT DECK (hero) ── */
-.doc-deck{position:relative;height:400px;display:flex;align-items:flex-end;justify-content:center;}
-.doc-deck-card{position:absolute;bottom:26px;width:156px;height:218px;background:#fff;border-radius:14px;padding:16px 15px;box-shadow:0 20px 45px rgba(2,8,23,.5);transform-origin:bottom center;}
+.doc-deck{position:relative;height:340px;perspective:1400px;cursor:pointer;}
+.doc-deck-group{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .25s ease-out;will-change:transform;}
+.doc-deck-card{position:absolute;left:50%;bottom:20px;width:176px;height:242px;background:#fff;border-radius:14px;padding:18px 17px;box-shadow:0 20px 45px rgba(2,8,23,.5);transform-origin:bottom center;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease;}
 .doc-deck-nr{display:inline-block;font-size:9px;font-weight:800;color:#185FA5;background:rgba(24,95,165,.1);border-radius:6px;padding:3px 8px;margin-bottom:12px;letter-spacing:.2px;}
-.doc-deck-name{font-size:16px;font-weight:900;color:#0f172a;margin-bottom:14px;letter-spacing:-.2px;}
+.doc-deck-name{font-size:17px;font-weight:900;color:#0f172a;margin-bottom:14px;letter-spacing:-.2px;}
 .doc-deck-lines span{display:block;height:6px;border-radius:3px;background:#e2e8f0;margin-bottom:7px;}
 .doc-deck-lines span:nth-child(1){width:100%;}
 .doc-deck-lines span:nth-child(2){width:82%;}
 .doc-deck-lines span:nth-child(3){width:58%;}
 .doc-deck-check{position:absolute;bottom:14px;right:14px;width:22px;height:22px;border-radius:50%;background:rgba(22,163,74,.12);display:flex;align-items:center;justify-content:center;}
-.doc-deck-caption{text-align:center;font-size:12px;color:rgba(226,232,240,.55);margin-top:14px;font-weight:600;}
+.doc-deck-caption{text-align:center;font-size:12px;color:rgba(226,232,240,.5);margin-top:6px;font-weight:600;}
 
 /* ── MARQUEE ── */
 .marquee-strip{background:#fff;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;padding:18px 0;overflow:hidden;position:relative;z-index:1;}
@@ -424,30 +424,6 @@ function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
   return <div ref={ref} className="stat-num">{count}{suffix}</div>
 }
 
-// ─── 3D TILT HOOK ────────────────────────────────────────────────────────────
-function useTilt(strength = 8) {
-  const ref = useRef<HTMLDivElement>(null)
-  const handleMove = useCallback((e: MouseEvent) => {
-    const el = ref.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width - 0.5
-    const y = (e.clientY - rect.top) / rect.height - 0.5
-    el.style.transform = `rotateY(${x * strength}deg) rotateX(${-y * strength}deg) scale(1.02)`
-  }, [strength])
-  const handleLeave = useCallback(() => {
-    if (ref.current) ref.current.style.transform = 'rotateY(0) rotateX(0) scale(1)'
-  }, [])
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    el.addEventListener('mousemove', handleMove)
-    el.addEventListener('mouseleave', handleLeave)
-    return () => { el.removeEventListener('mousemove', handleMove); el.removeEventListener('mouseleave', handleLeave) }
-  }, [handleMove, handleLeave])
-  return ref
-}
-
 // ─── REVEAL HOOK ────────────────────────────────────────────────────────────
 function useReveal() {
   useEffect(() => {
@@ -733,33 +709,66 @@ function LiveDemo() {
 }
 
 // ─── DECK DE DOCUMENTOS (hero) ────────────────────────────────────────────────
+const DECK_ORDER = ['LTCAT', 'PCMSO', 'AET', 'PGR', 'APR', 'LIP', 'PPP']
+
 function DocumentDeck() {
-  const cards = DOCUMENTOS_SST
+  const cards = DECK_ORDER.map(nome => DOCUMENTOS_SST.find(d => d.nome === nome)!)
   const center = (cards.length - 1) / 2
+  const sceneRef = useRef<HTMLDivElement>(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+
+  function handleMove(e: React.MouseEvent) {
+    const el = sceneRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const px = (e.clientX - rect.left) / rect.width - 0.5
+    const py = (e.clientY - rect.top) / rect.height - 0.5
+    setTilt({ x: py * -18, y: px * 22 })
+  }
+  function handleLeave() { setTilt({ x: 0, y: 0 }); setHoverIdx(null) }
+
   return (
     <div>
-      <div className="doc-deck">
-        {cards.map((d, i) => {
-          const offset = i - center
-          const angle = offset * 9
-          const lift = Math.abs(offset) * 13
-          return (
-            <div
-              key={d.nome}
-              className="doc-deck-card"
-              style={{ transform: `rotate(${angle}deg) translateY(${lift}px)`, zIndex: 10 - Math.abs(Math.round(offset)) }}
-            >
-              <div className="doc-deck-nr">{d.nr}</div>
-              <div className="doc-deck-name">{d.nome}</div>
-              <div className="doc-deck-lines"><span /><span /><span /></div>
-              <div className="doc-deck-check">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3"><polyline points="20,6 9,17 4,12" /></svg>
+      <div
+        ref={sceneRef}
+        className="doc-deck"
+        onMouseMove={handleMove}
+        onMouseLeave={handleLeave}
+      >
+        <div className="doc-deck-group" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
+          {cards.map((d, i) => {
+            const offset = i - center
+            const angle = offset * 10
+            const lift = Math.abs(offset) * 14
+            const depth = (center - Math.abs(offset)) * 20
+            const hovered = hoverIdx === i
+            const transform = hovered
+              ? `translateX(-50%) translateZ(${depth + 60}px) rotate(0deg) translateY(${lift - 30}px) scale(1.06)`
+              : `translateX(-50%) translateZ(${depth}px) rotate(${angle}deg) translateY(${lift}px)`
+            return (
+              <div
+                key={d.nome}
+                className="doc-deck-card"
+                onMouseEnter={() => setHoverIdx(i)}
+                style={{
+                  transform,
+                  zIndex: hovered ? 20 : 10 - Math.round(Math.abs(offset)),
+                  boxShadow: hovered ? '0 30px 60px rgba(2,8,23,.55)' : undefined,
+                }}
+              >
+                <div className="doc-deck-nr">{d.nr}</div>
+                <div className="doc-deck-name">{d.nome}</div>
+                <div className="doc-deck-lines"><span /><span /><span /></div>
+                <div className="doc-deck-check">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3"><polyline points="20,6 9,17 4,12" /></svg>
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
-      <p className="doc-deck-caption">Os 7 documentos, sempre prontos e atualizados</p>
+      <p className="doc-deck-caption">Passe o mouse — os 7 documentos, sempre prontos</p>
     </div>
   )
 }
@@ -871,7 +880,6 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false)
   const [scrollPct, setScrollPct] = useState(0)
   const [modalPlano, setModalPlano] = useState<string | null>(null)
-  const tiltRef = useTilt(6)
   useReveal()
 
   useEffect(() => {
@@ -976,11 +984,11 @@ export default function Home() {
           <div>
             <div className="hero-badge">
               <div className="badge-dot-ring"><span className="badge-dot"></span></div>
-              Sistema ao vivo · PGR, LTCAT, PCMSO e mais 4 documentos
+              Emitido com Inteligência Artificial
             </div>
             <h1>
-              Emita os <span className="grad">7 documentos de SST</span><br />
-              com Inteligência Artificial
+              Os <span className="grad">7 documentos</span><br />
+              de SST, num só lugar
             </h1>
             <p className="hero-sub">
               PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — gerados e mantidos em um só lugar. Importe um PDF existente e a IA extrai os dados, ou cadastre direto — e transmita ao eSocial (S-2210, S-2220, S-2221, S-2240) quando precisar.
@@ -1010,11 +1018,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right — Deck dos 7 documentos com tilt 3D */}
+          {/* Right — Deck dos 7 documentos, com resposta 3D ao mouse */}
           <div className="hero-demo-scene">
-            <div className="hero-demo-wrap" ref={tiltRef}>
-              <DocumentDeck />
-            </div>
+            <DocumentDeck />
           </div>
         </div>
 
