@@ -22,6 +22,15 @@ const CONCL_COR: Record<string,string[]> = {
   inapto:         ['#FCEBEB','#791F1F'],
 }
 
+const CONCLUSAO_LABEL: Record<string,string> = {
+  apto: 'Apto', apto_restricao: 'Apto com restrição', inapto: 'Inapto',
+}
+
+const formNovoVazio = () => ({
+  funcionario_id: '', tipo_aso: 'periodico', data_exame: '', prox_exame: '',
+  conclusao: 'apto', medico_nome: '', medico_crm: '',
+})
+
 // Tabela 27 do eSocial — principais exames
 const EXAMES_ESOCIAL = [
   { codigo: '001', nome: 'Acuidade visual' },
@@ -81,8 +90,13 @@ export default function Aso() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
   const [asos, setAsos] = useState<any[]>([])
+  const [funcionariosAtivos, setFuncionariosAtivos] = useState<any[]>([])
   const [carregando, setCarregando] = useState(true)
   const [filtro, setFiltro] = useState('todos')
+
+  // Modal criar (cadastro manual — mesmo shape do import via PDF)
+  const [criando, setCriando] = useState(false)
+  const [formNovo, setFormNovo] = useState<any>(formNovoVazio())
 
   // Modal editar
   const [editando, setEditando] = useState<any>(null)   // aso completo
@@ -115,7 +129,56 @@ export default function Aso() {
       .limit(2000)
 
     setAsos(data || [])
+
+    const { data: funcs } = await supabase.from('funcionarios')
+      .select('id,nome,cpf,funcao,setor,matricula_esocial')
+      .eq('empresa_id', empId).eq('ativo', true).order('nome').limit(2000)
+    setFuncionariosAtivos(funcs || [])
+
     setCarregando(false)
+  }
+
+  function abrirCriar() {
+    setFormNovo(formNovoVazio())
+    setFormExames([])
+    setNovoExameCodigo(EXAMES_ESOCIAL[0].codigo)
+    setNovoExameResultado('Normal')
+    setCriando(true)
+    setSucesso(''); setErro('')
+  }
+
+  async function salvarNovoAso() {
+    setErro(''); setSucesso('')
+    if (!formNovo.funcionario_id) { setErro('Selecione o funcionário.'); return }
+    if (!formNovo.data_exame)     { setErro('Informe a data do exame.'); return }
+    if (formExames.length === 0)  { setErro('Adicione ao menos 1 exame (ex: Exame Clínico).'); return }
+    setSalvando(true)
+
+    const { data: aso, error } = await supabase.from('asos').insert({
+      funcionario_id: formNovo.funcionario_id, empresa_id: empresaId,
+      tipo_aso:    formNovo.tipo_aso,
+      data_exame:  formNovo.data_exame,
+      prox_exame:  formNovo.prox_exame || null,
+      conclusao:   formNovo.conclusao,
+      medico_nome: formNovo.medico_nome || null,
+      medico_crm:  formNovo.medico_crm || null,
+      exames: formExames, riscos: [],
+    }).select().single()
+
+    if (error) { setErro('Erro ao salvar ASO: ' + error.message); setSalvando(false); return }
+
+    // Mesmo comportamento do import via PDF: cria a transmissão S-2220 pendente automaticamente
+    const { error: txErr } = await supabase.from('transmissoes').insert({
+      empresa_id: empresaId, funcionario_id: formNovo.funcionario_id,
+      evento: 'S-2220', referencia_id: aso.id, referencia_tipo: 'aso',
+      status: 'pendente', tentativas: 0, ambiente: 'producao',
+    })
+    if (txErr) { setErro('ASO salvo, mas falhou ao criar a transmissão: ' + txErr.message); setSalvando(false); return }
+
+    setSucesso('ASO criado — transmissão S-2220 registrada como pendente.')
+    setCriando(false)
+    await init()
+    setSalvando(false)
   }
 
   function abrirEditar(aso: any) {
@@ -242,10 +305,16 @@ export default function Aso() {
             {asos.length} atestado(s) · {totalVencidos} vencido(s) · {totalVence30} vencem em 30 dias
           </div>
         </div>
-        <button onClick={() => router.push('/importar')}
-          style={{ padding:'8px 16px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' }}>
-          ↑ Importar ASO
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={abrirCriar}
+            style={{ padding:'8px 16px', background:'#fff', color:'#185FA5', border:'1px solid #B5D4F4', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            + Novo ASO
+          </button>
+          <button onClick={() => router.push('/importar')}
+            style={{ padding:'8px 16px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            ↑ Importar ASO
+          </button>
+        </div>
       </div>
 
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
@@ -291,11 +360,17 @@ export default function Aso() {
         <div style={{ background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, padding:'3rem', textAlign:'center', color:'#9ca3af' }}>
           <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
           <div style={{ fontSize:14, fontWeight:500, color:'#374151', marginBottom:6 }}>Nenhum ASO encontrado</div>
-          <div style={{ fontSize:12, marginBottom:16 }}>Importe atestados de saúde via PDF</div>
-          <button onClick={() => router.push('/importar')}
-            style={{ padding:'8px 18px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, cursor:'pointer' }}>
-            ↑ Importar ASO
-          </button>
+          <div style={{ fontSize:12, marginBottom:16 }}>Cadastre manualmente ou importe atestados de saúde via PDF</div>
+          <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
+            <button onClick={abrirCriar}
+              style={{ padding:'8px 18px', background:'#fff', color:'#185FA5', border:'1px solid #B5D4F4', borderRadius:8, fontSize:13, cursor:'pointer' }}>
+              + Novo ASO
+            </button>
+            <button onClick={() => router.push('/importar')}
+              style={{ padding:'8px 18px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, cursor:'pointer' }}>
+              ↑ Importar ASO
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, overflow:'hidden' }}>
@@ -391,6 +466,155 @@ export default function Aso() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Modal criar (cadastro manual) ─────────────────────────────────────── */}
+      {criando && (
+        <div style={s.overlay} onClick={() => setCriando(false)}>
+          <div style={{ ...s.modal, width: 580 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>+ Novo ASO</div>
+              <button onClick={() => setCriando(false)}
+                style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+            </div>
+
+            {sucesso && <div style={{ ...s.sucessoBox, marginBottom:12 }}>{sucesso}</div>}
+            {erro    && <div style={{ ...s.erroBox,    marginBottom:12 }}>{erro}</div>}
+
+            <div style={{ marginBottom:14 }}>
+              <label style={s.label}>Funcionário *</label>
+              <select style={s.input} value={formNovo.funcionario_id}
+                onChange={e => setFormNovo((p: any) => ({ ...p, funcionario_id: e.target.value }))}>
+                <option value="">— selecione —</option>
+                {funcionariosAtivos.map(f => (
+                  <option key={f.id} value={f.id}>{f.nome} — {f.cpf}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+              <div>
+                <label style={s.label}>Tipo de ASO *</label>
+                <select style={s.input} value={formNovo.tipo_aso}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, tipo_aso: e.target.value }))}>
+                  {Object.entries(TIPO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={s.label}>Conclusão *</label>
+                <select style={s.input} value={formNovo.conclusao}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, conclusao: e.target.value }))}>
+                  {Object.entries(CONCLUSAO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={s.label}>Data do exame *</label>
+                <input style={s.input} type="date" value={formNovo.data_exame}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, data_exame: e.target.value }))} />
+              </div>
+              <div>
+                <label style={s.label}>Próximo exame</label>
+                <input style={s.input} type="date" value={formNovo.prox_exame}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, prox_exame: e.target.value }))} />
+              </div>
+              <div>
+                <label style={s.label}>Médico</label>
+                <input style={s.input} value={formNovo.medico_nome}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, medico_nome: e.target.value }))} />
+              </div>
+              <div>
+                <label style={s.label}>CRM do médico</label>
+                <input style={s.input} placeholder="Ex: CRM-SP 12345" value={formNovo.medico_crm}
+                  onChange={e => setFormNovo((p: any) => ({ ...p, medico_crm: e.target.value }))} />
+              </div>
+            </div>
+
+            {/* Exames — mesma lista/UI do modal de edição */}
+            <div style={{ marginBottom:14 }}>
+              {formExames.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'1.5rem', color:'#9ca3af', fontSize:12, background:'#f9fafb', borderRadius:8 }}>
+                  Nenhum exame adicionado. Adicione abaixo.
+                </div>
+              ) : (
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                  <thead>
+                    <tr style={{ background:'#f9fafb' }}>
+                      <th style={s.th}>Cód. eSocial</th>
+                      <th style={s.th}>Exame</th>
+                      <th style={s.th}>Resultado</th>
+                      <th style={s.th}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formExames.map((ex, idx) => (
+                      <tr key={idx} style={{ borderBottom:'0.5px solid #f3f4f6' }}>
+                        <td style={{ ...s.td, fontFamily:'monospace', fontWeight:600, color:'#185FA5' }}>
+                          {ex.codigo || codigoDeExame(ex.nome)}
+                        </td>
+                        <td style={s.td}>{ex.nome}</td>
+                        <td style={s.td}>
+                          <select
+                            value={ex.resultado}
+                            onChange={e => atualizarResultado(idx, e.target.value)}
+                            style={{ padding:'3px 6px', fontSize:11, border:'0.5px solid #d1d5db', borderRadius:5,
+                              background: ex.resultado === 'Normal' ? '#EAF3DE' : ex.resultado === 'Alterado' ? '#FCEBEB' : '#FAEEDA',
+                              color: ex.resultado === 'Normal' ? '#27500A' : ex.resultado === 'Alterado' ? '#791F1F' : '#633806',
+                              fontWeight:600, cursor:'pointer',
+                            }}>
+                            <option value="Normal">Normal</option>
+                            <option value="Alterado">Alterado</option>
+                            <option value="Pendente">Pendente</option>
+                          </select>
+                        </td>
+                        <td style={s.td}>
+                          <button onClick={() => removerExame(idx)}
+                            style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }}>
+                            Remover
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div style={{ background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>Adicionar exame</div>
+              <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+                <div style={{ flex:1 }}>
+                  <label style={s.label}>Exame (Tabela 27)</label>
+                  <select style={s.input} value={novoExameCodigo}
+                    onChange={e => setNovoExameCodigo(e.target.value)}>
+                    {EXAMES_ESOCIAL.map(e => (
+                      <option key={e.codigo} value={e.codigo}>{e.codigo} — {e.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ width:120 }}>
+                  <label style={s.label}>Resultado</label>
+                  <select style={s.input} value={novoExameResultado}
+                    onChange={e => setNovoExameResultado(e.target.value as any)}>
+                    <option value="Normal">Normal</option>
+                    <option value="Alterado">Alterado</option>
+                    <option value="Pendente">Pendente</option>
+                  </select>
+                </div>
+                <button onClick={adicionarExame}
+                  style={{ ...s.btnPrimary, padding:'8px 14px', whiteSpace:'nowrap' }}>
+                  + Adicionar
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={s.btnPrimary} onClick={salvarNovoAso} disabled={salvando}>
+                {salvando ? 'Salvando...' : 'Salvar e criar transmissão'}
+              </button>
+              <button style={s.btnOutline} onClick={() => setCriando(false)}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
 
