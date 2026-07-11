@@ -148,17 +148,24 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
       'Agentes biológicos: microrganismos tais como vírus, bactérias, protozoários, fungos, parasitas e bacilos.',
       'Riscos ergonômicos: relacionados ao processo produtivo e às tarefas executadas em situações inadequadas, tais como esforço físico intenso, levantamento e transporte manual de peso, exigência de postura inadequada, controle rígido de produtividade, imposição de ritmos excessivos, trabalho em turno noturno, jornadas prolongadas, monotonia e repetitividade.',
       'Riscos de acidentes: relacionados à execução das atividades, colocando em exposição a saúde e integridade física dos trabalhadores, tais como arranjo físico inadequado, máquinas e equipamentos sem proteção, ferramentas inadequadas ou defeituosas, iluminação inadequada, eletricidade, probabilidade de incêndio ou explosão, armazenamento inadequado e animais peçonhentos.',
-      'Riscos psicossociais: incluídos de forma explícita no GRO/PGR pela NR-1, com alterações dadas pela Portaria MTE nº 1.419/2024 (plenamente exigível desde 26/05/2026). Compreendem fatores relacionados à organização e às relações de trabalho capazes de causar dano à saúde física e mental do trabalhador, tais como: sobrecarga e ritmo de trabalho excessivos, metas inalcançáveis, jornadas extenuantes, assédio moral e sexual, violência no trabalho, conflitos interpessoais, falta de clareza de papéis e responsabilidades, e outras condições organizacionais que gerem estresse ocupacional crônico ou burnout.',
     ],
   },
   {
-    titulo: '10. FORMAS DE AVALIAÇÃO',
+    titulo: '10. RISCOS PSICOSSOCIAIS',
+    paragrafos: [
+      'Os riscos psicossociais foram incluídos de forma explícita no GRO/PGR pela NR-1, com alterações dadas pela Portaria MTE nº 1.419/2024 (plenamente exigível desde 26/05/2026). Compreendem fatores relacionados à organização e às relações de trabalho capazes de causar dano à saúde física e mental do trabalhador.',
+      'Exemplos de fatores de risco psicossocial: sobrecarga e ritmo de trabalho excessivos, metas inalcançáveis, jornadas extenuantes, assédio moral e sexual, violência no trabalho, conflitos interpessoais, falta de clareza de papéis e responsabilidades, e outras condições organizacionais que gerem estresse ocupacional crônico ou burnout.',
+      'Os riscos psicossociais identificados nos ambientes e GHE desta empresa, quando aplicável, estão consolidados no inventário de riscos (categoria "Psicossocial"), com a respectiva avaliação de severidade, probabilidade e nível de risco, e suas medidas de prevenção no plano de ação.',
+    ],
+  },
+  {
+    titulo: '11. FORMAS DE AVALIAÇÃO',
     paragrafos: [
       'Comparando os resultados obtidos em avaliações quantitativas e/ou qualitativas, antes e depois da implantação das medidas de controle, por critérios técnicos.',
     ],
   },
   {
-    titulo: '11. CONTROLE DOS RISCOS',
+    titulo: '12. CONTROLE DOS RISCOS',
     paragrafos: [
       '11.1 Medidas de prevenção: serão adotadas medidas necessárias e suficientes para eliminação, minimização ou controle dos riscos ambientais sempre que verificada ao menos uma das situações: exigências das Normas Regulamentadoras e dispositivos legais; determinação pela classificação de riscos ocupacionais; ou evidências de associação, por controle médico, entre lesões/agravos à saúde e os riscos identificados. Quando comprovada a inviabilidade de medidas de proteção coletiva, ou quando insuficientes, devem ser adotadas, na ordem: medidas de caráter administrativo ou de organização do trabalho; e medidas de caráter individual (EPI).',
       '11.2 Implementação e acompanhamento das medidas de prevenção: a empresa, por meio de análise das ações executadas, inspeções nos ambientes de trabalho e monitoramento das condições ambientais e exposições, avaliará a eficácia das medidas existentes e implantadas, estabelecendo novas medidas quando necessário. Quando identificada ineficácia, devem ser realizados ajustes para corrigir as deficiências, com histórico registrado.',
@@ -168,13 +175,13 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '12. EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL DE USO OBRIGATÓRIO',
+    titulo: '13. EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL DE USO OBRIGATÓRIO',
     paragrafos: [
       'A empresa fornece gratuitamente aos empregados apenas EPI adequado ao risco, em perfeito estado de conservação e funcionamento, sendo estes portadores de Certificado de Aprovação – CA, conforme a NR-6.',
     ],
   },
   {
-    titulo: '13. CONCLUSÃO',
+    titulo: '14. CONCLUSÃO',
     paragrafos: [
       'Este programa tem como fundamento legal a NR-1, e seu objetivo é disciplinar os preceitos a serem observados na organização e no ambiente de trabalho, de forma a tornar compatível o planejamento e desenvolvimento das atividades com a busca permanente da segurança e saúde dos trabalhadores. Este programa estará em constante análise e estudo, visando seu aperfeiçoamento, podendo, portanto, sofrer modificações a qualquer momento.',
     ],

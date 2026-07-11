@@ -52,17 +52,20 @@ export default function Empresas() {
   }
 
   async function carregar(uid: string) {
-    const { data: user } = await supabase.from('usuarios').select('empresa_id').eq('id', uid).single()
-    if (user?.empresa_id) {
-      const { data: emp } = await supabase.from('empresas')
-        .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
-        .eq('id', user.empresa_id).single()
-      if (emp) {
-        const { count } = await supabase.from('funcionarios').select('id', { count: 'exact', head: true }).eq('empresa_id', emp.id).eq('ativo', true)
-        setEmpresas([{ ...emp, perfil: 'admin', funcionarios_count: count || 0 }])
-        setEmpresaAtualId(emp.id)
-      }
-    }
+    const { data: vinculos } = await supabase.from('usuario_empresas').select('empresa_id, perfil').eq('usuario_id', uid)
+    if (!vinculos?.length) { setEmpresas([]); return }
+
+    const { data: emps } = await supabase.from('empresas')
+      .select('id, razao_social, cnpj, cnae, cert_digital_validade, cert_titular')
+      .in('id', vinculos.map(v => v.empresa_id))
+    if (!emps) { setEmpresas([]); return }
+
+    const comContagem = await Promise.all(emps.map(async emp => {
+      const { count } = await supabase.from('funcionarios').select('id', { count: 'exact', head: true }).eq('empresa_id', emp.id).eq('ativo', true)
+      const perfil = vinculos.find(v => v.empresa_id === emp.id)?.perfil || 'operador'
+      return { ...emp, perfil, funcionarios_count: count || 0 }
+    }))
+    setEmpresas(comContagem)
   }
 
   function entrarNaEmpresa(id: string) {

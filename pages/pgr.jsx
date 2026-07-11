@@ -40,7 +40,7 @@ const medidaAdmVazia = (risco = '') => ({ risco, medida: '' })
 function gheVazio() {
   return {
     nome: '', ambientes_relacionados: '', jornada_trabalho: '', numero_empregados: '',
-    funcoes: [], riscos: [], epis: [], medidas_administrativas: [], imagem: null,
+    funcoes: [], riscos: [], epis: [], medidas_administrativas: [], imagens: [],
   }
 }
 
@@ -68,7 +68,7 @@ function gheInventarioDoLtcat(ltcat) {
         const sugestao = sugerirParaRisco(nome)
         return { risco: nome, medida: sugestao?.medida_administrativa || '' }
       }),
-      imagem: null,
+      imagens: [],
     }
   })
 }
@@ -426,20 +426,20 @@ export default function PGR() {
       return { ...p, ambientes }
     })
   }
-  async function addImagemGhe(gi, fileList) {
-    const arquivo = fileList?.[0]
-    if (!arquivo) return
-    const dataUrl = await redimensionarImagem(arquivo)
+  async function addImagensGhe(gi, fileList) {
+    const arquivos = Array.from(fileList || [])
+    if (!arquivos.length) return
+    const dataUrls = await Promise.all(arquivos.map(f => redimensionarImagem(f)))
     setForm(p => {
       const inventario = JSON.parse(JSON.stringify(p.inventario))
-      inventario[gi].imagem = dataUrl
+      inventario[gi].imagens = [...(inventario[gi].imagens || []), ...dataUrls]
       return { ...p, inventario }
     })
   }
-  function removerImagemGhe(gi) {
+  function removerImagemGhe(gi, imgIdx) {
     setForm(p => {
       const inventario = JSON.parse(JSON.stringify(p.inventario))
-      inventario[gi].imagem = null
+      inventario[gi].imagens = (inventario[gi].imagens || []).filter((_, idx) => idx !== imgIdx)
       return { ...p, inventario }
     })
   }
@@ -626,8 +626,12 @@ export default function PGR() {
                             {g.numero_empregados ? `${g.numero_empregados} empregado(s)` : ''}
                           </div>
                         </div>
-                        {g.imagem && (
-                          <img src={g.imagem} alt={`Foto de ${g.nome || 'GHE'}`} style={{ width:100, height:100, objectFit:'cover', borderRadius:8, border:'0.5px solid #e5e7eb', marginBottom:10 }} />
+                        {g.imagens?.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:10 }}>
+                            {g.imagens.map((img, ii) => (
+                              <img key={ii} src={img} alt={`${g.nome || 'GHE'} — foto ${ii+1}`} style={{ width:100, height:100, objectFit:'cover', borderRadius:8, border:'0.5px solid #e5e7eb' }} />
+                            ))}
+                          </div>
                         )}
                         {g.funcoes?.length > 0 && (
                           <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10 }}>
@@ -880,19 +884,18 @@ export default function PGR() {
                   <input style={s.inputSm} type="number" min="0" placeholder="Nº de empregados" value={g.numero_empregados} onChange={e => setGhe(gi, 'numero_empregados', e.target.value)} />
                 </div>
 
-                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FOTO DO GHE</div>
-                <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
-                  {g.imagem ? (
-                    <div style={{ position:'relative' }}>
-                      <img src={g.imagem} alt={`Foto de ${g.nome || 'GHE'}`} style={{ width:56, height:56, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
-                      <button onClick={() => removerImagemGhe(gi)} style={{ position:'absolute', top:-6, right:-6, width:18, height:18, borderRadius:'50%', background:'#E24B4A', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:'18px', padding:0 }}>×</button>
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FOTOS DO GHE</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center', marginBottom:10 }}>
+                  {(g.imagens || []).map((img, ii) => (
+                    <div key={ii} style={{ position:'relative' }}>
+                      <img src={img} alt={`Foto ${ii+1} de ${g.nome || 'GHE'}`} style={{ width:56, height:56, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
+                      <button onClick={() => removerImagemGhe(gi, ii)} style={{ position:'absolute', top:-6, right:-6, width:18, height:18, borderRadius:'50%', background:'#E24B4A', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:'18px', padding:0 }}>×</button>
                     </div>
-                  ) : (
-                    <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer' }}>
-                      + Foto
-                      <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => { addImagemGhe(gi, e.target.files); e.target.value = '' }} />
-                    </label>
-                  )}
+                  ))}
+                  <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer' }}>
+                    + Foto
+                    <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { addImagensGhe(gi, e.target.files); e.target.value = '' }} />
+                  </label>
                 </div>
 
                 <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FUNÇÕES DESTE GHE</div>

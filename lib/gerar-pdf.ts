@@ -614,9 +614,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         g.numero_empregados ? `Nº empregados: ${g.numero_empregados}` : '',
       ].filter(Boolean).join(' · ')
       if (infoGhe) y = paragrafo(infoGhe, y, 8)
-      if (g.imagem) {
+      if (g.imagens?.length) {
         if (y + 35 > 285) { doc.addPage(); y = 20 }
-        y = inserirImagens([g.imagem], y)
+        y = inserirImagens(g.imagens, y)
       }
       if (g.funcoes?.length) {
         const funcoesTexto = g.funcoes
