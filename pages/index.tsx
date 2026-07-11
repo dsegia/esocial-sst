@@ -321,10 +321,6 @@ const DOCUMENTOS_SST = [
 ]
 
 const MARQUEE_ITEMS = [
-  { k:'S-2210', l:'CAT' },
-  { k:'S-2220', l:'ASO' },
-  { k:'S-2221', l:'Toxicológico' },
-  { k:'S-2240', l:'Condições Ambientais' },
   { k:'PGR', l:'NR-1' },
   { k:'LTCAT', l:'NR-9' },
   { k:'PCMSO', l:'NR-7' },
@@ -332,28 +328,32 @@ const MARQUEE_ITEMS = [
   { k:'APR', l:'Risco' },
   { k:'LIP', l:'NR-15/16' },
   { k:'PPP', l:'Previdência' },
+  { k:'S-2210', l:'CAT' },
+  { k:'S-2220', l:'ASO' },
+  { k:'S-2221', l:'Toxicológico' },
+  { k:'S-2240', l:'Condições Ambientais' },
 ]
 
 const PIPELINE = [
   {
-    n:'1', title:'Envie o PDF ou importe em massa',
-    desc:'Solte o PDF de ASO, LTCAT ou PCMSO — ou importe dezenas de funcionários de uma vez via planilha, com validação de CPF e busca automática de CBO.',
-    chips:['ASO','LTCAT','PCMSO','Planilha CSV'],
+    n:'1', title:'Cadastre a empresa e os funcionários',
+    desc:'Poucos minutos: dados da empresa e funcionários (CPF, função, CBO automático) — a base que alimenta os 7 documentos SST e os eventos eSocial.',
+    chips:['Empresa','Funcionários','CBO automático','Planilha CSV'],
   },
   {
-    n:'2', title:'A IA lê e extrai os dados', id:'ia',
-    desc:'Claude e Gemini identificam o tipo de documento, extraem cada campo e sinalizam o que precisa de revisão — sem digitar XML na mão.',
-    chips:['Claude (Anthropic)','Gemini','Validação automática'],
+    n:'2', title:'Ou importe um PDF que já existe — a IA lê por você', id:'ia',
+    desc:'Já tem um ASO, LTCAT ou PCMSO pronto? Solte o PDF e Claude/Gemini extraem cada campo automaticamente, sem digitar XML na mão.',
+    chips:['ASO','LTCAT','PCMSO','Claude (Anthropic)','Gemini'],
   },
   {
     n:'3', title:'Os 7 documentos SST nascem dos mesmos dados', id:'jornada-docs',
     desc:'PGR, LTCAT, PCMSO, AET, APR, LIP e PPP são gerados e mantidos a partir de uma única fonte de verdade — atualize o LTCAT e os demais acompanham.',
-    chips:[...DOCUMENTOS_SST.map(d => d.nome), 'Ver os 7 documentos ↓'],
+    chips:[...DOCUMENTOS_SST.map(d => d.nome), 'Ver os 7 documentos'],
     linkLastChip:'#documentos',
   },
   {
-    n:'4', title:'Assinatura digital e transmissão ao Gov.br', id:'eventos',
-    desc:'Certificado A1 armazenado com criptografia AES-256. Os eventos SST são assinados e enviados automaticamente, com recibo salvo no histórico.',
+    n:'4', title:'Quando precisar, transmita ao eSocial', id:'eventos',
+    desc:'Certificado A1 armazenado com criptografia AES-256. Os eventos SST são assinados e enviados ao Gov.br automaticamente, com recibo salvo no histórico.',
     chips:['S-2210 · CAT','S-2220 · ASO','S-2221 · Toxicológico','S-2240 · Cond. Ambientais'],
   },
   {
@@ -844,11 +844,11 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>eSocial SST — Transmissão e Documentos com IA</title>
-        <meta name="description" content="Transmita os eventos SST do eSocial (S-2210, S-2220, S-2221, S-2240) e gere os 7 documentos exigidos (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) com inteligência artificial." />
+        <title>eSocial SST — Documentos de SST e Transmissão com IA</title>
+        <meta name="description" content="Emita os 7 documentos de SST exigidos por lei (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmita os eventos do eSocial (S-2210, S-2220, S-2221, S-2240) — com leitura de PDF por inteligência artificial." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta property="og:title" content="eSocial SST — Transmissão e Documentos com IA" />
-        <meta property="og:description" content="Transmita os eventos SST do eSocial e gere os 7 documentos exigidos pelas NRs com IA." />
+        <meta property="og:title" content="eSocial SST — Documentos de SST e Transmissão com IA" />
+        <meta property="og:description" content="Emita os 7 documentos de SST exigidos pelas NRs e transmita os eventos ao eSocial, com leitura de PDF por IA." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://www.dsegconsultoria.com.br" />
         <meta property="og:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
@@ -856,11 +856,11 @@ export default function Home() {
         <meta property="og:image:height" content="2000" />
         <meta property="og:locale" content="pt_BR" />
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="eSocial SST — Transmissão e Documentos com IA" />
-        <meta name="twitter:description" content="Transmita os eventos SST do eSocial e gere os 7 documentos exigidos pelas NRs com IA." />
+        <meta name="twitter:title" content="eSocial SST — Documentos de SST e Transmissão com IA" />
+        <meta name="twitter:description" content="Emita os 7 documentos de SST exigidos pelas NRs e transmita os eventos ao eSocial, com leitura de PDF por IA." />
         <meta name="twitter:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
         <link rel="canonical" href="https://www.dsegconsultoria.com.br" />
-        <meta name="keywords" content="esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, ltcat esocial, certificado digital esocial, automatizar esocial sst" />
+        <meta name="keywords" content="pgr nr-1, ltcat nr-9, pcmso nr-7, aet nr-17, ppp previdenciario, documentos sst, esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, certificado digital esocial, automatizar esocial sst" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
@@ -868,8 +868,8 @@ export default function Home() {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
           url: 'https://www.dsegconsultoria.com.br',
-          description: 'Software SaaS brasileiro para transmissão automática de eventos de Saúde e Segurança do Trabalho (SST) ao eSocial Gov.br, com módulo completo de documentos (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP).',
-          featureList: ['Leitura de PDF com IA (ASO, LTCAT, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Dashboard executivo e relatório de conformidade', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
+          description: 'Software SaaS brasileiro que emite os 7 documentos de Saúde e Segurança do Trabalho exigidos pelas Normas Regulamentadoras (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmite os eventos SST ao eSocial Gov.br, com leitura de PDF por inteligência artificial.',
+          featureList: ['Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Leitura de PDF com IA (ASO, LTCAT, PCMSO, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Dashboard executivo e relatório de conformidade', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
           aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '12' },
         }) }} />
         <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
@@ -884,8 +884,8 @@ export default function Home() {
             <img src="/logo-completa.png" alt="DSEG Consultoria em SST" className="nav-logo-img" />
           </a>
           <div className="nav-links">
-            <a href="#jornada">Como funciona</a>
             <a href="#documentos">Documentos SST</a>
+            <a href="#jornada">Como funciona</a>
             <a href="#funcionalidades">Funcionalidades</a>
             <a href="#precos">Preços</a>
             <Link href="/noticias">Blog</Link>
@@ -906,7 +906,7 @@ export default function Home() {
         </div>
         {menuOpen && (
           <div style={{ background:'#fff', borderTop:'1px solid #f1f5f9', padding:'16px 20px', display:'flex', flexDirection:'column', gap:4 }}>
-            {[['#jornada','Como funciona'],['#documentos','Documentos SST'],['#funcionalidades','Funcionalidades'],['#precos','Preços'],['/noticias','Blog'],['#contato','Contato']].map(([href,label]) => (
+            {[['#documentos','Documentos SST'],['#jornada','Como funciona'],['#funcionalidades','Funcionalidades'],['#precos','Preços'],['/noticias','Blog'],['#contato','Contato']].map(([href,label]) => (
               href.startsWith('/') ? (
                 <Link key={href} href={href} style={{ fontSize:14, color:'#475569', textDecoration:'none', padding:'9px 8px', borderRadius:8 }} onClick={() => setMenuOpen(false)}>{label}</Link>
               ) : (
@@ -932,24 +932,24 @@ export default function Home() {
           <div>
             <div className="hero-badge">
               <div className="badge-dot-ring"><span className="badge-dot"></span></div>
-              Sistema ao vivo · 100% conforme eSocial
+              Sistema ao vivo · PGR, LTCAT, PCMSO e mais 4 documentos
             </div>
             <h1>
-              Transmita o<br />
-              <span className="grad">eSocial SST</span><br />
+              Emita os<br />
+              <span className="grad">7 documentos de SST</span><br />
               com Inteligência<br />Artificial
             </h1>
             <p className="hero-sub">
-              Envie S-2210, S-2220, S-2221 e S-2240 diretamente ao governo. Importe PDF de LTCAT, PCMSO e ASO — a IA extrai os dados e gera os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) automaticamente.
+              PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — gerados e mantidos em um só lugar, prontos para fiscalização. Importe um PDF que já existe e a IA extrai os dados automaticamente, ou cadastre direto. Quando precisar, transmita os eventos ao eSocial (S-2210, S-2220, S-2221, S-2240) sem sair da plataforma.
             </p>
             <div className="hero-btns">
               <Link href="/cadastro" className="btn-hero-main">
                 Começar trial grátis
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9,18 15,12 9,6"/></svg>
               </Link>
-              <a href="#jornada" className="btn-hero-sec">
+              <a href="#documentos" className="btn-hero-sec">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16 10,8"/></svg>
-                Ver como funciona
+                Ver os 7 documentos
               </a>
             </div>
             <p className="hero-note">
@@ -995,8 +995,8 @@ export default function Home() {
       <div className="stats-section">
         <div className="stats-inner">
           {[
-            { target:4,   suffix:'',  label:'Eventos SST suportados' },
             { target:7,   suffix:'',  label:'Documentos SST completos' },
+            { target:4,   suffix:'',  label:'Eventos eSocial suportados' },
             { target:14,  suffix:'d', label:'Trial gratuito' },
             { target:100, suffix:'%', label:'Conforme eSocial' },
           ].map((s,i) => (
@@ -1008,12 +1008,32 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ── DOCUMENTOS SST ── */}
+      <section id="documentos" className="docs-bg">
+        <div className="section-wrap section-center">
+          <div className="section-label">Documentos SST</div>
+          <h2 className="section-h2">Os <span className="grad">7 documentos</span> que sua empresa precisa</h2>
+          <p className="section-desc">
+            Todo o conjunto de laudos e programas exigidos pelas Normas Regulamentadoras, gerados e mantidos em um só lugar — com dados que se propagam automaticamente do LTCAT vigente para os demais documentos.
+          </p>
+          <div className="docs-grid">
+            {DOCUMENTOS_SST.map((d,i) => (
+              <div key={i} className={`doc-card reveal${i === 0 ? ' highlight' : ''}`}>
+                <div className="doc-nr">{d.nr}</div>
+                <h3>{d.nome}</h3>
+                <p>{d.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── JORNADA (pipeline) ── */}
       <section id="jornada" className="pipeline-section">
         <div className="section-wrap section-center" style={{ paddingBottom:0 }}>
           <div className="section-label">Como funciona</div>
-          <h2 className="section-h2">Do PDF ao Gov.br em <span className="grad">5 etapas</span></h2>
-          <p className="section-desc">Uma jornada só, sem retrabalho: os mesmos dados alimentam a leitura por IA, os 7 documentos SST e a transmissão ao eSocial.</p>
+          <h2 className="section-h2">De um cadastro só, <span className="grad">tudo o resto acontece</span></h2>
+          <p className="section-desc">Os mesmos dados alimentam os 7 documentos SST e, quando precisar, a transmissão ao eSocial — sem digitar a mesma informação duas vezes.</p>
 
           <div className="pipeline-list" style={{ textAlign:'left' }}>
             {PIPELINE.map((node, i) => (
@@ -1038,31 +1058,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── DOCUMENTOS SST ── */}
-      <section id="documentos" className="docs-bg">
-        <div className="section-wrap section-center">
-          <div className="section-label">Documentos SST</div>
-          <h2 className="section-h2">Os <span className="grad">7 documentos</span> que sua empresa precisa</h2>
-          <p className="section-desc">
-            Todo o conjunto de laudos e programas exigidos pelas Normas Regulamentadoras, gerados e mantidos em um só lugar — com dados que se propagam automaticamente do LTCAT vigente para os demais documentos.
-          </p>
-          <div className="docs-grid">
-            {DOCUMENTOS_SST.map((d,i) => (
-              <div key={i} className={`doc-card reveal${i === 0 ? ' highlight' : ''}`}>
-                <div className="doc-nr">{d.nr}</div>
-                <h3>{d.nome}</h3>
-                <p>{d.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FUNCIONALIDADES (bento) ── */}
       <section id="funcionalidades" className="features-bg">
         <div className="section-wrap section-center">
           <div className="section-label">Funcionalidades</div>
-          <h2 className="section-h2">Tudo para <span className="grad">cumprir o eSocial SST</span></h2>
+          <h2 className="section-h2">Tudo para <span className="grad">cumprir as NRs e o eSocial</span></h2>
           <p className="section-desc">Plataforma completa para médicos do trabalho, engenheiros de segurança e RH.</p>
           <div className="feat-bento">
             <div className="feat-tile big reveal">
@@ -1113,7 +1113,7 @@ export default function Home() {
           <div className="section-label">Planos</div>
           <h2 className="section-h2">Um plano só, <span className="grad">por número de vidas</span></h2>
           <p className="section-desc">
-            Sem escolha manual de pacote: a mensalidade escala com o número de funcionários ativos cadastrados. Transmissão eSocial e os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) inclusos e ilimitados em qualquer faixa.
+            Sem escolha manual de pacote: a mensalidade escala com o número de funcionários ativos cadastrados. Os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e a transmissão eSocial inclusos e ilimitados em qualquer faixa.
           </p>
           <div className="pricing-grid">
             {[
@@ -1134,7 +1134,7 @@ export default function Home() {
                   </div>
                   <p className="price-desc" style={{ marginTop: 4 }}>{desc}</p>
                   <ul className="price-list" style={{ textAlign: 'left' }}>
-                    {['Transmissão eSocial ilimitada (S-2210/2220/2221/2240)', 'Os 7 documentos SST ilimitados', 'Importação por IA (PDF)', 'Alertas de vencimento', 'Múltiplos CNPJs', 'Exportação de PDF'].map((item, j) => (
+                    {['Os 7 documentos SST ilimitados', 'Transmissão eSocial ilimitada (S-2210/2220/2221/2240)', 'Importação por IA (PDF)', 'Alertas de vencimento', 'Múltiplos CNPJs', 'Exportação de PDF'].map((item, j) => (
                       <li key={j}><span className="chk">✓</span>{item}</li>
                     ))}
                   </ul>
@@ -1272,13 +1272,13 @@ export default function Home() {
               <div style={{ display:'flex', alignItems:'center' }}>
                 <img src="/logo-branca.png" alt="DSEG Consultoria" style={{ height:72, width:'auto' }} />
               </div>
-              <p className="footer-brand-desc">Plataforma SaaS para transmissão de eventos SST ao eSocial com inteligência artificial.</p>
+              <p className="footer-brand-desc">Plataforma SaaS que emite os documentos de SST e transmite os eventos ao eSocial, com inteligência artificial.</p>
             </div>
             <div className="footer-col">
               <h4>Produto</h4>
               <ul>
-                <li><a href="#jornada">Como funciona</a></li>
                 <li><a href="#documentos">Documentos SST</a></li>
+                <li><a href="#jornada">Como funciona</a></li>
                 <li><a href="#funcionalidades">Funcionalidades</a></li>
                 <li><a href="#precos">Preços</a></li>
               </ul>

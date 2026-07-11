@@ -73,7 +73,7 @@ export default function Planos() {
     <Layout pagina="planos">
       <Head>
         <title>Planos e Preços — eSocial SST Transmissor</title>
-        <meta name="description" content="Um único plano, cobrado pelo número de funcionários ativos. Transmissão eSocial e documentos SST ilimitados." />
+        <meta name="description" content="Um único plano, cobrado pelo número de funcionários ativos. Os 7 documentos SST e a transmissão eSocial ilimitados." />
         <meta property="og:title" content="Planos e Preços — eSocial SST Transmissor" />
         <meta property="og:description" content="Cobrança por vidas ativas — empresas menores pagam menos. Trial gratuito de 14 dias." />
       </Head>
@@ -84,7 +84,7 @@ export default function Planos() {
             Um plano só, por número de vidas
           </div>
           <div style={{ fontSize: 14, color: '#6b7280' }}>
-            Transmissão eSocial + os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) ilimitados · Cancele quando quiser
+            Os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) + transmissão eSocial ilimitados · Cancele quando quiser
           </div>
 
           {planoAtual === 'trial' && trialRestante !== null && trialRestante > 0 && (

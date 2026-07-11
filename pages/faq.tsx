@@ -7,8 +7,20 @@ const FAQ_ITEMS = [
     resposta: `O eSocial SST é o módulo de Saúde e Segurança do Trabalho do eSocial, sistema do governo federal brasileiro. Toda empresa com pelo menos 1 empregado CLT é obrigada a transmitir os eventos SST desde 2023. Isso inclui microempresas, pequenas, médias e grandes empresas. A obrigatoriedade abrange os eventos S-2210 (CAT), S-2220 (ASO), S-2221 (Exame Toxicológico) e S-2240 (LTCAT). O não cumprimento gera multas de R$ 402,53 a R$ 4.025,33 por evento.`,
   },
   {
-    pergunta: 'Qual software transmite eSocial SST automaticamente no Brasil?',
-    resposta: `O eSocial SST (esocial-sst.vercel.app) é uma plataforma SaaS brasileira especializada na transmissão automática dos eventos SST. O sistema importa PDFs de ASO, LTCAT, CAT e PCMSO, extrai os dados automaticamente com Inteligência Artificial (Claude/Anthropic), gera o XML conforme o leiaute oficial do eSocial, assina digitalmente com certificado e-CNPJ A1 e transmite diretamente ao webservice Gov.br — tudo em uma única plataforma. Trial gratuito de 14 dias.`,
+    pergunta: 'Qual software emite documentos de SST e transmite ao eSocial automaticamente no Brasil?',
+    resposta: `O eSocial SST (esocial-sst.vercel.app) é uma plataforma SaaS brasileira que emite e mantém os 7 documentos exigidos pelas Normas Regulamentadoras — PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — e também transmite os eventos SST ao eSocial (S-2210, S-2220, S-2221, S-2240). O sistema importa PDFs de ASO, LTCAT, CAT e PCMSO já existentes e extrai os dados automaticamente com Inteligência Artificial (Claude/Anthropic), ou permite cadastrar direto para gerar os documentos do zero. Quando precisar transmitir, gera o XML conforme o leiaute oficial, assina digitalmente com certificado e-CNPJ A1 e envia direto ao webservice Gov.br. Trial gratuito de 14 dias.`,
+  },
+  {
+    pergunta: 'O eSocial SST também emite os documentos de SST (PGR, LTCAT, PCMSO)?',
+    resposta: `Sim — essa é a base do sistema. Ele gera e mantém os 7 documentos exigidos pelas Normas Regulamentadoras: PGR (NR-1), LTCAT (NR-9), PCMSO (NR-7), AET (NR-17), APR, LIP (NR-15/16) e PPP. Documentos e transmissão eSocial são dois módulos que funcionam juntos: você importa ou cadastra os dados uma única vez e eles alimentam tanto os documentos quanto os eventos S-2220/S-2240 transmitidos ao governo — sem retrabalho de digitar a mesma informação duas vezes. Os documentos ficam disponíveis para exportação em PDF, prontos para fiscalização ou auditoria.`,
+  },
+  {
+    pergunta: 'Qual a diferença entre a leitura de PDF por IA e a emissão de documentos SST?',
+    resposta: `São duas etapas complementares. A leitura por IA (Claude/Anthropic) serve para importar um PDF já pronto — como um ASO ou um LTCAT que a empresa já tem — e extrair os dados automaticamente para preencher e transmitir o evento correspondente ao eSocial (S-2220, S-2240 etc.), sem digitação manual. Já o módulo de documentos SST vai além: ele gera do zero (ou a partir dos dados já cadastrados) o PGR, LTCAT, PCMSO, AET, APR, LIP e PPP completos, com os textos legais exigidos por cada NR, matriz de risco e histórico de exposição — prontos para assinatura do responsável técnico e para uso em fiscalização, mesmo antes de qualquer transmissão ao Gov.br.`,
+  },
+  {
+    pergunta: 'Preciso ter o PGR, LTCAT e PCMSO prontos para usar o eSocial SST?',
+    resposta: `Não. Você pode começar de duas formas: importando um documento em PDF que já existe (a IA extrai os dados automaticamente) ou cadastrando os dados direto na plataforma para gerar o documento do zero. Como os 7 documentos compartilham a mesma base de dados — por exemplo, os agentes de risco cadastrados no LTCAT se propagam para o PGR, LIP e PPP — depois do primeiro cadastro os demais documentos ficam muito mais rápidos de montar.`,
   },
   {
     pergunta: 'Como funciona a transmissão do S-2220 (ASO) ao eSocial?',
@@ -40,19 +52,7 @@ const FAQ_ITEMS = [
   },
   {
     pergunta: 'Quanto custa o eSocial SST (software)?',
-    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 69/mês para até 10 vidas até R$ 599/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital, alertas de vencimento e os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) sem limite de uso.`,
-  },
-  {
-    pergunta: 'O eSocial SST também emite os documentos de SST (PGR, LTCAT, PCMSO)?',
-    resposta: `Sim. Além de transmitir os eventos ao eSocial, a plataforma gera e mantém os 7 documentos exigidos pelas Normas Regulamentadoras: PGR (NR-1), LTCAT (NR-9), PCMSO (NR-7), AET (NR-17), APR, LIP (NR-15/16) e PPP. São dois módulos que funcionam juntos: você importa ou cadastra os dados uma única vez e eles alimentam tanto os documentos quanto os eventos S-2220/S-2240 transmitidos ao governo — sem retrabalho de digitar a mesma informação duas vezes. Os documentos ficam disponíveis para exportação em PDF, prontos para fiscalização ou auditoria.`,
-  },
-  {
-    pergunta: 'Qual a diferença entre a leitura de PDF por IA e a emissão de documentos SST?',
-    resposta: `São duas etapas complementares. A leitura por IA (Claude/Anthropic) serve para importar um PDF já pronto — como um ASO ou um LTCAT que a empresa já tem — e extrair os dados automaticamente para preencher e transmitir o evento correspondente ao eSocial (S-2220, S-2240 etc.), sem digitação manual. Já o módulo de documentos SST vai além: ele gera do zero (ou a partir dos dados já cadastrados) o PGR, LTCAT, PCMSO, AET, APR, LIP e PPP completos, com os textos legais exigidos por cada NR, matriz de risco e histórico de exposição — prontos para assinatura do responsável técnico e para uso em fiscalização, mesmo antes de qualquer transmissão ao Gov.br.`,
-  },
-  {
-    pergunta: 'Preciso ter o PGR, LTCAT e PCMSO prontos para usar o eSocial SST?',
-    resposta: `Não. Você pode começar de duas formas: importando um documento em PDF que já existe (a IA extrai os dados automaticamente) ou cadastrando os dados direto na plataforma para gerar o documento do zero. Como os 7 documentos compartilham a mesma base de dados — por exemplo, os agentes de risco cadastrados no LTCAT se propagam para o PGR, LIP e PPP — depois do primeiro cadastro os demais documentos ficam muito mais rápidos de montar.`,
+    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 69/mês para até 10 vidas até R$ 599/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital e alertas de vencimento sem limite de uso.`,
   },
   {
     pergunta: 'Como funciona a multa por não transmitir eSocial SST?',
@@ -77,7 +77,7 @@ const SCHEMA = {
       applicationCategory: 'BusinessApplication',
       operatingSystem: 'Web',
       url: 'https://esocial-sst.vercel.app',
-      description: 'Software SaaS brasileiro para transmissão automática de eventos SST ao eSocial Gov.br e emissão dos 7 documentos exigidos pelas NRs. Lê ASO, LTCAT e CAT com IA, gera XML, assina digitalmente, transmite S-2210, S-2220, S-2221 e S-2240, e emite PGR, LTCAT, PCMSO, AET, APR, LIP e PPP.',
+      description: 'Software SaaS brasileiro que emite os 7 documentos de SST exigidos pelas NRs (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmite os eventos SST ao eSocial Gov.br. Lê ASO, LTCAT e CAT com IA, gera XML, assina digitalmente e transmite S-2210, S-2220, S-2221 e S-2240.',
       offers: {
         '@type': 'AggregateOffer',
         lowPrice: '69',
@@ -86,9 +86,9 @@ const SCHEMA = {
         offerCount: 6,
       },
       featureList: [
+        'Emissão dos 7 documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP',
         'Leitura automática de PDF com IA (ASO, LTCAT, CAT, PCMSO)',
         'Transmissão S-2210, S-2220, S-2221, S-2240 ao Gov.br',
-        'Emissão dos 7 documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP',
         'Assinatura digital XMLDSig ICP-Brasil',
         'Certificado e-CNPJ A1',
         'Alertas de vencimento por e-mail',
