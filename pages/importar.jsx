@@ -237,7 +237,7 @@ async function salvarAso(dados, funcId, empresaId) {
   await supabase.from('transmissoes').insert({
     empresa_id: empresaId, funcionario_id: funcId,
     evento: 'S-2220', referencia_id: aso.id, referencia_tipo: 'aso',
-    status: 'pendente', tentativas: 0, ambiente: 'producao_restrita',
+    status: 'pendente', tentativas: 0, ambiente: 'producao',
   })
 }
 
