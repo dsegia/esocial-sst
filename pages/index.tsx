@@ -935,12 +935,11 @@ export default function Home() {
               Sistema ao vivo · PGR, LTCAT, PCMSO e mais 4 documentos
             </div>
             <h1>
-              Emita os<br />
-              <span className="grad">7 documentos de SST</span><br />
-              com Inteligência<br />Artificial
+              Emita os <span className="grad">7 documentos de SST</span><br />
+              com Inteligência Artificial
             </h1>
             <p className="hero-sub">
-              PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — gerados e mantidos em um só lugar, prontos para fiscalização. Importe um PDF que já existe e a IA extrai os dados automaticamente, ou cadastre direto. Quando precisar, transmita os eventos ao eSocial (S-2210, S-2220, S-2221, S-2240) sem sair da plataforma.
+              PGR, LTCAT, PCMSO, AET, APR, LIP e PPP — gerados e mantidos em um só lugar. Importe um PDF existente e a IA extrai os dados, ou cadastre direto — e transmita ao eSocial (S-2210, S-2220, S-2221, S-2240) quando precisar.
             </p>
             <div className="hero-btns">
               <Link href="/cadastro" className="btn-hero-main">
