@@ -186,7 +186,7 @@ export default function TransmissaoManual() {
       try {
         // 1. Buscar transmissão e funcionário
         const { data: txCompleta, error: errTx } = await supabase.from('transmissoes')
-          .select(`*, funcionarios(nome, cpf, matricula_esocial)`)
+          .select(`*, funcionarios(nome, cpf, matricula_esocial, funcao, setor, ghe_id, ghe_uuid)`)
           .eq('id', txId).eq('empresa_id', empresaId).single()
 
         if (errTx || !txCompleta) throw new Error('Transmissão não encontrada: ' + (errTx?.message || txId))

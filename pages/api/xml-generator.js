@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 
   try {
     // Validações antes de gerar XML
-    if ((tipo === 'S-2220' || tipo === 'S-2210') && funcionario) {
+    if ((tipo === 'S-2220' || tipo === 'S-2210' || tipo === 'S-2240') && funcionario) {
       const mat = (funcionario.matricula_esocial || '').trim()
       if (!mat || mat.startsWith('PEND-')) {
         return res.status(400).json({ erro: `Funcionário sem matrícula eSocial definida. Acesse Funcionários e preencha a matrícula antes de transmitir.` })
@@ -38,6 +38,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ erro: `CNPJ da empresa inválido: ${empresa.cnpj}` })
       }
     }
+    if (tipo === 'S-2240') {
+      const ghe = resolverGheFuncionario(dados?.ghes || [], funcionario || {})
+      if (!ghe) {
+        return res.status(400).json({ erro: 'Não foi possível determinar o GHE deste funcionário. Acesse S-2240 e clique em "Vincular GHE" antes de transmitir.' })
+      }
+    }
 
     // S-2220 exige ao menos 1 exame — bloqueia antes de gerar XML inválido
     if (tipo === 'S-2220') {
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
 
     let xml = ''
     if (tipo === 'S-2220') xml = gerarS2220(dados, empresa, tpAmb, funcionario)
-    else if (tipo === 'S-2240') xml = gerarS2240(dados, empresa, tpAmb)
+    else if (tipo === 'S-2240') xml = gerarS2240(dados, empresa, tpAmb, funcionario)
     else if (tipo === 'S-2210') xml = gerarS2210(dados, empresa, tpAmb, funcionario)
     else return res.status(400).json({ erro: 'Tipo inválido' })
 
@@ -190,13 +196,57 @@ function gerarS2220(aso, empresa, tpAmb, funcionario = {}) {
 </eSocial>`
 }
 
+// Resolve o GHE do funcionário dentro do array de GHEs do LTCAT — mesma
+// ordem de prioridade usada em pages/s2240.tsx (gheDoFuncionario), pra não
+// divergir do que o usuário viu na tela ao criar a transmissão.
+function resolverGheFuncionario(ghes, func) {
+  if (!ghes || !ghes.length) return null
+
+  if (func.ghe_uuid) {
+    const porUuid = ghes.find(g => g.id === func.ghe_uuid)
+    if (porUuid) return porUuid
+  }
+
+  if (func.ghe_id !== undefined && func.ghe_id !== null) {
+    const porIndice = ghes[func.ghe_id]
+    if (porIndice) return porIndice
+  }
+
+  if (func.funcao) {
+    const fnLow = func.funcao.toLowerCase().trim()
+    for (const ghe of ghes) {
+      const fnsGhe = (ghe.funcoes || []).map(f => f.toLowerCase().trim())
+      if (fnsGhe.some(f =>
+        f.includes(fnLow) || fnLow.includes(f) ||
+        fnLow.split(' ').filter(w => w.length > 3).some(w => f.includes(w))
+      )) return ghe
+    }
+  }
+
+  if (func.setor) {
+    const sf = func.setor.toLowerCase()
+    for (const ghe of ghes) {
+      const sg = (ghe.setor || '').toLowerCase()
+      if (sg && sf && (sg.includes(sf) || sf.includes(sg))) return ghe
+    }
+  }
+
+  if (ghes.length === 1) return ghes[0]
+
+  return null
+}
+
 // ─── S-2240: CONDIÇÕES AMBIENTAIS ────────────────────
-function gerarS2240(ltcat, empresa, tpAmb) {
+// Evento por vínculo (um S-2240 por funcionário) — o XML reporta só o(s)
+// GHE(s) daquele funcionário, nunca o inventário inteiro da empresa.
+function gerarS2240(ltcat, empresa, tpAmb, funcionario = {}) {
   const cnpjEmp = cnpj(empresa.cnpj)
   const idEvt = id(cnpjEmp)
   // Suporte a estrutura flat (row do DB) e aninhada (legado)
   const geral = ltcat.dados_gerais || ltcat
-  const ghes = ltcat.ghes || []
+  const todosGhes = ltcat.ghes || []
+  const gheFunc = resolverGheFuncionario(todosGhes, funcionario)
+  const ghes = gheFunc ? [gheFunc] : []
 
   const TIPO_AGENTE = { fis: '01', qui: '02', bio: '03', erg: '04' }
 
@@ -249,6 +299,10 @@ function gerarS2240(ltcat, empresa, tpAmb) {
       <tpInsc>1</tpInsc>
       <nrInsc>${cnpjEmp}</nrInsc>
     </ideEmpregador>
+    <ideVinculo>
+      <cpfTrab>${cpf(funcionario.cpf)}</cpfTrab>
+      <matricula>${funcionario.matricula_esocial || ''}</matricula>
+    </ideVinculo>
     <infoExpRisco>
       <iniValid>${iniValid}</iniValid>
       ${ghesXML}
