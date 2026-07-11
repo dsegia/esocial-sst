@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS transmissoes (
                      CHECK (status IN ('pendente','enviado','rejeitado','lote','erro')),
   referencia_id    UUID,
   referencia_tipo  TEXT,
-  payload          TEXT,
+  payload          JSONB,
   recibo           TEXT,
   dt_envio         TIMESTAMPTZ,
   tentativas       INTEGER NOT NULL DEFAULT 0,

@@ -202,6 +202,9 @@ export default function TransmissaoManual() {
         } else if (txCompleta.referencia_tipo === 'cat' && txCompleta.referencia_id) {
           const { data } = await supabase.from('cats').select('*').eq('id', txCompleta.referencia_id).eq('empresa_id', empresaId).single()
           dadosEvento = data
+        } else if (txCompleta.referencia_tipo === 'exame_toxicologico') {
+          // Sem tabela própria — dados ficam direto no payload da transmissão (ver pages/s2221.tsx)
+          dadosEvento = txCompleta.payload
         }
 
         if (!dadosEvento) throw new Error(`Dados do evento não encontrados (tipo: ${txCompleta.referencia_tipo}, id: ${txCompleta.referencia_id})`)

@@ -22,7 +22,7 @@ export default async function handler(req, res) {
 
   try {
     // Validações antes de gerar XML
-    if ((tipo === 'S-2220' || tipo === 'S-2210' || tipo === 'S-2240') && funcionario) {
+    if ((tipo === 'S-2220' || tipo === 'S-2210' || tipo === 'S-2240' || tipo === 'S-2221') && funcionario) {
       const mat = (funcionario.matricula_esocial || '').trim()
       if (!mat || mat.startsWith('PEND-')) {
         return res.status(400).json({ erro: `Funcionário sem matrícula eSocial definida. Acesse Funcionários e preencha a matrícula antes de transmitir.` })
@@ -44,6 +44,18 @@ export default async function handler(req, res) {
         return res.status(400).json({ erro: 'Não foi possível determinar o GHE deste funcionário. Acesse S-2240 e clique em "Vincular GHE" antes de transmitir.' })
       }
     }
+    if (tipo === 'S-2221') {
+      if (!dados.dt_exame) return res.status(400).json({ erro: 'Data do exame ausente.' })
+      if ((dados.cnpj_lab || '').replace(/\D/g, '').length !== 14) {
+        return res.status(400).json({ erro: 'CNPJ do laboratório inválido ou ausente. Edite o exame em S-2221 e informe o CNPJ.' })
+      }
+      if (!/^[a-zA-Z]{2}\d{9}$/.test((dados.cod_seq_exame || '').trim())) {
+        return res.status(400).json({ erro: 'Código do exame (SNCTE) inválido ou ausente. Deve ter 2 letras + 9 números.' })
+      }
+      if (!(dados.responsavel_nome || '').trim()) {
+        return res.status(400).json({ erro: 'Nome do médico responsável ausente. Edite o exame em S-2221.' })
+      }
+    }
 
     // S-2220 exige ao menos 1 exame — bloqueia antes de gerar XML inválido
     if (tipo === 'S-2220') {
@@ -59,6 +71,7 @@ export default async function handler(req, res) {
     if (tipo === 'S-2220') xml = gerarS2220(dados, empresa, tpAmb, funcionario)
     else if (tipo === 'S-2240') xml = gerarS2240(dados, empresa, tpAmb, funcionario)
     else if (tipo === 'S-2210') xml = gerarS2210(dados, empresa, tpAmb, funcionario)
+    else if (tipo === 'S-2221') xml = gerarS2221(dados, empresa, tpAmb, funcionario)
     else return res.status(400).json({ erro: 'Tipo inválido' })
 
     return res.status(200).json({ sucesso: true, xml })
@@ -367,5 +380,44 @@ function gerarS2210(cat, empresa, tpAmb, funcionario = {}) {
       </atendimento>
     </cat>
   </evtCAT>
+</eSocial>`
+}
+
+// ─── S-2221: EXAME TOXICOLÓGICO DO MOTORISTA ─────────
+// Schema evtToxic (v_S_01_03_00) confirmado contra o XSD oficial: só exige
+// dtExame, cnpjLab, codSeqExame e o médico (nmMed/nrCRM/ufCRM) — não carrega
+// resultado nem substâncias testadas (isso fica só no registro interno).
+function gerarS2221(exame, empresa, tpAmb, funcionario = {}) {
+  const cnpjEmp = cnpj(empresa.cnpj)
+  const idEvt = id(cnpjEmp)
+  const crm = (exame.responsavel_crf || '').replace(/\D/g, '')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<eSocial xmlns="http://www.esocial.gov.br/schema/evt/evtToxic/v_S_01_03_00"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <evtToxic Id="${idEvt}">
+    <ideEvento>
+      <indRetif>1</indRetif>
+      <tpAmb>${tpAmb}</tpAmb>
+      <procEmi>1</procEmi>
+      <verProc>1.0.0</verProc>
+    </ideEvento>
+    <ideEmpregador>
+      <tpInsc>1</tpInsc>
+      <nrInsc>${cnpjEmp}</nrInsc>
+    </ideEmpregador>
+    <ideVinculo>
+      <cpfTrab>${cpf(funcionario.cpf)}</cpfTrab>
+      <matricula>${funcionario.matricula_esocial || ''}</matricula>
+    </ideVinculo>
+    <toxicologico>
+      <dtExame>${data(exame.dt_exame)}</dtExame>
+      <cnpjLab>${(exame.cnpj_lab || '').replace(/\D/g, '')}</cnpjLab>
+      <codSeqExame>${escapeXml((exame.cod_seq_exame || '').trim().toUpperCase())}</codSeqExame>
+      <nmMed>${escapeXml(exame.responsavel_nome)}</nmMed>
+      ${crm ? `<nrCRM>${crm}</nrCRM>` : ''}
+      ${crm ? `<ufCRM>${extrairUfCrm(exame.responsavel_crf)}</ufCRM>` : ''}
+    </toxicologico>
+  </evtToxic>
 </eSocial>`
 }

@@ -38,6 +38,8 @@ const formVazio = () => ({
   dt_exame: '',
   resultado: 'negativo',
   laboratorio: '',
+  cnpj_lab: '',
+  cod_seq_exame: '',
   responsavel_nome: '',
   responsavel_crf: '',
   substancias_testadas: SUBSTANCIAS.slice(),
@@ -82,6 +84,13 @@ export default function S2221() {
     if (!form.funcionario_id) { setErro('Selecione o funcionário.'); return }
     if (!form.dt_exame)       { setErro('Informe a data do exame.'); return }
     if (!form.laboratorio)    { setErro('Informe o laboratório.'); return }
+    const cnpjLabLimpo = form.cnpj_lab.replace(/\D/g, '')
+    if (cnpjLabLimpo.length !== 14) { setErro('CNPJ do laboratório inválido — o eSocial exige o CNPJ (não o nome) para identificar o laboratório.'); return }
+    if (!/^[a-zA-Z]{2}\d{9}$/.test(form.cod_seq_exame.trim())) {
+      setErro('Código do exame inválido — deve ter 11 caracteres: 2 letras + 9 números (código emitido pelo laboratório/SNCTE).')
+      return
+    }
+    if (!form.responsavel_nome.trim()) { setErro('Informe o nome do médico responsável.'); return }
     const faltando = SUBSTANCIAS_OBRIGATORIAS.filter(s => !form.substancias_testadas.includes(s))
     if (faltando.length > 0) { setErro(`Substâncias obrigatórias pela Res. CONTRAN 432/2013 não marcadas: ${faltando.join(', ')}`); return }
     setSalvando(true)
@@ -91,6 +100,8 @@ export default function S2221() {
       dt_exame:            form.dt_exame,
       resultado:           form.resultado,
       laboratorio:         form.laboratorio,
+      cnpj_lab:            cnpjLabLimpo,
+      cod_seq_exame:       form.cod_seq_exame.trim().toUpperCase(),
       responsavel_nome:    form.responsavel_nome,
       responsavel_crf:     form.responsavel_crf,
       substancias_testadas: form.substancias_testadas,
@@ -304,13 +315,26 @@ export default function S2221() {
                 <input style={s.input} placeholder="Nome do laboratório" value={form.laboratorio} onChange={e => setForm({...form, laboratorio: e.target.value})} />
               </div>
               <div>
-                <label style={s.label}>Responsável técnico</label>
-                <input style={s.input} placeholder="Nome do responsável" value={form.responsavel_nome} onChange={e => setForm({...form, responsavel_nome: e.target.value})} />
+                <label style={s.label}>CNPJ do laboratório *</label>
+                <input style={s.input} placeholder="00.000.000/0000-00" value={form.cnpj_lab} onChange={e => setForm({...form, cnpj_lab: e.target.value})} />
               </div>
             </div>
             <div style={{ marginBottom:12 }}>
-              <label style={s.label}>CRF / CRM do responsável</label>
-              <input style={{ ...s.input, maxWidth:200 }} placeholder="Ex: CRF-SP 12345" value={form.responsavel_crf} onChange={e => setForm({...form, responsavel_crf: e.target.value})} />
+              <label style={s.label}>Código do exame (SNCTE) *</label>
+              <input style={{ ...s.input, maxWidth:220 }} placeholder="Ex: AB123456789" value={form.cod_seq_exame} onChange={e => setForm({...form, cod_seq_exame: e.target.value})} />
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:4 }}>
+                11 caracteres (2 letras + 9 números) — código do exame emitido pelo laboratório/SNCTE, exigido pelo eSocial no lugar do resultado.
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+              <div>
+                <label style={s.label}>Médico responsável *</label>
+                <input style={s.input} placeholder="Nome do médico" value={form.responsavel_nome} onChange={e => setForm({...form, responsavel_nome: e.target.value})} />
+              </div>
+              <div>
+                <label style={s.label}>CRM do médico</label>
+                <input style={s.input} placeholder="Ex: CRM-SP 12345" value={form.responsavel_crf} onChange={e => setForm({...form, responsavel_crf: e.target.value})} />
+              </div>
             </div>
           </div>
 
