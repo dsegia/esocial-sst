@@ -245,7 +245,15 @@ export default function Dashboard() {
             {empresa?.razao_social} · {new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' })}
           </div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div
+            onClick={() => router.push('/planos')}
+            title="A faixa de cobrança é recalculada automaticamente pelo número de funcionários ativos — não precisa trocar de plano"
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', background:'#f9fafb', border:'0.5px solid #e5e7eb', borderRadius:8, fontSize:12, color:'#374151', cursor:'pointer', whiteSpace:'nowrap' }}
+          >
+            <span style={{ fontWeight:700, color:'#185FA5' }}>{kpis?.totalFunc || 0}</span> funcionários ativos
+            <span style={{ color:'#9ca3af' }}>· faixa automática</span>
+          </div>
           <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar documento</button>
           <button style={s.btnPrimary} onClick={() => router.push('/transmissao-manual')}>
             📡 Transmitir ({kpis?.txPendentes || 0})
