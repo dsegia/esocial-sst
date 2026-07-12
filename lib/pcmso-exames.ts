@@ -33,15 +33,29 @@ export function normalizeExames(prog: any): Record<string, any[]> {
   return result
 }
 
+const norm = (s: unknown) => String(s ?? '').trim().toLowerCase()
+
 // Acha o programa PCMSO de um funcionário — cadastro manual grava `funcao` como o
 // próprio cargo; import de PDF grava `funcao` como nome do GHE e o cargo real fica
-// em `funcoes[]`. Checa os dois formatos.
+// em `funcoes[]`. Checa os dois formatos, normalizando espaço/maiúscula pra não
+// perder o match por diferença trivial de digitação.
 export function programaDoFuncionario(programas: any[], func: { funcao?: string | null; setor?: string | null }) {
   if (!func?.funcao) return null
-  const bate = (p: any) => p.funcao === func.funcao || (p.funcoes || []).includes(func.funcao)
-  return programas.find(p => bate(p) && (!p.setor || p.setor === func.setor))
-    || programas.find(p => bate(p))
-    || null
+  const funcaoNorm = norm(func.funcao)
+  const bate = (p: any) => norm(p.funcao) === funcaoNorm || (p.funcoes || []).some((f: string) => norm(f) === funcaoNorm)
+  const candidatos = programas.filter(bate)
+  if (candidatos.length === 0) return null
+
+  const comSetor = candidatos.find(p => p.setor && norm(p.setor) === norm(func.setor))
+  if (comSetor) return comSetor
+
+  const semSetor = candidatos.filter(p => !p.setor)
+  if (semSetor.length) return semSetor[0]
+
+  // Todos os candidatos têm setor definido, mas nenhum bate com o do funcionário —
+  // com só 1 candidato mantém o comportamento antigo (assume que é o mesmo programa);
+  // com 2+ candidatos de setores diferentes seria um chute, então não escolhe nenhum.
+  return candidatos.length === 1 ? candidatos[0] : null
 }
 
 // Exames esperados pro funcionário num tipo de ASO específico, a partir do programa PCMSO.

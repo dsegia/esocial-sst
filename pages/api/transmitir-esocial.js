@@ -55,8 +55,9 @@ async function enviarConfirmacaoTransmissao(sb, userId, empresaId, recibo, ambie
 
   const { data: empresa } = await sb.from('empresas').select('razao_social').eq('id', empresaId).maybeSingle()
 
-  const nome = (usuario?.nome || '').split(' ')[0] || 'Olá'
-  const razao = empresa?.razao_social || 'sua empresa'
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const nome = esc((usuario?.nome || '').split(' ')[0] || 'Olá')
+  const razao = esc(empresa?.razao_social || 'sua empresa')
   const ambienteLabel = ambiente === 'producao' ? 'Produção' : 'Homologação'
 
   await fetch('https://api.resend.com/emails', {

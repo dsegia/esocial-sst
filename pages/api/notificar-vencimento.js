@@ -68,6 +68,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ sucesso: true, enviados: 0, mensagem: 'Nenhum vencimento nos próximos ' + dias_aviso + ' dias.' })
     }
 
+    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
     const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })
     const vencidos  = relevantes.filter(a => a.dias_restantes < 0 || a.tipo_alerta === 'ASO vencido')
     const criticos  = relevantes.filter(a => a.dias_restantes >= 0 && a.dias_restantes <= 15)
@@ -77,9 +79,9 @@ export default async function handler(req, res) {
     function linhasTabela(lista) {
       return lista.map(a => `
         <tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${a.nome}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">${a.setor || '—'}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:12px">${a.matricula || '—'}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(a.nome)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">${esc(a.setor) || '—'}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:12px">${esc(a.matricula) || '—'}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center">
             ${a.tipo_alerta === 'Sem ASO' ? '<span style="color:#E24B4A">Sem ASO</span>' :
               a.dias_restantes == null ? '<span style="color:#9ca3af">—</span>' :
@@ -101,7 +103,7 @@ export default async function handler(req, res) {
   <!-- Header -->
   <tr><td style="background:#185FA5;padding:24px 32px">
     <div style="color:#fff;font-size:18px;font-weight:bold">eSocial SST — Alerta de Vencimento</div>
-    <div style="color:#B5D4F4;font-size:13px;margin-top:4px">${empresa.razao_social} · ${hoje}</div>
+    <div style="color:#B5D4F4;font-size:13px;margin-top:4px">${esc(empresa.razao_social)} · ${hoje}</div>
   </td></tr>
 
   <!-- Resumo -->

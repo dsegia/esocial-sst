@@ -91,9 +91,16 @@ export default function LTCAT() {
       ghes: formLtcat.ghes || [],
     }
 
+    // Ao criar um novo LTCAT, arquiva automaticamente qualquer outro já ativo —
+    // evita duas linhas ativo=true simultâneas, o que faria PPP/PCMSO/S-2240
+    // resolverem o LTCAT vigente errado silenciosamente.
+    if (!formLtcat.id) {
+      await supabase.from('ltcats').update({ ativo: false }).eq('empresa_id', _empresaId).eq('ativo', true)
+    }
+
     const { error } = formLtcat.id
       ? await supabase.from('ltcats').update(dados).eq('id', formLtcat.id)
-      : await supabase.from('ltcats').insert({ ...dados, empresa_id: _empresaId })
+      : await supabase.from('ltcats').insert({ ...dados, empresa_id: _empresaId, ativo: true })
 
     if (error) { setErro('Erro ao salvar: ' + error.message) }
     else {

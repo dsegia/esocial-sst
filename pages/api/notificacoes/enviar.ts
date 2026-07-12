@@ -6,6 +6,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+function esc(s: unknown): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 async function enviarEmail(to: string, subject: string, html: string) {
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -130,7 +134,7 @@ async function processarEmpresa(empresaId: string) {
   const itens: string[] = []
 
   if (asoVencidos && asoVencidos.length > 0) {
-    const nomes = (asoVencidos as any[]).slice(0, 3).map(a => (a.funcionarios as any)?.nome?.split(' ')[0]).filter(Boolean).join(', ')
+    const nomes = esc((asoVencidos as any[]).slice(0, 3).map(a => (a.funcionarios as any)?.nome?.split(' ')[0]).filter(Boolean).join(', '))
     itens.push(`<li>🚨 <strong>${asoVencidos.length} ASO(s) vencido(s)</strong>${nomes ? ` — ${nomes}${asoVencidos.length > 3 ? ' e outros' : ''}` : ''}</li>`)
   }
   if (txRejeitadas && txRejeitadas.length > 0) {
@@ -145,7 +149,7 @@ async function processarEmpresa(empresaId: string) {
 
   if (itens.length === 0) return { empresa_id: empresaId, email, pendencias: 0, enviado: false }
 
-  const razao = empresa?.razao_social || 'sua empresa'
+  const razao = esc(empresa?.razao_social || 'sua empresa')
   const subject = `[eSocial SST] ${itens.length} pendência(s) — ${razao}`
 
   const html = `
@@ -155,7 +159,7 @@ async function processarEmpresa(empresaId: string) {
     <p style="color:#b3d4f0;margin:4px 0 0;font-size:13px">${razao}</p>
   </div>
   <div style="background:#f9fafb;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
-    <p style="margin:0 0 12px;font-size:14px">Olá, <strong>${admin.nome}</strong>!</p>
+    <p style="margin:0 0 12px;font-size:14px">Olá, <strong>${esc(admin.nome)}</strong>!</p>
     <p style="margin:0 0 12px;font-size:13px;color:#374151">
       As seguintes pendências foram identificadas em <strong>${razao}</strong>:
     </p>

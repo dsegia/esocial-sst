@@ -198,7 +198,7 @@ async function processarArquivo(file, onProgresso, token) {
 }
 
 // ── Buscar funcionário por CPF (reativa se inativo, resolve CBO se ausente) ─
-async function buscarFuncionario(cpf, empresaId, funcao) {
+async function buscarFuncionario(cpf, empresaId, funcao, tipoAso) {
   const cpfBruto = (cpf || '').replace(/\D/g, '')
   if (cpfBruto.length !== 11) return null
   const cpfFmt = cpfBruto.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
@@ -207,7 +207,9 @@ async function buscarFuncionario(cpf, empresaId, funcao) {
   if (!data) return null
 
   const patch = {}
-  if (!data.ativo) patch.ativo = true
+  // Não reativa automaticamente ao importar o próprio exame demissional —
+  // reativar um funcionário desligado exige ação explícita do usuário.
+  if (!data.ativo && tipoAso !== 'demissional') patch.ativo = true
   const funcaoEfetiva = funcao || data.funcao
   if (!data.cod_cbo && funcaoEfetiva) {
     const cbo = melhorCBO(funcaoEfetiva)
@@ -222,9 +224,16 @@ async function buscarFuncionario(cpf, empresaId, funcao) {
 // ── Salvar ASO com funcionário já conhecido ───────────────
 async function salvarAso(dados, funcId, empresaId) {
   const dataExame = converterData(dados.aso?.data_exame) || new Date().toISOString().split('T')[0]
+  const tipoAsoNorm = normalizarTipoAso(dados.aso?.tipo_aso)
+
+  const { data: dup } = await supabase.rpc('verificar_aso_duplicado', {
+    p_funcionario_id: funcId, p_tipo_aso: tipoAsoNorm, p_data_exame: dataExame, p_aso_id: null,
+  })
+  if (dup?.duplicado) throw new Error(`Já existe um ASO ${tipoAsoNorm} deste funcionário nesta data — não importado de novo.`)
+
   const { data: aso, error: asoErr } = await supabase.from('asos').insert({
     funcionario_id: funcId, empresa_id: empresaId,
-    tipo_aso: normalizarTipoAso(dados.aso?.tipo_aso),
+    tipo_aso: tipoAsoNorm,
     data_exame: dataExame,
     prox_exame: converterData(dados.aso?.prox_exame) || null,
     conclusao: normalizarConclusao(dados.aso?.conclusao),
@@ -248,33 +257,44 @@ async function salvarDocumento(tipo, dados, empresaId) {
     // cadastro manual usa — pra ganhar `id` estável. Sem isso, o vínculo GHE↔
     // funcionário no S-2240 (ghe_uuid) nunca casa pra LTCATs importadas por PDF.
     const ghesSnapshot = []
-    for (const g of (dados.ghes || [])) {
-      const { data: gheNovo, error: gheErr } = await supabase.from('ghes').insert({
-        empresa_id: empresaId,
-        nome: g.nome || '',
-        setor: g.setor || '',
-        qtd_trabalhadores: g.qtd_trabalhadores || 1,
-        aposentadoria_especial: !!g.aposentadoria_especial,
-        funcoes: g.funcoes || [],
-        riscos: (g.agentes || []).map(a => ({
-          id: crypto.randomUUID(), tipo: a.tipo, nome: a.nome,
-          valor: a.valor || '', limite: a.limite || '', unidade: '',
-          supera_lt: !!a.supera_lt, medicao_quantitativa: false,
-          metodologia: '', codigo_esocial: '', fonte_geradora: '',
-        })),
-        epc: g.epc || [], epi: g.epi || [],
-      }).select().single()
-      if (gheErr) throw new Error(gheErr.message)
-      ghesSnapshot.push({
-        id: gheNovo.id, nome: gheNovo.nome, setor: gheNovo.setor,
-        qtd_trabalhadores: gheNovo.qtd_trabalhadores, aposentadoria_especial: gheNovo.aposentadoria_especial,
-        funcoes: gheNovo.funcoes || [],
-        agentes: (gheNovo.riscos || []).map(r => ({
-          tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
-          supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
-        })),
-        epc: gheNovo.epc || [], epi: gheNovo.epi || [],
-      })
+    const ghesInseridosIds = []
+    try {
+      for (const g of (dados.ghes || [])) {
+        const { data: gheNovo, error: gheErr } = await supabase.from('ghes').insert({
+          empresa_id: empresaId,
+          nome: g.nome || '',
+          setor: g.setor || '',
+          qtd_trabalhadores: g.qtd_trabalhadores || 1,
+          aposentadoria_especial: !!g.aposentadoria_especial,
+          funcoes: g.funcoes || [],
+          riscos: (g.agentes || []).map(a => ({
+            id: crypto.randomUUID(), tipo: a.tipo, nome: a.nome,
+            valor: a.valor || '', limite: a.limite || '', unidade: '',
+            supera_lt: !!a.supera_lt, medicao_quantitativa: false,
+            metodologia: '', codigo_esocial: '', fonte_geradora: '',
+          })),
+          epc: g.epc || [], epi: g.epi || [],
+        }).select().single()
+        if (gheErr) throw new Error(gheErr.message)
+        ghesInseridosIds.push(gheNovo.id)
+        ghesSnapshot.push({
+          id: gheNovo.id, nome: gheNovo.nome, setor: gheNovo.setor,
+          qtd_trabalhadores: gheNovo.qtd_trabalhadores, aposentadoria_especial: gheNovo.aposentadoria_especial,
+          funcoes: gheNovo.funcoes || [],
+          agentes: (gheNovo.riscos || []).map(r => ({
+            tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
+            supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
+          })),
+          epc: gheNovo.epc || [], epi: gheNovo.epi || [],
+        })
+      }
+    } catch (err) {
+      // Reverte os GHEs já inseridos nesta importação pra não deixar órfão no
+      // cadastro central (/ghes) quando um GHE no meio da lista falha.
+      if (ghesInseridosIds.length) {
+        await supabase.from('ghes').delete().in('id', ghesInseridosIds)
+      }
+      throw err
     }
 
     const { error } = await supabase.from('ltcats').insert({
@@ -392,7 +412,7 @@ export default function Importar() {
 
       if (tipo_detectado === 'aso') {
         atualizarItem(item.id, { progresso: 'Verificando funcionário...' })
-        const func = await buscarFuncionario(dados.funcionario?.cpf, empId, dados.funcionario?.funcao)
+        const func = await buscarFuncionario(dados.funcionario?.cpf, empId, dados.funcionario?.funcao, dados.aso?.tipo_aso)
 
         if (func) {
           atualizarItem(item.id, { progresso: 'Salvando ASO...' })

@@ -173,7 +173,7 @@ export default function Alertas() {
               {abaModal === 'preview' && (
                 <div>
                   {emailStatus?.html ? (
-                    <iframe srcDoc={emailStatus.html} style={{ width: '100%', height: 500, border: '1px solid #e5e7eb', borderRadius: 8 }} title="Preview e-mail" />
+                    <iframe srcDoc={emailStatus.html} sandbox="" style={{ width: '100%', height: 500, border: '1px solid #e5e7eb', borderRadius: 8 }} title="Preview e-mail" />
                   ) : (
                     <div style={{ textAlign: 'center', padding: '3rem', color: '#9ca3af', fontSize: 13 }}>
                       Clique em &quot;Visualizar preview&quot; para ver o e-mail antes de enviar.

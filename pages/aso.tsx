@@ -173,7 +173,27 @@ export default function Aso() {
     if (!formNovo.funcionario_id) { setErro('Selecione o funcionário.'); return }
     if (!formNovo.data_exame)     { setErro('Informe a data do exame.'); return }
     if (formExames.length === 0)  { setErro('Adicione ao menos 1 exame (ex: Exame Clínico).'); return }
+    if (formNovo.prox_exame && formNovo.prox_exame < formNovo.data_exame) {
+      setErro('A data do próximo exame não pode ser anterior à data do exame atual.'); return
+    }
     setSalvando(true)
+
+    const { data: sess } = await supabase.auth.getSession()
+    const dupResp = await fetch('/api/verificar-duplicidade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sess?.session?.access_token}` },
+      body: JSON.stringify({
+        funcionario_id: formNovo.funcionario_id,
+        tipo_aso: formNovo.tipo_aso,
+        data_exame: formNovo.data_exame,
+      }),
+    })
+    const dup = await dupResp.json().catch(() => null)
+    if (dup?.duplicado) {
+      setErro(`Já existe um ASO ${formNovo.tipo_aso} para este funcionário nesta data${dup.jaTransmitido ? ' (já transmitido ao eSocial)' : ''}.`)
+      setSalvando(false)
+      return
+    }
 
     const { data: aso, error } = await supabase.from('asos').insert({
       funcionario_id: formNovo.funcionario_id, empresa_id: empresaId,
