@@ -99,7 +99,7 @@ export default function LTCAT() {
     setSalvando(true); setErro(''); setSucesso('')
     const dados = {
       data_emissao: formLtcat.data_emissao,
-      data_vigencia: formLtcat.data_vigencia,
+      data_vigencia: formLtcat.data_vigencia || null,
       prox_revisao: formLtcat.prox_revisao || null,
       resp_nome: formLtcat.resp_nome || null,
       resp_conselho: formLtcat.resp_conselho || 'CREA',
