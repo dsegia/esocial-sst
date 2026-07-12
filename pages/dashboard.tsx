@@ -48,7 +48,7 @@ export default function Dashboard() {
     const em60 = new Date(hoje); em60.setDate(em60.getDate() + 60)
     const em90 = new Date(hoje); em90.setDate(em90.getDate() + 90)
 
-    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes, pgrRes, aetRes, aprRes, lipRes, pppRes] = await Promise.all([
+    const [funcsRes, asosRes, txRes, ltcatRes, catsRes, pcmsoRes, funcsCountRes, pgrRes, aetRes, aprRes, lipRes, pppRes, treinamentosRes, episRes] = await Promise.all([
       supabase.from('funcionarios').select('id, nome, cpf, data_adm, data_nasc, matricula_esocial, funcao, setor, ativo').eq('empresa_id', empresaId).eq('ativo', true).limit(2000),
       supabase.from('asos').select('id, funcionario_id, tipo_aso, data_exame, prox_exame, conclusao').eq('empresa_id', empresaId).order('data_exame', { ascending: false }).limit(5000),
       supabase.from('transmissoes').select('id, evento, status, criado_em, recibo, dt_envio, funcionario_id, funcionarios(nome)').eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(1000),
@@ -61,7 +61,9 @@ export default function Dashboard() {
       supabase.from('apr').select('id, atividade, data_realizacao', { count: 'exact' }).eq('empresa_id', empresaId).eq('ativo', true).order('data_realizacao', { ascending: false }).limit(1),
       supabase.from('lip').select('id, data_elaboracao, ativo').eq('empresa_id', empresaId).eq('ativo', true).order('data_elaboracao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('ppp').select('id', { count: 'exact', head: true }).eq('empresa_id', empresaId),
-    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }, { data: null }, { data: null }, { data: [], count: 0 }, { data: null }, { count: 0 }] })
+      supabase.from('treinamentos').select('id, nome, norma, data_vencimento, funcionarios(nome)').eq('empresa_id', empresaId).not('data_vencimento', 'is', null).limit(2000),
+      supabase.from('epis_entregues').select('id, epi_nome, data_validade_ca, funcionarios(nome)').eq('empresa_id', empresaId).not('data_validade_ca', 'is', null).limit(2000),
+    ]).catch((err) => { console.error('dashboard queries:', err); return [{ data: [] }, { data: [] }, { data: [] }, { data: null }, { count: 0 }, { data: [] }, { count: 0 }, { data: null }, { data: null }, { data: [], count: 0 }, { data: null }, { count: 0 }, { data: [] }, { data: [] }] })
 
     const funcs    = funcsRes.data || []
     const asos     = asosRes.data || []
@@ -120,6 +122,13 @@ export default function Dashboard() {
     const ltcatVencido = ltcat?.prox_revisao && new Date(ltcat.prox_revisao) < hoje
     const ltcatVence30 = ltcat?.prox_revisao && new Date(ltcat.prox_revisao) <= em30 && new Date(ltcat.prox_revisao) >= hoje
 
+    // Treinamentos NR e EPI (CA) vencidos/a vencer — central de vencimentos unificada
+    const treinamentos = treinamentosRes.data || []
+    const treinVencidos = treinamentos.filter((t: any) => new Date(t.data_vencimento) < hoje)
+    const treinVence30  = treinamentos.filter((t: any) => { const d = new Date(t.data_vencimento); return d >= hoje && d <= em30 })
+    const episCa = episRes.data || []
+    const episCaVencidos = episCa.filter((e: any) => new Date(e.data_validade_ca) < hoje)
+
     // Conformidade geral — null quando sem funcionários (sem dado real para calcular)
     const totalFunc = totalFuncReal
     const conformidade = totalFunc > 0
@@ -147,6 +156,18 @@ export default function Dashboard() {
       desc: `Revisão deveria ter sido feita em ${new Date(ltcat.prox_revisao+'T12:00:00').toLocaleDateString('pt-BR')}`,
       acao: 'Ver LTCAT', rota: '/ltcat',
     })
+    if (treinVencidos.length > 0) alertasLista.push({
+      tipo: 'erro', icon: '🎓',
+      titulo: `${treinVencidos.length} treinamento(s) NR vencido(s)`,
+      desc: treinVencidos.slice(0,2).map((t: any) => `${t.funcionarios?.nome?.split(' ')[0] || '—'} (${t.norma})`).join(', ') + (treinVencidos.length > 2 ? ` +${treinVencidos.length-2}` : ''),
+      acao: 'Ver treinamentos', rota: '/treinamentos',
+    })
+    if (episCaVencidos.length > 0) alertasLista.push({
+      tipo: 'aviso', icon: '🥽',
+      titulo: `${episCaVencidos.length} EPI(s) com CA vencido`,
+      desc: episCaVencidos.slice(0,2).map((e: any) => `${e.funcionarios?.nome?.split(' ')[0] || '—'} — ${e.epi_nome}`).join(', ') + (episCaVencidos.length > 2 ? ` +${episCaVencidos.length-2}` : ''),
+      acao: 'Ver EPIs', rota: '/epis',
+    })
     if (incompletos.length > 0) alertasLista.push({
       tipo: 'aviso', icon: '⚠️',
       titulo: `${incompletos.length} funcionário(s) com dados incompletos`,
@@ -158,6 +179,12 @@ export default function Dashboard() {
       titulo: `${asoVence30.length} ASO(s) vencendo em até 30 dias`,
       desc: asoVence30.slice(0,2).map(x => x.func.nome.split(' ')[0]).join(', ') + (asoVence30.length > 2 ? ` +${asoVence30.length-2}` : ''),
       acao: 'Agendar exames', rota: '/s2220',
+    })
+    if (treinVence30.length > 0) alertasLista.push({
+      tipo: 'aviso', icon: '⏰',
+      titulo: `${treinVence30.length} treinamento(s) NR vencendo em até 30 dias`,
+      desc: treinVence30.slice(0,2).map((t: any) => `${t.funcionarios?.nome?.split(' ')[0] || '—'} (${t.norma})`).join(', ') + (treinVence30.length > 2 ? ` +${treinVence30.length-2}` : ''),
+      acao: 'Ver treinamentos', rota: '/treinamentos',
     })
     if (txPendentes.length > 0) alertasLista.push({
       tipo: 'info', icon: '📡',

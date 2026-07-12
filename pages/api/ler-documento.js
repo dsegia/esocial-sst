@@ -573,6 +573,28 @@ REGRAS CRÍTICAS:
   "confianca":{"data_emissao":90,"resp_nome":90,"ghes":85}
 }`
 
+  const prompt_treinamento = `Você é um extrator de dados de certificados de treinamento de Normas Regulamentadoras (NR) brasileiras. Analise o documento e retorne SOMENTE o JSON abaixo preenchido. Não escreva nada antes ou depois do JSON. Campos não encontrados devem ser null.
+
+REGRAS:
+- "norma": identifique a NR do treinamento (ex: "NR-35", "NR-10", "NR-33"). Se não conseguir identificar uma NR específica, use null.
+- "nome": nome do treinamento como está no certificado (ex: "Trabalho em Altura", "Segurança em Instalações Elétricas").
+- "carga_horaria": em horas, apenas o número.
+- "data_realizacao": data em que o treinamento foi concluído/realizado.
+- "validade_meses": se o certificado informar prazo de validade/reciclagem explícito, calcule em meses. Caso não informe, null.
+- "funcionario": dados do participante do treinamento.
+
+{
+  "funcionario":{"nome":null,"cpf":null},
+  "norma":null,
+  "nome":null,
+  "carga_horaria":null,
+  "data_realizacao":null,
+  "validade_meses":null,
+  "instrutor":null,
+  "instituicao":null,
+  "confianca":{"norma":80,"nome":85,"data_realizacao":90}
+}`
+
   const usandoTexto = texto_pdf && texto_pdf.replace(/\s/g,'').length > 100
   // eImagens: PDF escaneado em modo auto (sem base64 pequeno, sem texto)
   const eImagens = tipo === 'auto' && paginas?.length > 0 && !pdfBase64Efetivo && !usandoTexto
@@ -582,6 +604,7 @@ REGRAS CRÍTICAS:
     : tipo === 'pcmso' ? PROMPT_PCMSO
     : eImagens ? PROMPT_PCMSO
     : tipo === 'auto' ? PROMPT_AUTO
+    : tipo === 'treinamento' ? prompt_treinamento
     : prompt_aso
 
   function extrairJSON(str) {

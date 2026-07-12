@@ -1276,3 +1276,320 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
   const nome = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
   doc.save(`PPP_${nome}_${data}.pdf`)
 }
+
+// ── Treinamentos NR ─────────────────────────────────────────
+export async function gerarPdfTreinamento(treinamento: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) { doc.setDrawColor(220, 220, 220); doc.line(mg, yPos, W - mg, yPos) }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165); doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valorTxt: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valorTxt || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+  const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
+
+  doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('REGISTRO DE TREINAMENTO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text(treinamento.norma || '', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('EMPRESA', y)
+  const yw = W - mg * 2
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('FUNCIONÁRIO', y)
+  const func = treinamento.funcionarios || {}
+  campo('Nome', func.nome, mg, y, yw / 2)
+  campo('CPF', func.cpf, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Função', func.funcao, mg, y, yw / 2)
+  campo('Setor', func.setor, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('TREINAMENTO', y)
+  campo('Nome do treinamento', treinamento.nome, mg, y, yw)
+  y += 10
+  campo('Carga horária', treinamento.carga_horaria ? `${treinamento.carga_horaria}h` : '—', mg, y, yw / 3)
+  campo('Data de realização', fmtData(treinamento.data_realizacao), mg + yw / 3, y, yw / 3)
+  campo('Vencimento', treinamento.data_vencimento ? fmtData(treinamento.data_vencimento) : 'Sem reciclagem', mg + (yw / 3) * 2, y, yw / 3)
+  y += 10
+  campo('Instrutor', treinamento.instrutor, mg, y, yw / 2)
+  campo('Instituição', treinamento.instituicao, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 16
+
+  linha(y); y += 12
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura do funcionário', xMed, y, { align: 'center' })
+
+  doc.setFontSize(7); doc.setTextColor(150)
+  doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+
+  const nomeArq = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
+  doc.save(`Treinamento_${treinamento.norma}_${nomeArq}.pdf`)
+}
+
+// ── Ficha de controle de EPI (NR-6) ──────────────────────────
+export async function gerarPdfFichaEpi(funcionario: any, entregas: any[], empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) { doc.setDrawColor(220, 220, 220); doc.line(mg, yPos, W - mg, yPos) }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165); doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valorTxt: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valorTxt || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+  function tabela(colunas: { titulo: string; largura: number }[], linhas: string[][], yPos: number): number {
+    const larguraTotal = colunas.reduce((s, c) => s + c.largura, 0)
+    function cabecalho(yy: number) {
+      doc.setFillColor(24, 95, 165); doc.rect(mg, yy, larguraTotal, 6, 'F')
+      doc.setFontSize(6.5); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+      let xx = mg
+      for (const c of colunas) { doc.text(c.titulo, xx + 1.5, yy + 4.2); xx += c.largura }
+      doc.setFont('helvetica', 'normal')
+      return yy + 6
+    }
+    if (yPos > 265) { doc.addPage(); yPos = 20 }
+    let yy = cabecalho(yPos)
+    for (const linhaAtual of linhas) {
+      const celulas = linhaAtual.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
+      const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
+      const alturaLinha = maxLinhas * 3.6 + 3
+      if (yy + alturaLinha > 285) { doc.addPage(); yy = cabecalho(20) }
+      doc.setFontSize(7.5); doc.setTextColor(50)
+      let x = mg
+      for (let ci = 0; ci < colunas.length; ci++) { doc.text(celulas[ci], x + 1.5, yy + 3.2); x += colunas[ci].largura }
+      doc.setDrawColor(230); doc.line(mg, yy + alturaLinha - 1, mg + larguraTotal, yy + alturaLinha - 1)
+      yy += alturaLinha
+    }
+    return yy + 3
+  }
+  const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
+
+  doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('FICHA DE CONTROLE DE EPI', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('NR-6', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('EMPRESA', y)
+  const yw = W - mg * 2
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('FUNCIONÁRIO', y)
+  campo('Nome', funcionario?.nome, mg, y, yw / 2)
+  campo('CPF', funcionario?.cpf, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Função', funcionario?.funcao, mg, y, yw / 2)
+  campo('Setor', funcionario?.setor, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 12; linha(y); y += 6
+
+  y = secao('EPIs ENTREGUES', y)
+  y = tabela(
+    [
+      { titulo: 'EPI', largura: 55 },
+      { titulo: 'CA', largura: 25 },
+      { titulo: 'Qtd', largura: 15 },
+      { titulo: 'Entrega', largura: 25 },
+      { titulo: 'Validade CA', largura: 25 },
+      { titulo: 'Troca prevista', largura: 25 },
+      { titulo: 'Ciência', largura: 10 },
+    ],
+    entregas.map(e => [e.epi_nome, e.ca || '—', String(e.quantidade || 1), fmtData(e.data_entrega), fmtData(e.data_validade_ca), fmtData(e.data_troca_prevista), e.ciencia ? 'Sim' : 'Não']),
+    y
+  )
+
+  if (y > 255) { doc.addPage(); y = 20 }
+  y += 10; linha(y); y += 12
+  const xMed = W / 2
+  doc.line(xMed - 45, y, xMed + 45, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80)
+  doc.text('Assinatura do funcionário — declaro ter recebido os EPIs acima e treinamento sobre seu uso correto (NR-6)', xMed, y, { align: 'center', maxWidth: 160 })
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const nomeArq = funcionario?.nome?.replace(/\s+/g, '_') || 'funcionario'
+  doc.save(`Ficha_EPI_${nomeArq}.pdf`)
+}
+
+// ── Ordem de Serviço (NR-1, 1.4.1) ───────────────────────────
+export async function gerarPdfOrdemServico(os: any, empresa: any): Promise<void> {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) { doc.setDrawColor(220, 220, 220); doc.line(mg, yPos, W - mg, yPos) }
+  function secao(texto: string, yPos: number): number {
+    if (yPos > 270) { doc.addPage(); yPos = 20 }
+    doc.setFillColor(24, 95, 165); doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valorTxt: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valorTxt || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+  function lista(titulo2: string, itens: string[], yPos: number): number {
+    if (itens.length === 0) return yPos
+    if (yPos > 265) { doc.addPage(); yPos = 20 }
+    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(titulo2, mg, yPos); yPos += 5
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
+    for (const item of itens) {
+      if (yPos > 280) { doc.addPage(); yPos = 20 }
+      const linhas = doc.splitTextToSize(`•  ${item}`, W - mg * 2 - 3)
+      doc.setFontSize(9)
+      doc.text(linhas, mg + 2, yPos)
+      yPos += linhas.length * 4.3 + 1
+    }
+    return yPos + 3
+  }
+  function tabela(colunas: { titulo: string; largura: number }[], linhas: string[][], yPos: number): number {
+    const larguraTotal = colunas.reduce((s, c) => s + c.largura, 0)
+    function cabecalho(yy: number) {
+      doc.setFillColor(24, 95, 165); doc.rect(mg, yy, larguraTotal, 6, 'F')
+      doc.setFontSize(6.5); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+      let xx = mg
+      for (const c of colunas) { doc.text(c.titulo, xx + 1.5, yy + 4.2); xx += c.largura }
+      doc.setFont('helvetica', 'normal')
+      return yy + 6
+    }
+    if (yPos > 265) { doc.addPage(); yPos = 20 }
+    let yy = cabecalho(yPos)
+    for (const linhaAtual of linhas) {
+      const celulas = linhaAtual.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
+      const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
+      const alturaLinha = maxLinhas * 3.6 + 3
+      if (yy + alturaLinha > 285) { doc.addPage(); yy = cabecalho(20) }
+      doc.setFontSize(7.5); doc.setTextColor(50)
+      let x = mg
+      for (let ci = 0; ci < colunas.length; ci++) { doc.text(celulas[ci], x + 1.5, yy + 3.2); x += colunas[ci].largura }
+      doc.setDrawColor(230); doc.line(mg, yy + alturaLinha - 1, mg + larguraTotal, yy + alturaLinha - 1)
+      yy += alturaLinha
+    }
+    return yy + 3
+  }
+  const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
+
+  doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('ORDEM DE SERVIÇO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('NR-1, item 1.4.1', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('EMPRESA', y)
+  const yw = W - mg * 2
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('FUNÇÃO', y)
+  campo('Função', os.funcao, mg, y, yw / 2)
+  campo('Setor', os.setor, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Data de emissão', fmtData(os.data_emissao), mg, y, yw / 2)
+  campo('Responsável', [os.resp_nome, os.resp_cargo].filter(Boolean).join(' — '), mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 14
+
+  const riscos: any[] = os.riscos || []
+  if (riscos.length > 0) {
+    y = secao('RISCOS IDENTIFICADOS NA FUNÇÃO', y)
+    y = tabela(
+      [{ titulo: 'Tipo', largura: 35 }, { titulo: 'Agente / Risco', largura: yw - 35 }],
+      riscos.map(r => [r.tipo || '—', r.nome || '—']),
+      y
+    )
+  }
+
+  y = lista('MEDIDAS PREVENTIVAS E PROCEDIMENTOS DE SEGURANÇA', os.medidas_preventivas || [], y + 4)
+  y = lista('EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL OBRIGATÓRIOS', os.epis_obrigatorios || [], y)
+
+  function paragrafo(texto: string, yPos: number): number {
+    const linhasTxt = doc.splitTextToSize(texto, yw)
+    let yy = yPos
+    for (const ln of linhasTxt) {
+      if (yy > 280) { doc.addPage(); yy = 20 }
+      doc.setFontSize(9); doc.setTextColor(50); doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
+
+  y = secao('ORIENTAÇÕES GERAIS', y + 2)
+  y = paragrafo(
+    'O funcionário deve seguir rigorosamente as normas de segurança da empresa, utilizar corretamente os EPIs fornecidos, comunicar imediatamente qualquer condição de risco não prevista e participar dos treinamentos oferecidos. O descumprimento das orientações desta Ordem de Serviço pode configurar ato inseguro e sujeitar o trabalhador às medidas disciplinares previstas na legislação trabalhista.',
+    y
+  )
+
+  const ciencias: any[] = os.ciencias || []
+  y = secao('CIÊNCIA DOS FUNCIONÁRIOS', y + 6)
+  if (ciencias.length > 0) {
+    y = tabela(
+      [{ titulo: 'Funcionário', largura: 90 }, { titulo: 'Data da ciência', largura: 40 }, { titulo: 'Assinatura', largura: yw - 130 }],
+      ciencias.map(c => [c.nome || '—', fmtData(c.data_ciencia), '']),
+      y
+    )
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum funcionário desta função registrado ainda.', mg + 2, y); y += 6
+  }
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const nomeArq = (os.funcao || 'funcao').replace(/\s+/g, '_')
+  doc.save(`Ordem_Servico_${nomeArq}.pdf`)
+}
