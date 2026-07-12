@@ -137,6 +137,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     titulo: '8. METODOLOGIA',
     paragrafos: [
       'Para compor o inventário de riscos foram avaliados os níveis de risco através da matriz de riscos definida (severidade × probabilidade), com base nas tabelas de gradação apresentadas no Anexo II — Matriz de Risco deste documento.',
+      'Nas avaliações quantitativas de agentes físicos e químicos realizadas no âmbito deste PGR, foram adotadas, como referência metodológica complementar, as Normas de Higiene Ocupacional da Fundacentro pertinentes a cada agente — como a NHO-01 (ruído), a NHO-06 (calor) e a NHO-08 (poeiras e material particulado) —, sem prejuízo dos critérios e limites de tolerância estabelecidos pela NR-15.',
     ],
   },
   {
@@ -156,6 +157,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
       'Os riscos psicossociais foram incluídos de forma explícita no GRO/PGR pela NR-1, com alterações dadas pela Portaria MTE nº 1.419/2024 (plenamente exigível desde 26/05/2026). Compreendem fatores relacionados à organização e às relações de trabalho capazes de causar dano à saúde física e mental do trabalhador.',
       'Exemplos de fatores de risco psicossocial: sobrecarga e ritmo de trabalho excessivos, metas inalcançáveis, jornadas extenuantes, assédio moral e sexual, violência no trabalho, conflitos interpessoais, falta de clareza de papéis e responsabilidades, e outras condições organizacionais que gerem estresse ocupacional crônico ou burnout.',
       'Os riscos psicossociais identificados nos ambientes e GHE desta empresa, quando aplicável, estão consolidados no inventário de riscos (categoria "Psicossocial"), com a respectiva avaliação de severidade, probabilidade e nível de risco, e suas medidas de prevenção no plano de ação.',
+      'O prazo de 26 de maio de 2026 para a exigibilidade plena das disposições sobre riscos psicossociais foi fixado pela Portaria MTE nº 765, de 15 de maio de 2025, que prorrogou o início da fiscalização de caráter punitivo do capítulo 1.5 da NR-1. O período entre maio de 2025 e maio de 2026 foi definido como fase educativa e orientativa, findo o qual a fiscalização passa a ter caráter plenamente punitivo, sem prorrogações adicionais anunciadas pelo Ministério do Trabalho e Emprego até a presente data.',
     ],
   },
   {
@@ -184,6 +186,14 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     titulo: '14. CONCLUSÃO',
     paragrafos: [
       'Este programa tem como fundamento legal a NR-1, e seu objetivo é disciplinar os preceitos a serem observados na organização e no ambiente de trabalho, de forma a tornar compatível o planejamento e desenvolvimento das atividades com a busca permanente da segurança e saúde dos trabalhadores. Este programa estará em constante análise e estudo, visando seu aperfeiçoamento, podendo, portanto, sofrer modificações a qualquer momento.',
+    ],
+  },
+  {
+    titulo: '15. REFERÊNCIAS NORMATIVAS COMPLEMENTARES',
+    paragrafos: [
+      'Além do arcabouço legal obrigatório que fundamenta este PGR (NR-1, NR-7, NR-9, NR-15, NR-16, NR-17 e Portaria MTE nº 1.419/2024), a empresa pode adotar, de forma voluntária e complementar, referências internacionais e nacionais de boas práticas de gestão de saúde e segurança ocupacional, sem que isso substitua ou dispense o cumprimento das exigências legais brasileiras.',
+      'A ABNT NBR ISO 45001:2024 (Sistemas de gestão de saúde e segurança ocupacional — Requisitos com orientação para uso), publicada pela Associação Brasileira de Normas Técnicas em 21 de novembro de 2024 e complementada pela Emenda 1:2025 (que incorporou considerações sobre mudanças climáticas aos requisitos de contexto da organização), constitui a norma internacional de referência para sistemas de gestão de SST. Empresas que já estruturaram seu PGR nos moldes da NR-1 possuem base técnica relevante para eventual certificação voluntária nessa norma, cuja adoção não é exigência legal no Brasil, mas complementa e fortalece a gestão de riscos ocupacionais já estabelecida.',
+      'A Portaria MTE nº 1.419, de 27 de agosto de 2024, aprovou a nova redação do capítulo "1.5 Gerenciamento de Riscos Ocupacionais" e alterou o Anexo I ("Termos e Definições") da NR-1, incluindo de forma expressa os Fatores de Riscos Psicossociais Relacionados ao Trabalho – FRPRT no inventário de riscos, ao lado dos fatores de risco ergonômico, e determinando a adoção de mecanismos de consulta mais ativa dos trabalhadores no processo de gerenciamento de riscos ocupacionais.',
     ],
   },
 ]

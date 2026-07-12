@@ -3,6 +3,10 @@
 
 import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, nivelRisco } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
+import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
+import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
+import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
+import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
 export async function gerarPdfAso(dados: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
@@ -232,6 +236,17 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
   // Cabeçalho
   doc.setFillColor(24, 95, 165)
@@ -265,6 +280,18 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + colResp + 5, y, colResp)
   campo('CPF', dg.resp_cpf, mg + (colResp + 5) * 2, y, colResp)
   y += 12; linha(y); y += 6
+
+  // ── Textos legais (NR-15 / Decreto 3.048/99) ──────────
+  const textosCustomLtcat = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_LTCAT) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomLtcat[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
 
   // GHEs
   const ghes = dados?.ghes || []
@@ -334,6 +361,17 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 10
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
   // Cabeçalho
   doc.setFillColor(39, 80, 10)
@@ -365,6 +403,18 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     doc.text(`CPF: ${dg.medico_cpf}`, mg, y)
   }
   y += 5
+
+  // ── Textos legais (NR-7) ────────────────────────────────
+  const textosCustomPcmso = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_PCMSO) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomPcmso[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  y += 4
 
   // Programas por função
   const programas = dados?.programas || []
@@ -1086,6 +1136,17 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
@@ -1111,6 +1172,18 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
   campo('Responsável Técnico', dg.resp_nome, mg, y, col * 2)
   campo('CPF', dg.resp_cpf, mg + col * 2 + 5, y, col)
   y += 12; linha(y); y += 6
+
+  // ── Textos legais (CLT / NR-15 / NR-16) ────────────────
+  const textosCustomLip = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_LIP) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomLip[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
 
   const funcoes = dados?.funcoes || []
   const grauMap: Record<string, string> = { minimo: 'Mínimo (10%)', medio: 'Médio (20%)', maximo: 'Máximo (40%)' }
@@ -1199,6 +1272,17 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
   }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
@@ -1229,6 +1313,18 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
   campo('Data de Emissão', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, yw / 2)
   campo('Responsável pelo Preenchimento', `${dg.resp_nome || '—'}${dg.resp_cargo ? ` (${dg.resp_cargo})` : ''}`, mg + yw / 2 + 5, y, yw / 2 - 5)
   y += 12; linha(y); y += 6
+
+  // ── Textos legais (Lei 8.213/91 / Decreto 3.048/99) ────
+  const textosCustomPpp = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_PPP) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomPpp[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
 
   const historico = dados?.historico || []
   if (y > 220) { doc.addPage(); y = 20 }

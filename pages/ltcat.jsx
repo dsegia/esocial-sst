@@ -7,6 +7,7 @@ import { pdfFichaEPI } from '../lib/gerarPDF'
 import { gerarPdfLtcat } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
+import { TEXTOS_LEGAIS_LTCAT } from '../lib/ltcat-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,6 +23,7 @@ const TXT_AGENTE  = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F'
 const ltcatVazio = () => ({
   data_emissao: new Date().toISOString().split('T')[0], data_vigencia: '', prox_revisao: '',
   resp_nome: '', resp_conselho: 'CREA', resp_registro: '', resp_cpf: '', ghes: [],
+  textos_legais_custom: {},
 })
 
 export default function LTCAT() {
@@ -39,6 +41,7 @@ export default function LTCAT() {
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  const [textoAberto, setTextoAberto] = useState(null)
 
   useEffect(() => { init() }, [])
 
@@ -78,6 +81,20 @@ export default function LTCAT() {
     setFormLtcat(null)
   }
 
+  function setTextoCustom(titulo, paragrafos) {
+    setFormLtcat(p => ({ ...p, textos_legais_custom: { ...(p.textos_legais_custom || {}), [titulo]: paragrafos } }))
+  }
+  function restaurarTextoPadrao(titulo) {
+    setFormLtcat(p => {
+      const textos = { ...(p.textos_legais_custom || {}) }
+      delete textos[titulo]
+      return { ...p, textos_legais_custom: textos }
+    })
+  }
+  function paragrafosDoTexto(titulo, padrao) {
+    return formLtcat.textos_legais_custom?.[titulo] || padrao
+  }
+
   async function salvarEdicao() {
     setSalvando(true); setErro(''); setSucesso('')
     const dados = {
@@ -89,6 +106,7 @@ export default function LTCAT() {
       resp_registro: formLtcat.resp_registro || null,
       resp_cpf: formLtcat.resp_cpf || null,
       ghes: formLtcat.ghes || [],
+      textos_legais_custom: formLtcat.textos_legais_custom || {},
     }
 
     // Ao criar um novo LTCAT, arquiva automaticamente qualquer outro já ativo —
@@ -279,7 +297,7 @@ export default function LTCAT() {
                         ↻ Atualizar do cadastro
                       </button>
                       <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
-                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
+                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes, textos_legais_custom: ltcatSel.textos_legais_custom || {} }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
                         ↓ Exportar PDF
                       </button>
                       {ltcatSel.ativo && (
@@ -493,6 +511,42 @@ export default function LTCAT() {
                   </div>
                 </div>
 
+                {/* ── Textos legais do documento ── */}
+                <div style={{ marginBottom:16 }}>
+                  <div style={s.secLabel}>Textos legais do documento (NR-15 / Decreto 3.048/99)</div>
+                  <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
+                  {TEXTOS_LEGAIS_LTCAT.map(secaoTexto => {
+                    const aberto = textoAberto === secaoTexto.titulo
+                    const custom = formLtcat.textos_legais_custom?.[secaoTexto.titulo]
+                    return (
+                      <div key={secaoTexto.titulo} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <div style={{ fontSize:12, fontWeight:600 }}>
+                            {secaoTexto.titulo}
+                            {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
+                          </div>
+                          <button style={s.btnAcao} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
+                            {aberto ? 'Fechar' : 'Ver / Editar'}
+                          </button>
+                        </div>
+                        {aberto && (
+                          <div style={{ marginTop:10 }}>
+                            <textarea
+                              style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
+                              value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
+                              onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
+                            />
+                            <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                              {custom && <button style={s.btnAcao} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
+                              <button style={s.btnAcao} onClick={() => setTextoAberto(null)}>Concluído</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
                 {erro && <div style={s.erroBox}>{erro}</div>}
                 <div style={{ display:'flex', gap:8 }}>
                   <button style={s.btnPrimary} onClick={salvarEdicao} disabled={salvando}>
@@ -525,6 +579,7 @@ const s = {
   emptyCard:  { background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, padding:'3rem', textAlign:'center' },
   label:      { display:'block', fontSize:12, fontWeight:500, color:'#374151', marginBottom:3 },
   input:      { width:'100%', padding:'7px 9px', fontSize:12, border:'1px solid #d1d5db', borderRadius:7, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' },
+  btnAcao:    { padding:'3px 10px', fontSize:11, background:'transparent', border:'0.5px solid #d1d5db', borderRadius:6, cursor:'pointer', color:'#374151' },
   btnPrimary: { padding:'7px 16px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' },
   btnOutline: { padding:'7px 14px', background:'transparent', border:'1px solid #d1d5db', borderRadius:8, fontSize:13, cursor:'pointer', color:'#374151' },
   erroBox:    { background:'#FCEBEB', color:'#791F1F', border:'0.5px solid #F7C1C1', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },

@@ -9,6 +9,7 @@ export const TEXTOS_LEGAIS_AET: SecaoLegal[] = [
     paragrafos: [
       'A Análise Ergonômica do Trabalho — AET é elaborada em atendimento à Norma Regulamentadora nº 17 (NR-17), que estabelece parâmetros que permitam a adaptação das condições de trabalho às características psicofisiológicas dos trabalhadores, de modo a proporcionar conforto, segurança e desempenho eficiente no trabalho.',
       '"17.1.2 Esta Norma Regulamentadora estabelece parâmetros que permitam a identificação, avaliação e intervenção nas situações de trabalho que envolvam riscos ocupacionais, provenientes de aspectos físicos, cognitivos e organizacionais do trabalho, que possam impactar a saúde e segurança do trabalhador." (NR-17)',
+      'A NR-17 teve sua redação atualizada pela Portaria SEPRT/MTP nº 423, de 7 de outubro de 2021, em vigor desde 3 de janeiro de 2022, e posteriormente alterada pela Portaria MTP nº 4.219, de 20 de dezembro de 2022, passando a tratar de forma expressa os fatores de risco físicos, cognitivos e organizacionais do trabalho, incluindo os fatores de risco psicossociais relacionados ao trabalho.',
       'Esta análise deve ser considerada de forma integrada ao Programa de Gerenciamento de Riscos (PGR) previsto na NR-1, sendo os riscos ergonômicos aqui identificados incorporados ao inventário de riscos ocupacionais da organização.',
     ],
   },
@@ -48,6 +49,7 @@ export const TEXTOS_LEGAIS_AET: SecaoLegal[] = [
       'A organização do trabalho deve ser adequada às características psicofisiológicas dos trabalhadores e à natureza do trabalho a ser executado, considerando, entre outros aspectos: as normas de produção, o modo operatório, a exigência de tempo, o ritmo de trabalho e o conteúdo das tarefas.',
       'Deve ser avaliada a existência de fatores como controle rígido de produtividade, metas de produção, jornadas de trabalho prolongadas, trabalho em turnos e trabalho noturno, monotonia e repetitividade, que podem gerar sobrecarga física, cognitiva e psíquica ao trabalhador.',
       'Nas atividades que exijam sobrecarga muscular estática ou dinâmica do pescoço, ombros, dorso e membros superiores e inferiores, devem ser previstas pausas para descanso, cuja necessidade, duração e frequência devem ser determinadas em função da natureza da atividade.',
+      'A Portaria MTE nº 1.419, de 27 de agosto de 2024, alterou o capítulo 1.5 da NR-1, determinando que a organização considere, na gestão de riscos ocupacionais (GRO/PGR), os fatores de risco psicossociais relacionados ao trabalho, nos termos e critérios estabelecidos pela NR-17. Dessa forma, os fatores de risco psicossociais identificados nesta AET — tais como sobrecarga de trabalho, controle rígido de produtividade, jornadas excessivas e conflitos nas relações de trabalho — devem ser incorporados também ao inventário de riscos ocupacionais do PGR, em articulação com o Programa de Controle Médico de Saúde Ocupacional (PCMSO) da organização.',
     ],
   },
   {
@@ -65,7 +67,14 @@ export const TEXTOS_LEGAIS_AET: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '10. CONCLUSÃO',
+    titulo: '10. MÉTODOS E FERRAMENTAS TÉCNICAS DE AVALIAÇÃO',
+    paragrafos: [
+      'Como referência técnica complementar à NR-17 para a avaliação de atividades que envolvam levantamento, transporte, empurrar, puxar e movimentos repetitivos de materiais, podem ser utilizadas as normas técnicas ABNT NBR ISO 11228-1 (Ergonomia — Movimentação manual — Parte 1: Levantamento e transporte de cargas), ABNT NBR ISO 11228-2 (Parte 2: Empurrar e puxar) e ABNT NBR ISO 11228-3 (Parte 3: Movimentação de cargas leves em alta frequência), que estabelecem limites recomendados e critérios técnicos para avaliação do risco biomecânico dessas atividades.',
+      'Para a avaliação postural e biomecânica dos postos de trabalho, podem ser empregados métodos e ferramentas técnicas reconhecidas internacionalmente, tais como REBA (Rapid Entire Body Assessment), RULA (Rapid Upper Limb Assessment) e a equação de NIOSH para levantamento de cargas, como instrumentos de apoio técnico à Avaliação Ergonômica Preliminar e à Análise Ergonômica do Trabalho, sem prejuízo da metodologia adotada pelo profissional responsável pela análise.',
+    ],
+  },
+  {
+    titulo: '11. CONCLUSÃO',
     paragrafos: [
       'Esta análise tem como fundamento legal a NR-17 e visa subsidiar a adoção de medidas de adequação ergonômica dos postos de trabalho avaliados, devendo ser revisada sempre que houver mudança nos processos de trabalho, no layout, no mobiliário ou nos equipamentos que possa alterar as condições ergonômicas identificadas.',
     ],
