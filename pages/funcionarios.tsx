@@ -41,12 +41,15 @@ export default function Funcionarios() {
   const [empresaId, setEmpresaId] = useState('')
   const [lista, setLista] = useState<any[]>([])
   const [busca, setBusca] = useState('')
+  const [aba, setAba] = useState<'ativos' | 'desligados'>('ativos')
   const [carregando, setCarregando] = useState(true)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [funcEditando, setFuncEditando] = useState<any>(null)
   const [form, setForm] = useState(formVazio())
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
+  const [desligando, setDesligando] = useState<any>(null)
+  const [dataDeslig, setDataDeslig] = useState(new Date().toISOString().split('T')[0])
   // Importar planilha
   const [importando, setImportando] = useState(false)
   const [previewImport, setPreviewImport] = useState<any[]>([])
@@ -75,15 +78,23 @@ export default function Funcionarios() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    await carregar(empId, '')
+    await carregar(empId, '', aba)
     setCarregando(false)
   }
 
-  async function carregar(eId: string, q: string) {
-    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', true).order('nome').limit(2000)
+  async function carregar(eId: string, q: string, abaAtual: 'ativos' | 'desligados' = aba) {
+    let query = supabase.from('funcionarios').select('*').eq('empresa_id', eId).eq('ativo', abaAtual === 'ativos')
+      .order(abaAtual === 'ativos' ? 'nome' : 'data_desligamento', { ascending: abaAtual === 'ativos', nullsFirst: false })
+      .limit(2000)
     if (q) query = query.or(`nome.ilike.%${q}%,cpf.ilike.%${q}%,matricula_esocial.ilike.%${q}%`)
     const { data } = await query
     setLista(data || [])
+  }
+
+  function trocarAba(novaAba: 'ativos' | 'desligados') {
+    setAba(novaAba)
+    setBusca('')
+    carregar(empresaId, '', novaAba)
   }
 
   function abrirNovo() {
@@ -161,9 +172,9 @@ export default function Funcionarios() {
 
       if (existente) {
         if (!existente.ativo) {
-          // Reativar registro removido anteriormente
+          // Reativar registro desligado/removido anteriormente
           const { error } = await supabase.from('funcionarios')
-            .update({ ...dados, ativo: true }).eq('id', existente.id).eq('empresa_id', empresaId)
+            .update({ ...dados, ativo: true, data_desligamento: null }).eq('id', existente.id).eq('empresa_id', empresaId)
           if (error) { setErro('Erro ao reativar: ' + error.message); return }
           setSucesso(`${form.nome} reativado com sucesso!`)
         } else {
@@ -181,8 +192,47 @@ export default function Funcionarios() {
     carregar(empresaId, busca)
   }
 
-  async function desativar(id: string, nome: string) {
-    if (!confirm(`Excluir ${nome} permanentemente? Todos os ASOs e transmissões vinculados também serão removidos.`)) return
+  function abrirDesligar(f: any) {
+    setDesligando(f)
+    setDataDeslig(new Date().toISOString().split('T')[0])
+    setErro('')
+  }
+
+  async function confirmarDesligamento() {
+    if (!desligando) return
+    if (!dataDeslig) { setErro('Informe a data de desligamento.'); return }
+    setErro('')
+
+    await supabase.from('funcionarios')
+      .update({ ativo: false, data_desligamento: dataDeslig })
+      .eq('id', desligando.id).eq('empresa_id', empresaId)
+
+    // Fecha automaticamente o último período de exposição em aberto no PPP
+    // (periodo_fim vazio) na data do desligamento — não mexe nos agentes/riscos
+    // já vinculados desse período, só marca o fim da exposição.
+    const { data: ppp } = await supabase.from('ppp').select('id, historico').eq('funcionario_id', desligando.id).maybeSingle()
+    if (ppp?.historico?.length) {
+      const historico = [...ppp.historico]
+      const ultimoAberto = historico.length - 1
+      if (historico[ultimoAberto] && !historico[ultimoAberto].periodo_fim) {
+        historico[ultimoAberto] = { ...historico[ultimoAberto], periodo_fim: dataDeslig }
+        await supabase.from('ppp').update({ historico }).eq('id', ppp.id)
+      }
+    }
+
+    setSucesso(`${desligando.nome} desligado. ASOs, CAT e PPP continuam disponíveis no histórico.`)
+    setDesligando(null)
+    carregar(empresaId, busca)
+  }
+
+  async function reativar(f: any) {
+    if (!confirm(`Reativar ${f.nome}? Ele voltará a aparecer como funcionário ativo e a contar na cobrança por vidas ativas.`)) return
+    await supabase.from('funcionarios').update({ ativo: true, data_desligamento: null }).eq('id', f.id).eq('empresa_id', empresaId)
+    carregar(empresaId, busca)
+  }
+
+  async function excluirDefinitivo(id: string, nome: string) {
+    if (!confirm(`EXCLUIR ${nome} permanentemente? Isso apaga TODOS os ASOs, CATs e o PPP vinculados — inclusive dados que a legislação exige preservar por décadas. Use isso só para corrigir um cadastro feito por engano, nunca para um desligamento normal. Esta ação não pode ser desfeita.`)) return
     await supabase.from('funcionarios').delete().eq('id', id).eq('empresa_id', empresaId)
     carregar(empresaId, busca)
   }
@@ -299,7 +349,7 @@ export default function Funcionarios() {
       <div style={s.header}>
         <div>
           <div style={s.titulo}>Funcionários</div>
-          <div style={s.sub}>{lista.length} cadastrado(s) · {lista.filter(dadosIncompletos).length} com dados incompletos</div>
+          <div style={s.sub}>{lista.length} {aba === 'ativos' ? 'ativo(s)' : 'desligado(s)'} · {aba === 'ativos' ? `${lista.filter(dadosIncompletos).length} com dados incompletos` : 'histórico preservado (ASOs, CAT, PPP)'}</div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <input style={s.busca} placeholder="Buscar nome, CPF ou matrícula..."
@@ -312,6 +362,13 @@ export default function Funcionarios() {
           </label>
           <button style={s.btnPrimary} onClick={abrirNovo}>+ Adicionar</button>
         </div>
+      </div>
+
+      <div style={{ display:'flex', gap:6, marginBottom:14 }}>
+        <button onClick={() => trocarAba('ativos')}
+          style={{ ...s.btnAba, ...(aba === 'ativos' ? s.btnAbaAtiva : {}) }}>Ativos</button>
+        <button onClick={() => trocarAba('desligados')}
+          style={{ ...s.btnAba, ...(aba === 'desligados' ? s.btnAbaAtiva : {}) }}>Desligados</button>
       </div>
 
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
@@ -438,18 +495,39 @@ export default function Funcionarios() {
         <table style={s.table}>
           <thead>
             <tr style={s.thead}>
-              {['Nome','CPF','Admissão','Função','Setor','Matrícula','Ações'].map(h => (
+              {(aba === 'ativos'
+                ? ['Nome','CPF','Admissão','Função','Setor','Matrícula','Ações']
+                : ['Nome','CPF','Função','Setor','Desligado em','Ações']
+              ).map(h => (
                 <th key={h} style={s.th}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {lista.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign:'center', padding:'2rem', color:'#9ca3af', fontSize:13 }}>
-                {busca ? 'Nenhum resultado.' : 'Nenhum funcionário cadastrado.'}
+              <tr><td colSpan={aba === 'ativos' ? 7 : 6} style={{ textAlign:'center', padding:'2rem', color:'#9ca3af', fontSize:13 }}>
+                {busca ? 'Nenhum resultado.' : aba === 'ativos' ? 'Nenhum funcionário cadastrado.' : 'Nenhum funcionário desligado.'}
               </td></tr>
             ) : lista.map(f => {
               const incompleto = dadosIncompletos(f)
+              if (aba === 'desligados') {
+                return (
+                  <tr key={f.id} style={s.tr}>
+                    <td style={s.td}><div style={{ fontWeight:500, color:'#111' }}>{f.nome}</div></td>
+                    <td style={{ ...s.td, fontFamily:'monospace', fontSize:12 }}>{f.cpf}</td>
+                    <td style={s.td}>{f.funcao || <span style={{ color:'#d1d5db' }}>—</span>}</td>
+                    <td style={s.td}>{f.setor || <span style={{ color:'#d1d5db' }}>—</span>}</td>
+                    <td style={s.td}>{f.data_desligamento ? new Date(f.data_desligamento+'T12:00:00').toLocaleDateString('pt-BR') : <span style={{ color:'#d1d5db' }}>—</span>}</td>
+                    <td style={s.td}>
+                      <div style={{ display:'flex', gap:5 }}>
+                        <button style={s.btnAcao} onClick={() => router.push(`/ppp`)}>PPP</button>
+                        <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }} onClick={() => reativar(f)}>Reativar</button>
+                        <button style={{ ...s.btnAcao, color:'#791F1F', borderColor:'#F09595' }} onClick={() => excluirDefinitivo(f.id, f.nome)}>Excluir definitivamente</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              }
               return (
                 <tr key={f.id} style={s.tr}>
                   <td style={s.td}>
@@ -481,7 +559,7 @@ export default function Funcionarios() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={{ ...s.btnAcao, color:'#185FA5', borderColor:'#B5D4F4' }} onClick={() => abrirEditar(f)}>Editar</button>
                       <button style={s.btnAcao} onClick={() => router.push(`/s2220?func=${f.id}`)}>ASO</button>
-                      <button style={{ ...s.btnAcao, color:'#791F1F', borderColor:'#F09595' }} onClick={() => desativar(f.id, f.nome)}>Remover</button>
+                      <button style={{ ...s.btnAcao, color:'#791F1F', borderColor:'#F09595' }} onClick={() => abrirDesligar(f)}>Desligar</button>
                     </div>
                   </td>
                 </tr>
@@ -490,6 +568,29 @@ export default function Funcionarios() {
           </tbody>
         </table>
       </div>
+      {/* Modal desligar funcionário */}
+      {desligando && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}
+          onClick={() => setDesligando(null)}>
+          <div style={{ background:'var(--color-background-primary,#fff)', borderRadius:14, padding:'1.5rem', width:440, boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ fontSize:15, fontWeight:600, color:'#111' }}>Desligar {desligando.nome}</div>
+              <button onClick={() => setDesligando(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+            </div>
+            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#0C447C', marginBottom:14 }}>
+              O funcionário sai da lista de ativos e da cobrança por vidas ativas, mas ASOs, CAT e PPP continuam guardados no histórico. Dá pra reativar depois, na aba "Desligados".
+            </div>
+            <label style={s.label}>Data de desligamento</label>
+            <input type="date" style={s.input} value={dataDeslig} onChange={e => setDataDeslig(e.target.value)} />
+            {erro && <div style={{ ...s.erroBox, marginTop:12 }}>{erro}</div>}
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
+              <button style={s.btnPrimary} onClick={confirmarDesligamento}>Confirmar desligamento</button>
+              <button style={s.btnOutline} onClick={() => setDesligando(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Modal importar planilha */}
       {mostrarImport && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}
@@ -569,6 +670,8 @@ const s: Record<string, React.CSSProperties> = {
   btnPrimary: { padding:'8px 16px', background:'#185FA5', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:500, cursor:'pointer' },
   btnOutline: { padding:'8px 16px', background:'transparent', border:'1px solid #d1d5db', borderRadius:8, fontSize:13, cursor:'pointer', color:'#374151' },
   btnAcao:    { padding:'3px 10px', fontSize:11, background:'transparent', border:'0.5px solid #d1d5db', borderRadius:6, cursor:'pointer', color:'#374151' },
+  btnAba:     { padding:'6px 14px', fontSize:12, fontWeight:500, background:'transparent', border:'1px solid #d1d5db', borderRadius:8, cursor:'pointer', color:'#6b7280' },
+  btnAbaAtiva:{ background:'#185FA5', borderColor:'#185FA5', color:'#fff' },
   sucessoBox: { background:'#EAF3DE', color:'#27500A', border:'0.5px solid #C0DD97', borderRadius:8, padding:'10px 14px', fontSize:13, marginBottom:12 },
   formCard:   { background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, padding:'1.25rem', marginBottom:'1rem' },
   cardTitulo: { fontSize:14, fontWeight:600, color:'#111' },

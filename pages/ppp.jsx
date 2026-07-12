@@ -27,6 +27,9 @@ const periodoVazio = () => ({
   periodo_inicio: '', periodo_fim: '', funcao: '', setor: '', agentes: [], epi_eficaz: true,
 })
 
+const AGENTE_TIPOS = ['Físico', 'Químico', 'Biológico', 'Ergonômico', 'Mecânico/Acidente']
+const agenteVazio = () => ({ tipo: AGENTE_TIPOS[0], nome: '', valor: '', limite: '' })
+
 export default function PPP() {
   const router = useRouter()
   const [empresaId, setEmpresaId] = useState('')
@@ -57,7 +60,9 @@ export default function PPP() {
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
 
     const [funcsRes, ltcatRes, pppRes] = await Promise.all([
-      supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial,data_adm').eq('empresa_id', empId).eq('ativo', true).order('nome').limit(2000),
+      // Inclui desligados também — o PPP precisa continuar acessível mesmo depois
+      // que o funcionário sai da empresa (documento exigido por décadas).
+      supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial,data_adm,ativo,data_desligamento').eq('empresa_id', empId).order('nome').limit(2000),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('ppp').select('*').eq('empresa_id', empId),
     ])
@@ -157,6 +162,32 @@ export default function PPP() {
     setForm(p => ({ ...p, historico: p.historico.filter((_, idx) => idx !== i) }))
   }
 
+  function addAgente(i) {
+    setForm(p => {
+      const historico = [...p.historico]
+      historico[i] = { ...historico[i], agentes: [...(historico[i].agentes || []), agenteVazio()] }
+      return { ...p, historico }
+    })
+  }
+
+  function setAgenteField(i, j, field, value) {
+    setForm(p => {
+      const historico = [...p.historico]
+      const agentes = [...(historico[i].agentes || [])]
+      agentes[j] = { ...agentes[j], [field]: value }
+      historico[i] = { ...historico[i], agentes }
+      return { ...p, historico }
+    })
+  }
+
+  function removerAgente(i, j) {
+    setForm(p => {
+      const historico = [...p.historico]
+      historico[i] = { ...historico[i], agentes: (historico[i].agentes || []).filter((_, idx) => idx !== j) }
+      return { ...p, historico }
+    })
+  }
+
   function exportarPdf(ppp, func) {
     gerarPdfPpp(
       { funcionario: func, dados_gerais: { data_emissao: ppp.data_emissao, resp_nome: ppp.resp_nome, resp_cargo: ppp.resp_cargo }, historico: ppp.historico || [] },
@@ -169,6 +200,9 @@ export default function PPP() {
   const funcsFiltrados = funcionarios.filter(f => f.nome.toLowerCase().includes(busca.toLowerCase()))
   const pppSel = funcSel ? pppDoFunc(funcSel.id) : null
   const totalComPpp = ppps.length
+  const idsAtivos = new Set(funcionarios.filter(f => f.ativo).map(f => f.id))
+  const funcionariosAtivosCount = idsAtivos.size
+  const comPppAtivos = ppps.filter(p => idsAtivos.has(p.funcionario_id)).length
 
   return (
     <Layout pagina="ppp">
@@ -183,9 +217,9 @@ export default function PPP() {
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:'1.25rem' }}>
         {[
-          { n: funcionarios.length, l:'Funcionários ativos', c:'#185FA5' },
-          { n: totalComPpp, l:'Com PPP cadastrado', c: totalComPpp > 0 ? '#1D9E75' : '#E24B4A' },
-          { n: funcionarios.length - totalComPpp, l:'Sem PPP', c: (funcionarios.length - totalComPpp) > 0 ? '#E24B4A' : '#1D9E75' },
+          { n: funcionariosAtivosCount, l:'Funcionários ativos', c:'#185FA5' },
+          { n: totalComPpp, l:'Com PPP cadastrado (total)', c: totalComPpp > 0 ? '#1D9E75' : '#E24B4A' },
+          { n: funcionariosAtivosCount - comPppAtivos, l:'Ativos sem PPP', c: (funcionariosAtivosCount - comPppAtivos) > 0 ? '#E24B4A' : '#1D9E75' },
         ].map((k,i) => (
           <div key={i} style={s.kpiCard}>
             <div style={{ fontSize:22, fontWeight:700, color:k.c }}>{k.n}</div>
@@ -208,9 +242,14 @@ export default function PPP() {
                   style={{ ...s.itemLista, border: funcSel?.id===f.id?'1.5px solid #185FA5':'0.5px solid #e5e7eb', background: funcSel?.id===f.id?'#E6F1FB':'#fff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div style={{ fontSize:12, fontWeight:600, color: funcSel?.id===f.id?'#0C447C':'#111' }}>{f.nome}</div>
-                    <span style={{ padding:'2px 7px', borderRadius:99, fontSize:9, fontWeight:600, background: tem?'#EAF3DE':'#f3f4f6', color: tem?'#27500A':'#9ca3af' }}>
-                      {tem ? 'PPP' : '—'}
-                    </span>
+                    <div style={{ display:'flex', gap:4 }}>
+                      {!f.ativo && (
+                        <span style={{ padding:'2px 7px', borderRadius:99, fontSize:9, fontWeight:600, background:'#f3f4f6', color:'#6b7280' }}>Desligado</span>
+                      )}
+                      <span style={{ padding:'2px 7px', borderRadius:99, fontSize:9, fontWeight:600, background: tem?'#EAF3DE':'#f3f4f6', color: tem?'#27500A':'#9ca3af' }}>
+                        {tem ? 'PPP' : '—'}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>{f.funcao || '—'}</div>
                 </div>
@@ -345,13 +384,35 @@ export default function PPP() {
                         <input type="date" style={s.input} value={h.periodo_fim||''} onChange={e => setPeriodo(i, 'periodo_fim', e.target.value)} />
                       </div>
                     </div>
-                    <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', marginBottom:6 }}>
+                    <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', marginBottom:10 }}>
                       <input type="checkbox" checked={!!h.epi_eficaz} onChange={e => setPeriodo(i, 'epi_eficaz', e.target.checked)} />
                       EPI eficaz neste período
                     </label>
-                    {h.agentes?.length > 0 && (
-                      <div style={{ fontSize:11, color:'#9ca3af' }}>Agentes herdados do LTCAT: {h.agentes.map(a=>a.nome).join(', ')}</div>
-                    )}
+
+                    <div style={{ borderTop:'0.5px solid #f3f4f6', paddingTop:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                        <span style={{ fontSize:11, fontWeight:600, color:'#6b7280', textTransform:'uppercase', letterSpacing:'.04em' }}>
+                          Agentes de risco ({h.agentes?.length || 0})
+                        </span>
+                        <button style={{ ...s.btnAcao, fontSize:10, padding:'2px 8px' }} onClick={() => addAgente(i)}>+ Risco</button>
+                      </div>
+                      {(h.agentes || []).length === 0 && (
+                        <div style={{ fontSize:11, color:'#9ca3af', marginBottom:4 }}>
+                          Nenhum agente vinculado — carregado automaticamente do LTCAT vigente quando o setor bate, ou adicione manualmente.
+                        </div>
+                      )}
+                      {(h.agentes || []).map((a, j) => (
+                        <div key={j} style={{ display:'grid', gridTemplateColumns:'110px 1fr 90px 90px 22px', gap:6, marginBottom:6, alignItems:'center' }}>
+                          <select style={{ ...s.input, padding:'6px 8px', fontSize:11 }} value={a.tipo || AGENTE_TIPOS[0]} onChange={e => setAgenteField(i, j, 'tipo', e.target.value)}>
+                            {AGENTE_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <input style={{ ...s.input, padding:'6px 8px', fontSize:11 }} placeholder="Nome do agente" value={a.nome || ''} onChange={e => setAgenteField(i, j, 'nome', e.target.value)} />
+                          <input style={{ ...s.input, padding:'6px 8px', fontSize:11 }} placeholder="Valor" value={a.valor || ''} onChange={e => setAgenteField(i, j, 'valor', e.target.value)} />
+                          <input style={{ ...s.input, padding:'6px 8px', fontSize:11 }} placeholder="Limite" value={a.limite || ''} onChange={e => setAgenteField(i, j, 'limite', e.target.value)} />
+                          <button onClick={() => removerAgente(i, j)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:15 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
                 {!(form.historico || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum período adicionado.</div>}
