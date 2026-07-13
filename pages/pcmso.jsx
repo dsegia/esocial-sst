@@ -183,18 +183,22 @@ export default function PCMSO() {
   }
 
   async function salvarSecoes() {
-    if (!medico) return
     const dados = {
       empresa_id: empresaId,
       secoes_custom: formSecoes,
       atualizado_em: new Date().toISOString(),
     }
-    const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
-    if (error) { alert('Erro ao salvar: ' + error.message) }
-    else {
-      setEditandoSecao(null)
-      await init()
+    if (medico?.id) {
+      // Se já existe médico, atualiza
+      const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
+      if (error) { alert('Erro ao salvar: ' + error.message); return }
+    } else {
+      // Se não existe, cria novo registro
+      const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
+      if (error) { alert('Erro ao salvar: ' + error.message); return }
     }
+    setEditandoSecao(null)
+    await init()
   }
 
   function obterConteudoSecao(idSecao) {
@@ -783,11 +787,9 @@ export default function PCMSO() {
                     <div style={{ fontSize:13, fontWeight:600, color:'#111', textAlign:'left' }}>{secao.titulo}</div>
                     <div style={{ fontSize:18, color:'#9ca3af', fontWeight:300 }}>{aberta ? '−' : '+'}</div>
                   </button>
-                  {medico && (
-                    <button onClick={() => abrirEdicaoSecao(secao.id)} style={{ ...s.btnAcao, marginLeft:8, whiteSpace:'nowrap' }}>
-                      Editar
-                    </button>
-                  )}
+                  <button onClick={() => abrirEdicaoSecao(secao.id)} style={{ ...s.btnAcao, marginLeft:8, whiteSpace:'nowrap' }}>
+                    Editar
+                  </button>
                 </div>
 
                 {/* Conteúdo expandível */}
