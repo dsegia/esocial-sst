@@ -202,10 +202,9 @@ export default function PGR() {
   async function atualizarLogo(logoUrl) {
     setSalvandoLogo(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/empresa/atualizar-logo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ logo_url: logoUrl })
       })
       if (!res.ok) throw new Error('Erro ao atualizar logo')

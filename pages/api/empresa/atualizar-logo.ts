@@ -1,39 +1,60 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { createClient } from '@supabase/supabase-js'
-import { requireAuth } from '../../../lib/auth-middleware'
-
-const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+import { createServerClient, serialize } from '@supabase/ssr'
+import { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ erro: 'Método não permitido' })
   }
 
-  const user = await requireAuth(req, res)
-  if (!user) return
-
   const { logo_url } = req.body as { logo_url: string | null }
 
-  const { data: usuarioDb } = await sbAdmin
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return [] },
+        setAll() { },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    return res.status(401).json({ erro: 'Não autenticado' })
+  }
+
+  // Obter empresa_id do usuário
+  const { data: user } = await supabase
     .from('usuarios')
     .select('empresa_id')
-    .eq('id', user.id)
+    .eq('id', session.user.id)
     .single()
 
-  if (!usuarioDb?.empresa_id) {
+  if (!user?.empresa_id) {
     return res.status(400).json({ erro: 'Empresa não encontrada' })
   }
 
-  const { error } = await sbAdmin
+  // Verificar RLS: usuário deve ser membro da empresa
+  const { data: membro } = await supabase
+    .from('empresa_membros')
+    .select('id')
+    .eq('empresa_id', user.empresa_id)
+    .eq('usuario_id', session.user.id)
+    .single()
+
+  if (!membro) {
+    return res.status(403).json({ erro: 'Acesso negado' })
+  }
+
+  // Atualizar logo
+  const { error } = await supabase
     .from('empresas')
     .update({ logo_url })
-    .eq('id', usuarioDb.empresa_id)
+    .eq('id', user.empresa_id)
 
   if (error) {
+    console.error('Erro ao atualizar logo:', error)
     return res.status(500).json({ erro: 'Erro ao atualizar logo' })
   }
 
