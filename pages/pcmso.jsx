@@ -774,7 +774,12 @@ export default function PCMSO() {
 
       {/* ── Programa de Saúde Ocupacional (16 Seções) ── */}
       <div style={{ marginTop:32 }}>
-        <div style={{ fontSize:16, fontWeight:700, color:'#111', marginBottom:16 }}>Programa de Saúde Ocupacional — NR-7</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>Programa de Saúde Ocupacional — NR-7</div>
+          <button onClick={() => setSecaoAberta(secaoAberta ? null : SECOES_PCMSO[0]?.id)} style={s.btnAcao}>
+            {secaoAberta ? 'Fechar Tudo' : 'Expandir Tudo'}
+          </button>
+        </div>
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {SECOES_PCMSO.map(secao => {
             const aberta = secaoAberta === secao.id
