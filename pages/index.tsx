@@ -1178,9 +1178,9 @@ export default function Home() {
           </p>
           <div className="pricing-grid">
             {[
-              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 69), destaque: false, desc: 'Para empresas com poucos funcionários.' },
-              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 179), destaque: true, desc: 'Para operações em crescimento com múltiplas empresas.' },
-              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 399), destaque: false, desc: 'Para consultorias e empresas com maior volume de CNPJs.' },
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 59), destaque: false, desc: 'Para empresas com poucos funcionários.' },
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 149), destaque: true, desc: 'Para operações em crescimento com múltiplas empresas.' },
+              { idx: FAIXAS_VIDAS.findIndex(f => 'preco' in f && f.preco === 339), destaque: false, desc: 'Para consultorias e empresas com maior volume de CNPJs.' },
             ].map(({ idx, destaque, desc }, i) => {
               const faixa = FAIXAS_VIDAS[idx]
               const preco = 'preco' in faixa ? faixa.preco : null

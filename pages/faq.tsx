@@ -52,7 +52,7 @@ const FAQ_ITEMS = [
   },
   {
     pergunta: 'Quanto custa o eSocial SST (software)?',
-    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 69/mês para até 10 vidas até R$ 599/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital e alertas de vencimento sem limite de uso.`,
+    resposta: `O eSocial SST oferece trial gratuito de 14 dias sem necessidade de cartão de crédito. Depois do trial, é um plano único que escala pelo número de funcionários ativos cadastrados (vidas): de R$ 59/mês para até 10 vidas até R$ 479/mês para até 500 vidas, com faixas intermediárias. Todos os planos incluem os 7 documentos SST (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), transmissão ilimitada ao Gov.br, leitura de PDF com IA, assinatura digital e alertas de vencimento sem limite de uso.`,
   },
   {
     pergunta: 'Como funciona a multa por não transmitir eSocial SST?',
@@ -80,10 +80,10 @@ const SCHEMA = {
       description: 'Software SaaS brasileiro que emite os 7 documentos de SST exigidos pelas NRs (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmite os eventos SST ao eSocial Gov.br. Lê ASO, LTCAT e CAT com IA, gera XML, assina digitalmente e transmite S-2210, S-2220, S-2221 e S-2240.',
       offers: {
         '@type': 'AggregateOffer',
-        lowPrice: '69',
-        highPrice: '599',
+        lowPrice: '59',
+        highPrice: '479',
         priceCurrency: 'BRL',
-        offerCount: 6,
+        offerCount: 7,
       },
       featureList: [
         'Emissão dos 7 documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP',

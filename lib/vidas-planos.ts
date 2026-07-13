@@ -2,13 +2,14 @@
 // Faixas espelham exatamente os tiers do Price no Stripe (billing_scheme=tiered,
 // tiers_mode=volume, aggregate_usage=max) — ver STRIPE_PRICE_VIDAS em .env.local.
 export const FAIXAS_VIDAS = [
-  { ate: 10,        preco: 69 },
-  { ate: 30,        preco: 119 },
-  { ate: 75,        preco: 179 },
-  { ate: 150,       preco: 279 },
-  { ate: 300,       preco: 399 },
-  { ate: 500,       preco: 599 },
-  { ate: Infinity,  precoPorVida: 1.10 }, // acima de 500 — mesma taxa do Price no Stripe (fallback automático)
+  { ate: 10,        preco: 59 },
+  { ate: 25,        preco: 89 },
+  { ate: 50,        preco: 129 },
+  { ate: 75,        preco: 149 },
+  { ate: 150,       preco: 229 },
+  { ate: 300,       preco: 339 },
+  { ate: 500,       preco: 479 },
+  { ate: Infinity,  precoPorVida: 0.90 }, // acima de 500 — mesma taxa do Price no Stripe (fallback automático)
 ] as const
 
 export function faixaAtual(qtdVidas: number) {
