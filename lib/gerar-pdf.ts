@@ -16,6 +16,7 @@ function desenharAssinaturas(
   respTecnico: { label: string; nome?: string; extra?: string },
   respLegal: { nome?: string }
 ): number {
+  y += 16 // espaço em branco acima da linha, para caber a assinatura
   const largura = (W - mg * 2 - 20) / 2
   const xEsq = mg + largura / 2
   const xDir = W - mg - largura / 2
