@@ -7,6 +7,7 @@ import { getEmpresaIdValida } from '../lib/empresa'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { sugerirParaRisco } from '../lib/pgr-sugestoes'
 import { sugerirAnexoIV } from '../lib/ltcat-anexo-iv'
+import { AGENTES_POR_TIPO } from '../lib/agentes-risco'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -40,6 +41,11 @@ export default function Ghes() {
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  const [importAberto, setImportAberto] = useState(false)
+  const [buscandoImport, setBuscandoImport] = useState(false)
+  const [candidatos, setCandidatos] = useState<any[]>([])
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
+  const [importando, setImportando] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -73,6 +79,94 @@ export default function Ghes() {
   function cancelarEdicao() {
     setModoEdicao(false)
     setFormGhe(null)
+  }
+
+  function normalizarRisco(r: any) {
+    return {
+      id: crypto.randomUUID(), tipo: r.tipo || 'fis', nome: r.nome || '',
+      valor: r.valor || '', limite: r.limite || '', unidade: r.unidade || '',
+      supera_lt: !!r.supera_lt, medicao_quantitativa: !!r.medicao_quantitativa,
+      metodologia: r.metodologia || '', codigo_esocial: r.codigo_t24 || r.codigo_esocial || '',
+      fonte_geradora: r.equipamento || r.fonte_geradora || '',
+    }
+  }
+
+  async function abrirImportar() {
+    setImportAberto(true)
+    setBuscandoImport(true)
+    setErro(''); setSucesso('')
+
+    const [{ data: pgrs }, { data: lts }] = await Promise.all([
+      supabase.from('pgr').select('inventario').eq('empresa_id', _empresaId).order('criado_em', { ascending: false }).limit(1),
+      supabase.from('ltcats').select('ghes').eq('empresa_id', _empresaId).order('data_emissao', { ascending: false }).limit(1),
+    ])
+
+    const inventarioPgr = pgrs?.[0]?.inventario || []
+    const ghesLtcat = lts?.[0]?.ghes || []
+
+    const doLtcat = ghesLtcat.map((g: any) => ({
+      origem: 'LTCAT',
+      nome: g.nome || g.setor || 'GHE sem nome',
+      setor: g.setor || g.nome || '',
+      qtd_trabalhadores: g.qtd_trabalhadores || 1,
+      aposentadoria_especial: !!g.aposentadoria_especial,
+      funcoes: (g.funcoes || []).map((f: any) => typeof f === 'string' ? f : f.nome).filter(Boolean),
+      riscos: (g.agentes || g.riscos || []).map(normalizarRisco),
+      epc: g.epc || [],
+      epi: (g.epi || []).map((e: any) => ({ nome: e.nome || '', ca: e.ca || '', eficaz: e.eficaz !== false })),
+    }))
+
+    const doPgr = inventarioPgr.map((g: any) => ({
+      origem: 'PGR',
+      nome: g.nome || g.ambientes_relacionados || 'GHE sem nome',
+      setor: g.ambientes_relacionados || g.nome || '',
+      qtd_trabalhadores: parseInt(g.numero_empregados) || 1,
+      aposentadoria_especial: false,
+      funcoes: (g.funcoes || []).map((f: any) => typeof f === 'string' ? f : f.nome).filter(Boolean),
+      riscos: (g.riscos || []).map(normalizarRisco),
+      epc: [],
+      epi: (g.epis || []).map((e: any) => ({ nome: e.nome || '', ca: '', eficaz: e.eficaz !== false })),
+    }))
+
+    const todos = [...doLtcat, ...doPgr]
+    setCandidatos(todos)
+    setSelecionados(new Set(todos.map((_, i) => i)))
+    setBuscandoImport(false)
+  }
+
+  function alternarSelecionado(i: number) {
+    setSelecionados(prev => {
+      const novo = new Set(prev)
+      if (novo.has(i)) novo.delete(i); else novo.add(i)
+      return novo
+    })
+  }
+
+  function fecharImportar() {
+    setImportAberto(false)
+    setCandidatos([])
+    setSelecionados(new Set())
+  }
+
+  async function confirmarImport() {
+    const linhas = candidatos.filter((_, i) => selecionados.has(i)).map(c => ({
+      empresa_id: _empresaId,
+      nome: c.nome, setor: c.setor, qtd_trabalhadores: c.qtd_trabalhadores || 1,
+      aposentadoria_especial: !!c.aposentadoria_especial,
+      funcoes: c.funcoes || [], riscos: c.riscos || [], epc: c.epc || [], epi: c.epi || [],
+      ativo: true,
+    }))
+    if (!linhas.length) { fecharImportar(); return }
+
+    setImportando(true)
+    const { error } = await supabase.from('ghes').insert(linhas)
+    if (error) { setErro('Erro ao importar: ' + error.message) }
+    else {
+      setSucesso(`${linhas.length} GHE(s) importado(s) com sucesso! Revise os dados e ajuste o que for necessário.`)
+      fecharImportar()
+      await init()
+    }
+    setImportando(false)
   }
 
   async function salvarEdicao() {
@@ -199,8 +293,9 @@ export default function Ghes() {
           <div style={s.titulo}>Cadastro de GHEs e Riscos</div>
           <div style={s.sub}>Fonte única de dados para LTCAT, PGR e PCMSO — cadastre aqui e sincronize em cada documento</div>
         </div>
-        {!modoEdicao && (
+        {!modoEdicao && !importAberto && (
           <div style={{ display:'flex', gap:8 }}>
+            <button style={s.btnOutline} onClick={abrirImportar}>⬇ Importar do PGR/LTCAT</button>
             <button style={s.btnPrimary} onClick={criarNovoGhe}>+ Novo GHE</button>
           </div>
         )}
@@ -209,7 +304,50 @@ export default function Ghes() {
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
       {erro    && <div style={s.erroBox}>{erro}</div>}
 
-      {ghesLista.length === 0 && !modoEdicao ? (
+      {importAberto && (
+        <div style={{ ...s.card, border:'1.5px solid #185FA5', marginBottom:'1.25rem' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Importar GHEs do PGR/LTCAT</div>
+            <button onClick={fecharImportar} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+          </div>
+          <div style={{ fontSize:12, color:'#6b7280', marginBottom:12 }}>
+            Traz os GHEs e riscos já preenchidos no PGR e no LTCAT mais recentes desta empresa para o cadastro central. Revise a seleção antes de importar.
+          </div>
+
+          {buscandoImport ? (
+            <div style={{ fontSize:13, color:'#6b7280' }}>Buscando dados no PGR e LTCAT...</div>
+          ) : candidatos.length === 0 ? (
+            <div style={s.emptySmall}>Nenhum GHE encontrado no PGR ou LTCAT desta empresa.</div>
+          ) : (
+            <>
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
+                {candidatos.map((c, i) => (
+                  <label key={i} style={{ display:'flex', alignItems:'flex-start', gap:10, border:'0.5px solid #e5e7eb', borderRadius:8, padding:10, cursor:'pointer', background: selecionados.has(i) ? '#F5FAFF' : '#fff' }}>
+                    <input type="checkbox" checked={selecionados.has(i)} onChange={() => alternarSelecionado(i)} style={{ marginTop:2 }}/>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ padding:'1px 7px', borderRadius:99, fontSize:10, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>{c.origem}</span>
+                        <span style={{ fontSize:13, fontWeight:600, color:'#111' }}>{c.nome}</span>
+                      </div>
+                      <div style={{ fontSize:11, color:'#6b7280', marginTop:3 }}>
+                        {c.setor || '—'} · {c.riscos.length} risco(s){c.funcoes.length ? ` · ${c.funcoes.length} função(ões)` : ''}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button style={s.btnPrimary} onClick={confirmarImport} disabled={importando || selecionados.size === 0}>
+                  {importando ? 'Importando...' : `Importar selecionados (${selecionados.size})`}
+                </button>
+                <button style={s.btnOutline} onClick={fecharImportar}>Cancelar</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {ghesLista.length === 0 && !modoEdicao && !importAberto ? (
         <div style={s.emptyCard}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
             <path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/>
@@ -218,10 +356,11 @@ export default function Ghes() {
           <div style={{ fontSize:14, fontWeight:500, color:'#374151', marginTop:12 }}>Nenhum GHE cadastrado</div>
           <div style={{ fontSize:12, color:'#9ca3af', marginTop:4 }}>Cadastre os Grupos Homogêneos de Exposição da empresa uma única vez</div>
           <div style={{ display:'flex', gap:8, marginTop:16 }}>
+            <button style={s.btnOutline} onClick={abrirImportar}>⬇ Importar do PGR/LTCAT</button>
             <button style={s.btnPrimary} onClick={criarNovoGhe}>+ Novo GHE</button>
           </div>
         </div>
-      ) : (
+      ) : !importAberto ? (
         <div style={{ display:'grid', gridTemplateColumns:'260px 1fr', gap:14 }}>
 
           {/* Lista lateral */}
@@ -419,7 +558,7 @@ export default function Ghes() {
                           <option value="fis">Físico</option><option value="qui">Químico</option>
                           <option value="bio">Biológico</option><option value="erg">Ergonômico</option>
                         </select>
-                        <input style={s.input} value={ag.nome||''} onChange={e=>setRisco(ai,'nome',e.target.value)} onBlur={()=>aoSairDoNomeRisco(ai)} placeholder="Nome do risco (ex: Ruído)"/>
+                        <input style={s.input} value={ag.nome||''} onChange={e=>setRisco(ai,'nome',e.target.value)} onBlur={()=>aoSairDoNomeRisco(ai)} list={`agentes-${ag.tipo||'fis'}`} placeholder="Nome do risco (ex: Ruído)"/>
                         <button onClick={()=>removeRisco(ai)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, padding:0 }}>×</button>
                       </div>
                       {(() => {
@@ -453,6 +592,11 @@ export default function Ghes() {
                   <datalist id="tabela24-codigos">
                     {ESOCIAL_TABELA24.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
                   </datalist>
+                  {Object.entries(AGENTES_POR_TIPO).map(([tipo, agentes]) => (
+                    <datalist key={tipo} id={`agentes-${tipo}`}>
+                      {agentes.map(nome => <option key={nome} value={nome} />)}
+                    </datalist>
+                  ))}
                   {!(formGhe.riscos?.length) && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum risco. Clique em + Risco.</div>}
                 </div>
 
@@ -500,7 +644,7 @@ export default function Ghes() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </Layout>
   )
 }
