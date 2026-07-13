@@ -66,6 +66,7 @@ export const TEXTOS_LEGAIS_PCMSO: SecaoLegal[] = [
     titulo: '9. RELATÓRIO ANALÍTICO ANUAL',
     paragrafos: [
       'O médico coordenador do PCMSO deve elaborar, ao final de cada período de 12 (doze) meses, o Relatório Analítico, contendo dados coletivos, sem identificação nominal dos trabalhadores, que permitam avaliar o desenvolvimento do PCMSO ao longo do período, correlacionando os agravos à saúde eventualmente identificados com a exposição a riscos ocupacionais registrados no PGR.',
+      'As organizações classificadas nos graus de risco 1 e 2 com até 25 (vinte e cinco) empregados, e as organizações classificadas nos graus de risco 3 e 4 com até 10 (dez) empregados, podem elaborar o Relatório Analítico de forma simplificada, contendo apenas o número de exames clínicos realizados e o número e os tipos de exames complementares realizados, nos termos do subitem 7.6.2 da NR-7.',
     ],
   },
   {

@@ -196,6 +196,15 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
       'A Portaria MTE nº 1.419, de 27 de agosto de 2024, aprovou a nova redação do capítulo "1.5 Gerenciamento de Riscos Ocupacionais" e alterou o Anexo I ("Termos e Definições") da NR-1, incluindo de forma expressa os Fatores de Riscos Psicossociais Relacionados ao Trabalho – FRPRT no inventário de riscos, ao lado dos fatores de risco ergonômico, e determinando a adoção de mecanismos de consulta mais ativa dos trabalhadores no processo de gerenciamento de riscos ocupacionais.',
     ],
   },
+  {
+    titulo: '16. REFERÊNCIAS BIBLIOGRÁFICAS',
+    paragrafos: [
+      'MINISTÉRIO DO TRABALHO E EMPREGO. Norma Regulamentadora nº 1 (NR-1) — Disposições Gerais e Gerenciamento de Riscos Ocupacionais, Portaria SEPRT nº 6.730/2020 e alterações posteriores.',
+      'MINISTÉRIO DO TRABALHO E EMPREGO. Normas Regulamentadoras nº 7, 9, 15, 16 e 17, e seus respectivos Anexos.',
+      'FUNDACENTRO. Normas de Higiene Ocupacional — NHO. Disponível em: gov.br/fundacentro/pt-br/centrais-de-conteudo/biblioteca/nhos.',
+      'ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR ISO 45001:2024 — Sistemas de gestão de saúde e segurança ocupacional.',
+    ],
+  },
 ]
 
 export const TEXTO_PLANO_EMERGENCIA = {

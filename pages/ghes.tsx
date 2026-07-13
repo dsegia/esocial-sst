@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { sugerirParaRisco } from '../lib/pgr-sugestoes'
+import { sugerirAnexoIV } from '../lib/ltcat-anexo-iv'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -421,6 +422,15 @@ export default function Ghes() {
                         <input style={s.input} value={ag.nome||''} onChange={e=>setRisco(ai,'nome',e.target.value)} onBlur={()=>aoSairDoNomeRisco(ai)} placeholder="Nome do risco (ex: Ruído)"/>
                         <button onClick={()=>removeRisco(ai)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, padding:0 }}>×</button>
                       </div>
+                      {(() => {
+                        const anexoIV = sugerirAnexoIV(ag.nome)
+                        if (!anexoIV) return null
+                        return (
+                          <div style={{ fontSize:11, color:'#0C447C', background:'#E6F1FB', borderRadius:6, padding:'5px 8px', marginBottom:6 }}>
+                            ⓘ Consta no Anexo IV do Decreto 3.048/99 (agente {anexoIV.codigo}, {anexoIV.categoria}) — tempo de exposição para aposentadoria especial: {anexoIV.tempoExposicaoAnos} anos. Avalie se este GHE deve marcar &quot;Aposentadoria especial&quot;.
+                          </div>
+                        )
+                      })()}
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 130px', gap:8, marginBottom:6 }}>
                         <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11 }}>
                           <input type="checkbox" checked={ag.medicao_quantitativa||false} onChange={e=>setRisco(ai,'medicao_quantitativa',e.target.checked)}/>

@@ -1227,6 +1227,37 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
     doc.text('Nenhuma função avaliada.', mg + 2, y); y += 6
   }
 
+  // ── Classificação de Insalubridade e Periculosidade (resumo) ──
+  if (funcoes.length) {
+    y += 2
+    if (y > 240) { doc.addPage(); y = 20 }
+    y = secao('CLASSIFICAÇÃO DE INSALUBRIDADE E PERICULOSIDADE', y)
+    const colF = (W - mg * 2) * 0.4, colS = (W - mg * 2) * 0.22, colI = (W - mg * 2) * 0.19, colP = (W - mg * 2) * 0.19
+    doc.setFillColor(230, 241, 251)
+    doc.rect(mg, y, W - mg * 2, 5.5, 'F')
+    doc.setFontSize(7); doc.setTextColor(12, 68, 124); doc.setFont('helvetica', 'bold')
+    doc.text('FUNÇÃO', mg + 2, y + 4)
+    doc.text('SETOR', mg + colF + 2, y + 4)
+    doc.text('INSALUBRIDADE', mg + colF + colS + 2, y + 4)
+    doc.text('PERICULOSIDADE', mg + colF + colS + colI + 2, y + 4)
+    doc.setFont('helvetica', 'normal'); y += 7.5
+    for (const f of funcoes) {
+      if (y > 275) { doc.addPage(); y = 20 }
+      doc.setFontSize(8); doc.setTextColor(30)
+      doc.text(f.funcao || '—', mg + 2, y)
+      doc.text(f.setor || '—', mg + colF + 2, y)
+      const insalTexto = f.insalubre ? `SIM — ${f.percentual_insalubridade || grauMap[f.grau_insalubridade]?.match(/\d+/)?.[0] || ''}%`.trim() : 'NÃO'
+      doc.setTextColor(...(f.insalubre ? [151, 79, 0] as [number, number, number] : [39, 80, 10] as [number, number, number]))
+      doc.text(insalTexto, mg + colF + colS + 2, y)
+      const pericTexto = f.periculoso ? 'SIM — 30%' : 'NÃO'
+      doc.setTextColor(...(f.periculoso ? [151, 30, 30] as [number, number, number] : [39, 80, 10] as [number, number, number]))
+      doc.text(pericTexto, mg + colF + colS + colI + 2, y)
+      doc.setDrawColor(240); doc.line(mg, y + 1.8, W - mg, y + 1.8)
+      y += 5.5
+    }
+    y += 3
+  }
+
   if (y > 255) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   const xMed = W / 2

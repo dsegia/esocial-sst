@@ -30,6 +30,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
   {
     titulo: '4. BASE LEGAL E NORMATIVA',
     paragrafos: [
+      'A exigência de laudo técnico para fins de caracterização de condições especiais de trabalho remonta à Lei nº 5.431, de 3 de maio de 1968, que introduziu o § 5º no art. 209 da CLT, e foi posteriormente disciplinada pelo art. 195 da CLT, na redação dada pela Lei nº 6.514, de 22 de dezembro de 1977, segundo o qual a caracterização e a classificação da insalubridade e da periculosidade far-se-ão através de perícia a cargo de médico do trabalho ou engenheiro do trabalho, registrados no Ministério do Trabalho.',
       'Este laudo foi elaborado com fundamento nas seguintes normas: Lei nº 8.213, de 24 de julho de 1991, art. 58; Decreto nº 3.048, de 6 de maio de 1999 (Regulamento da Previdência Social), arts. 57 a 68, com a redação dada ao art. 68 e ao respectivo Anexo IV pelo Decreto nº 10.410, de 30 de junho de 2020; Norma Regulamentadora nº 15 (NR-15) — Atividades e Operações Insalubres, e seus Anexos; Norma Regulamentadora nº 9 (NR-9) — Avaliação e Controle das Exposições Ocupacionais a Agentes Físicos, Químicos e Biológicos, em vigor desde 3 de janeiro de 2022, integrada à lógica do Gerenciamento de Riscos Ocupacionais – GRO da NR-1; e a Instrução Normativa PRES/INSS nº 128, de 28 de março de 2022, que disciplina os procedimentos relativos à aposentadoria especial, ao LTCAT e ao PPP, com as alterações promovidas pelas Instruções Normativas nº 141, nº 155/2023 e nº 170/2024.',
       'Subsidiariamente, foram observadas as Normas de Higiene Ocupacional – NHO da Fundacentro, adotadas como metodologia técnica de referência para a avaliação quantitativa dos agentes ambientais, e a NR-15 conforme atualizada pela Portaria MTE nº 2.021, de 3 de dezembro de 2025, que inseriu o item 15.4.1.3, exigindo que o laudo caracterizador da insalubridade seja disponibilizado aos trabalhadores, ao sindicato da categoria e à fiscalização do trabalho.',
     ],
@@ -84,6 +85,17 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     paragrafos: [
       'Este Laudo Técnico das Condições Ambientais do Trabalho foi elaborado com fundamento no art. 58 da Lei nº 8.213/1991, no art. 68 do Decreto nº 3.048/99 e na NR-15, com o objetivo de identificar, descrever e avaliar tecnicamente os agentes nocivos presentes nos ambientes de trabalho da empresa, subsidiando a correta emissão do PPP e a informação do evento S-2240 do eSocial.',
       'As conclusões aqui apresentadas refletem as condições de trabalho verificadas na data das avaliações realizadas, devendo este laudo ser revisado sempre que ocorrerem alterações relevantes nos processos, ambientes ou medidas de proteção.',
+    ],
+  },
+  {
+    titulo: '12. REFERÊNCIAS BIBLIOGRÁFICAS',
+    paragrafos: [
+      'BRASIL. Consolidação das Leis do Trabalho, arts. 189 a 197. Disponível em: planalto.gov.br/ccivil_03/leis/l6514.htm.',
+      'BRASIL. Decreto nº 3.048, de 6 de maio de 1999 — Regulamento da Previdência Social. Disponível em: planalto.gov.br/ccivil_03/decreto/d3048.htm.',
+      'BRASIL. Lei nº 8.213, de 24 de julho de 1991 — Lei de Benefícios da Previdência Social. Disponível em: planalto.gov.br.',
+      'INSTITUTO NACIONAL DO SEGURO SOCIAL. Instrução Normativa PRES/INSS nº 128, de 28 de março de 2022, e alterações posteriores.',
+      'MINISTÉRIO DO TRABALHO E EMPREGO. Norma Regulamentadora nº 15 (NR-15) — Atividades e Operações Insalubres, e seus Anexos.',
+      'FUNDACENTRO. Normas de Higiene Ocupacional — NHO. Disponível em: gov.br/fundacentro/pt-br/centrais-de-conteudo/biblioteca/nhos.',
     ],
   },
 ]
