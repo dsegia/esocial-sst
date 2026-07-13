@@ -681,7 +681,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   doc.addPage()
   y = 20
   y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
-  const yw = (W - mg * 2)
+  let yw = (W - mg * 2)
   y = campo('Razão Social', empresa?.razao_social, mg, y, yw) + 2
   y = campo('Nome Fantasia', empresa?.nome_fantasia || '—', mg, y, yw) + 2
   y = campo('CNPJ', empresa?.cnpj, mg, y, yw / 2)
@@ -1687,6 +1687,9 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('PERFIL PROFISSIOGRÁFICO PREVIDENCIÁRIO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -1798,6 +1801,9 @@ export async function gerarPdfTreinamento(treinamento: any, empresa: any): Promi
   const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
   doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('REGISTRO DE TREINAMENTO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -1894,6 +1900,9 @@ export async function gerarPdfFichaEpi(funcionario: any, entregas: any[], empres
   const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
   doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('FICHA DE CONTROLE DE EPI', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -2015,6 +2024,9 @@ export async function gerarPdfOrdemServico(os: any, empresa: any): Promise<void>
   const fmtData = (d: string | null) => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
   doc.setFillColor(24, 95, 165); doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('ORDEM DE SERVIÇO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
