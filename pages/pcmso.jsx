@@ -8,6 +8,7 @@ import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
 import { TIPOS_CONSULTA, normalizeExames, programaDoFuncionario } from '../lib/pcmso-exames'
 import { TEXTOS_LEGAIS_PCMSO } from '../lib/pcmso-conteudo'
+import { SECOES_PCMSO } from '../lib/pcmso-conteudo-completo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -91,6 +92,7 @@ export default function PCMSO() {
   const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
+  const [secaoAberta, setSecaoAberta] = useState(null)
 
   useEffect(() => { init() }, [])
 
@@ -379,42 +381,6 @@ export default function PCMSO() {
                   <input type="date" style={s.input} value={formMedico.prox_revisao||''} onChange={e => setFormMedico({...formMedico, prox_revisao:e.target.value})}/>
                 </div>
               </div>
-            </div>
-
-            {/* ── Textos legais do documento ── */}
-            <div style={{ marginBottom:16 }}>
-              <label style={s.label}>Textos legais do documento (NR-7)</label>
-              <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
-              {TEXTOS_LEGAIS_PCMSO.map(secaoTexto => {
-                const aberto = textoAberto === secaoTexto.titulo
-                const custom = formMedico.textos_legais_custom?.[secaoTexto.titulo]
-                return (
-                  <div key={secaoTexto.titulo} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div style={{ fontSize:12, fontWeight:600 }}>
-                        {secaoTexto.titulo}
-                        {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
-                      </div>
-                      <button style={s.btnAcao} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
-                        {aberto ? 'Fechar' : 'Ver / Editar'}
-                      </button>
-                    </div>
-                    {aberto && (
-                      <div style={{ marginTop:10 }}>
-                        <textarea
-                          style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
-                          value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
-                          onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
-                        />
-                        <div style={{ display:'flex', gap:8, marginTop:6 }}>
-                          {custom && <button style={s.btnAcao} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
-                          <button style={s.btnAcao} onClick={() => setTextoAberto(null)}>Concluído</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
             </div>
 
             <div style={{ display:'flex', gap:8 }}>
@@ -767,6 +733,75 @@ export default function PCMSO() {
           </div>
         </div>
       )}
+
+      {/* ── Programa de Saúde Ocupacional (16 Seções) ── */}
+      <div style={{ marginTop:32 }}>
+        <div style={{ fontSize:16, fontWeight:700, color:'#111', marginBottom:16 }}>Programa de Saúde Ocupacional — NR-7</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {SECOES_PCMSO.map(secao => {
+            const aberta = secaoAberta === secao.id
+            return (
+              <div key={secao.id} style={{ ...s.card, marginBottom:0, padding:0, overflow:'hidden' }}>
+                {/* Header da seção */}
+                <button onClick={() => setSecaoAberta(aberta ? null : secao.id)}
+                  style={{ width:'100%', padding:'14px 16px', background:'#fff', border:'none', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: aberta ? '1px solid #e5e7eb' : 'none' }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#111', textAlign:'left' }}>{secao.titulo}</div>
+                  <div style={{ fontSize:18, color:'#9ca3af', fontWeight:300 }}>{aberta ? '−' : '+'}</div>
+                </button>
+
+                {/* Conteúdo expandível */}
+                {aberta && (
+                  <div style={{ padding:'16px', background:'#fff', borderTop:'1px solid #e5e7eb' }}>
+                    {/* Texto principal */}
+                    <div style={{ fontSize:12, color:'#374151', lineHeight:1.6, marginBottom:12 }}>
+                      {secao.conteudo}
+                    </div>
+
+                    {/* Subseções */}
+                    {secao.subsecoes && secao.subsecoes.map((sub, si) => (
+                      <div key={si} style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:6 }}>→ {sub.titulo}</div>
+                        <div style={{ fontSize:11, color:'#374151', lineHeight:1.6, marginLeft:12, whiteSpace:'pre-wrap' }}>
+                          {sub.conteudo}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Tabelas */}
+                    {secao.tabelas && secao.tabelas.map((tabela, ti) => (
+                      <div key={ti} style={{ marginTop:14 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>Tabela: {tabela.titulo}</div>
+                        <div style={{ overflowX:'auto' }}>
+                          <table style={{ width:'100%', fontSize:10, borderCollapse:'collapse' }}>
+                            <tbody>
+                              {tabela.linhas.map((linha, li) => (
+                                <tr key={li}>
+                                  {linha.map((celula, ci) => (
+                                    <td key={ci} style={{
+                                      padding:'8px',
+                                      border:'0.5px solid #e5e7eb',
+                                      background: li === 0 ? '#f3f4f6' : '#fff',
+                                      fontWeight: li === 0 ? 600 : 400,
+                                      color: li === 0 ? '#6b7280' : '#374151',
+                                      minWidth:80
+                                    }}>
+                                      {celula}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </Layout>
   )
 }
