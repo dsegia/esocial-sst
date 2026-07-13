@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { gerarPdfPpp } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
+import { TEXTOS_LEGAIS_PPP } from '../lib/ppp-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -47,6 +48,7 @@ export default function PPP() {
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  const [textoAberto, setTextoAberto] = useState(null)
 
   useEffect(() => { init() }, [])
 
@@ -94,6 +96,7 @@ export default function PPP() {
         funcao: funcSel.funcao || '', setor: funcSel.setor || '',
         agentes: ghe.agentes || [], epi_eficaz: true,
       }] : [],
+      textos_legais_custom: {},
     })
     setModoEdicao(true)
     setSucesso(''); setErro('')
@@ -110,6 +113,20 @@ export default function PPP() {
     setForm(null)
   }
 
+  function setTextoCustom(titulo, paragrafos) {
+    setForm(p => ({ ...p, textos_legais_custom: { ...(p.textos_legais_custom || {}), [titulo]: paragrafos } }))
+  }
+  function restaurarTextoPadrao(titulo) {
+    setForm(p => {
+      const textos = { ...(p.textos_legais_custom || {}) }
+      delete textos[titulo]
+      return { ...p, textos_legais_custom: textos }
+    })
+  }
+  function paragrafosDoTexto(titulo, padrao) {
+    return form.textos_legais_custom?.[titulo] || padrao
+  }
+
   async function salvar() {
     if (!form.resp_nome) { setErro('Informe o responsável pelo preenchimento.'); return }
     setSalvando(true); setErro(''); setSucesso('')
@@ -121,6 +138,7 @@ export default function PPP() {
       resp_nome: form.resp_nome,
       resp_cargo: form.resp_cargo || null,
       historico: form.historico || [],
+      textos_legais_custom: form.textos_legais_custom || {},
       atualizado_em: new Date().toISOString(),
     }
 
@@ -191,7 +209,7 @@ export default function PPP() {
 
   function exportarPdf(ppp, func) {
     gerarPdfPpp(
-      { funcionario: func, dados_gerais: { data_emissao: ppp.data_emissao, resp_nome: ppp.resp_nome, resp_cargo: ppp.resp_cargo }, historico: ppp.historico || [] },
+      { funcionario: func, dados_gerais: { data_emissao: ppp.data_emissao, resp_nome: ppp.resp_nome, resp_cargo: ppp.resp_cargo }, historico: ppp.historico || [], textos_legais_custom: ppp.textos_legais_custom || {} },
       { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
     )
   }
@@ -417,6 +435,42 @@ export default function PPP() {
                   </div>
                 ))}
                 {!(form.historico || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum período adicionado.</div>}
+              </div>
+
+              {/* ── Textos legais do documento ── */}
+              <div style={{ marginBottom:16 }}>
+                <label style={s.label}>Textos legais do documento (Lei 8.213/91 / Decreto 3.048/99)</label>
+                <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
+                {TEXTOS_LEGAIS_PPP.map(secaoTexto => {
+                  const aberto = textoAberto === secaoTexto.titulo
+                  const custom = form.textos_legais_custom?.[secaoTexto.titulo]
+                  return (
+                    <div key={secaoTexto.titulo} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ fontSize:12, fontWeight:600 }}>
+                          {secaoTexto.titulo}
+                          {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
+                        </div>
+                        <button style={s.btnAcao} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
+                          {aberto ? 'Fechar' : 'Ver / Editar'}
+                        </button>
+                      </div>
+                      {aberto && (
+                        <div style={{ marginTop:10 }}>
+                          <textarea
+                            style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
+                            value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
+                            onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
+                          />
+                          <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                            {custom && <button style={s.btnAcao} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
+                            <button style={s.btnAcao} onClick={() => setTextoAberto(null)}>Concluído</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {erro && <div style={s.erroBox}>{erro}</div>}

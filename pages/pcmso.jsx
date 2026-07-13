@@ -7,6 +7,7 @@ import { gerarPdfPcmso } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
 import { TIPOS_CONSULTA, normalizeExames, programaDoFuncionario } from '../lib/pcmso-exames'
+import { TEXTOS_LEGAIS_PCMSO } from '../lib/pcmso-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -89,6 +90,7 @@ export default function PCMSO() {
   const [editandoMedico, setEditandoMedico] = useState(false)
   const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
+  const [textoAberto, setTextoAberto] = useState(null)
 
   useEffect(() => { init() }, [])
 
@@ -121,9 +123,23 @@ export default function PCMSO() {
   }
 
   function abrirEdicaoMedico() {
-    setFormMedico(medico ? { ...medico } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
+    setFormMedico(medico ? { ...medico } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{} })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
+  }
+
+  function setTextoCustom(titulo, paragrafos) {
+    setFormMedico(p => ({ ...p, textos_legais_custom: { ...(p.textos_legais_custom || {}), [titulo]: paragrafos } }))
+  }
+  function restaurarTextoPadrao(titulo) {
+    setFormMedico(p => {
+      const textos = { ...(p.textos_legais_custom || {}) }
+      delete textos[titulo]
+      return { ...p, textos_legais_custom: textos }
+    })
+  }
+  function paragrafosDoTexto(titulo, padrao) {
+    return formMedico.textos_legais_custom?.[titulo] || padrao
   }
 
   async function salvarMedico() {
@@ -137,6 +153,7 @@ export default function PCMSO() {
       medico_crm: formMedico.medico_crm || null,
       data_elaboracao: formMedico.data_elaboracao || null,
       prox_revisao: formMedico.prox_revisao || null,
+      textos_legais_custom: formMedico.textos_legais_custom || {},
       atualizado_em: new Date().toISOString(),
     }
     const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
@@ -277,7 +294,7 @@ export default function PCMSO() {
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa },
+              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {} },
               { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
             )
           }}>📄 Exportar PDF</button>
@@ -363,6 +380,43 @@ export default function PCMSO() {
                 </div>
               </div>
             </div>
+
+            {/* ── Textos legais do documento ── */}
+            <div style={{ marginBottom:16 }}>
+              <label style={s.label}>Textos legais do documento (NR-7)</label>
+              <div style={{ fontSize:11, color:'#9ca3af', marginBottom:8 }}>Textos padrão que vão no PDF — edite só se precisar ajustar alguma redação para o caso da empresa.</div>
+              {TEXTOS_LEGAIS_PCMSO.map(secaoTexto => {
+                const aberto = textoAberto === secaoTexto.titulo
+                const custom = formMedico.textos_legais_custom?.[secaoTexto.titulo]
+                return (
+                  <div key={secaoTexto.titulo} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div style={{ fontSize:12, fontWeight:600 }}>
+                        {secaoTexto.titulo}
+                        {custom && <span style={{ marginLeft:8, fontSize:10, fontWeight:600, color:'#0C447C', background:'#E6F1FB', padding:'1px 7px', borderRadius:99 }}>editado</span>}
+                      </div>
+                      <button style={s.btnAcao} onClick={() => setTextoAberto(aberto ? null : secaoTexto.titulo)}>
+                        {aberto ? 'Fechar' : 'Ver / Editar'}
+                      </button>
+                    </div>
+                    {aberto && (
+                      <div style={{ marginTop:10 }}>
+                        <textarea
+                          style={{ ...s.input, minHeight:160, fontSize:12, lineHeight:1.5 }}
+                          value={paragrafosDoTexto(secaoTexto.titulo, secaoTexto.paragrafos).join('\n\n')}
+                          onChange={e => setTextoCustom(secaoTexto.titulo, e.target.value.split(/\n\s*\n/))}
+                        />
+                        <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                          {custom && <button style={s.btnAcao} onClick={() => restaurarTextoPadrao(secaoTexto.titulo)}>Restaurar padrão</button>}
+                          <button style={s.btnAcao} onClick={() => setTextoAberto(null)}>Concluído</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
             <div style={{ display:'flex', gap:8 }}>
               <button style={s.btnPrimary} onClick={salvarMedico} disabled={salvandoMedico}>{salvandoMedico ? 'Salvando...' : 'Salvar'}</button>
               <button style={s.btnOutline} onClick={() => setEditandoMedico(false)}>Cancelar</button>
