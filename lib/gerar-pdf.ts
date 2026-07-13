@@ -511,7 +511,8 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210; const mg = 15
+  let W = 210, H = 297
+  const mg = 15
   let y = 15
 
   function hexRgb(hex: string): [number, number, number] {
@@ -531,7 +532,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     return yPos + 10
   }
   function subSecao(texto: string, yPos: number): number {
-    if (yPos > 275) { doc.addPage(); yPos = 20 }
+    if (yPos > H - 22) { doc.addPage(); yPos = 20 }
     doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
     doc.text(texto, mg, yPos)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
@@ -549,36 +550,52 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     const linhas = doc.splitTextToSize(texto, W - mg * 2)
     let yy = yPos
     for (const ln of linhas) {
-      if (yy > 278) { doc.addPage(); yy = 20 }
+      if (yy > H - 19) { doc.addPage(); yy = 20 }
       doc.text(ln, mg, yy)
       yy += 4.3
     }
     return yy + 2
   }
-  function tabela(colunas: { titulo: string; largura: number }[], linhas: string[][], yPos: number): number {
+  function tabela(
+    colunas: { titulo: string; largura: number }[],
+    linhas: string[][],
+    yPos: number,
+    estiloCelula?: (li: number, ci: number) => { bg?: [number, number, number]; texto?: [number, number, number] } | null,
+  ): number {
     const larguraTotal = colunas.reduce((s, c) => s + c.largura, 0)
     function cabecalho(yy: number) {
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'bold')
+      const linhasCab = colunas.map(c => doc.splitTextToSize(c.titulo, c.largura - 3))
+      const maxLinhasCab = Math.max(...linhasCab.map((l: string[]) => l.length), 1)
+      const alturaCab = maxLinhasCab * 3 + 3
       doc.setFillColor(24, 95, 165)
-      doc.rect(mg, yy, larguraTotal, 6, 'F')
-      doc.setFontSize(6.5); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+      doc.rect(mg, yy, larguraTotal, alturaCab, 'F')
+      doc.setTextColor(255, 255, 255)
       let xx = mg
-      for (const col of colunas) { doc.text(col.titulo, xx + 1.5, yy + 4.2); xx += col.largura }
+      for (let ci = 0; ci < colunas.length; ci++) { doc.text(linhasCab[ci], xx + 1.5, yy + 2.9); xx += colunas[ci].largura }
       doc.setFont('helvetica', 'normal')
-      return yy + 6
+      return yy + alturaCab
     }
-    if (yPos > 265) { doc.addPage(); yPos = 20 }
+    if (yPos > H - 32) { doc.addPage(); yPos = 20 }
     let yy = cabecalho(yPos)
-    for (const linha of linhas) {
+    for (let li = 0; li < linhas.length; li++) {
+      const linha = linhas[li]
       const celulas = linha.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
       const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
       const alturaLinha = maxLinhas * 3.6 + 3
-      if (yy + alturaLinha > 285) { doc.addPage(); yy = cabecalho(20) }
-      doc.setFontSize(7.5); doc.setTextColor(50)
+      if (yy + alturaLinha > H - 12) { doc.addPage(); yy = cabecalho(20) }
       let x = mg
       for (let ci = 0; ci < colunas.length; ci++) {
+        const estilo = estiloCelula?.(li, ci)
+        if (estilo?.bg) { doc.setFillColor(estilo.bg[0], estilo.bg[1], estilo.bg[2]); doc.rect(x, yy, colunas[ci].largura, alturaLinha - 1, 'F') }
+        doc.setFontSize(7.5)
+        const cortxt = estilo?.texto || [50, 50, 50]
+        doc.setTextColor(cortxt[0], cortxt[1], cortxt[2])
+        doc.setFont('helvetica', estilo?.bg ? 'bold' : 'normal')
         doc.text(celulas[ci], x + 1.5, yy + 3.2)
         x += colunas[ci].largura
       }
+      doc.setFont('helvetica', 'normal')
       doc.setDrawColor(230); doc.line(mg, yy + alturaLinha - 1, mg + larguraTotal, yy + alturaLinha - 1)
       yy += alturaLinha
     }
@@ -591,7 +608,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     let x = mg, yy = yPos
     for (let i = 0; i < imagens.length; i++) {
       if (i > 0 && i % porLinha === 0) { x = mg; yy += tam + (legendas ? 8 : 4) }
-      if (yy + tam > 285) { doc.addPage(); yy = 20; x = mg }
+      if (yy + tam > H - 12) { doc.addPage(); yy = 20; x = mg }
       try { doc.addImage(imagens[i], 'JPEG', x, yy, tam, tam) } catch { /* imagem inválida, ignora */ }
       if (legendas?.[i]) {
         doc.setFontSize(7); doc.setTextColor(120)
@@ -691,12 +708,12 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
   y += 2; linha(y); y += 6
 
-  // ── Inventário de riscos por GHE ──────────────────────
-  if (y > 235) { doc.addPage(); y = 20 }
+  // ── Inventário de riscos por GHE (página em paisagem) ─
+  doc.addPage('a4', 'landscape'); W = 297; H = 210; y = 20
   y = secao(`INVENTÁRIO DE RISCOS POR GHE (${inventario.length})`, y)
   if (inventario.length) {
     for (const g of inventario) {
-      if (y > 250) { doc.addPage(); y = 20 }
+      if (y > H - 30) { doc.addPage(); y = 20 }
       doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
       doc.text(g.nome || 'GHE', mg, y)
       doc.setFont('helvetica', 'normal')
@@ -708,7 +725,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       ].filter(Boolean).join(' · ')
       if (infoGhe) y = paragrafo(infoGhe, y, 8)
       if (g.imagens?.length) {
-        if (y + 35 > 285) { doc.addPage(); y = 20 }
+        if (y + 35 > H - 12) { doc.addPage(); y = 20 }
         y = inserirImagens(g.imagens, y)
       }
       if (g.funcoes?.length) {
@@ -722,28 +739,43 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       if (g.riscos?.length) {
         y = tabela(
           [
-            { titulo: 'PERIGO / RISCO', largura: 45 },
-            { titulo: 'FONTES/CIRCUNST.', largura: 35 },
-            { titulo: 'CÓD. ESOCIAL', largura: 20 },
-            { titulo: 'SEV/PROB/NÍVEL', largura: 30 },
-            { titulo: 'MEDIÇÃO', largura: 25 },
-            { titulo: 'EXPOSIÇÃO', largura: 25 },
+            { titulo: 'PERIGO', largura: 26 },
+            { titulo: 'FONTES/CIRCUNST.', largura: 31 },
+            { titulo: 'TIPO', largura: 17 },
+            { titulo: 'CÓD. ESOCIAL', largura: 16 },
+            { titulo: 'RISCO', largura: 34 },
+            { titulo: 'NÍVEL DE RISCO', largura: 24 },
+            { titulo: 'DANOS À SAÚDE', largura: 30 },
+            { titulo: 'MEDIÇÃO', largura: 16 },
+            { titulo: 'LT/LEO', largura: 14 },
+            { titulo: 'EQUIPAMENTO', largura: 20 },
+            { titulo: 'TRAJETÓRIA', largura: 18 },
+            { titulo: 'EXPOSIÇÃO', largura: 21 },
           ],
           g.riscos.map((r: any) => {
             const nr = nivelRisco(r.severidade, r.probabilidade)
             return [
-              `[${tipoMap[r.tipo] || r.tipo}] ${r.nome || '—'}${r.perigo ? ` — ${r.perigo}` : ''}`,
+              r.nome || '—',
               r.fontes_circunstancias || '—',
+              tipoMap[r.tipo] || r.tipo || '—',
               r.codigo_esocial || '—',
-              nr ? `${r.severidade}/${r.probabilidade} = ${nr.faixa} (${nr.valor})` : '—',
-              r.valor ? `${r.valor}${r.unidade ? ' ' + r.unidade : ''}${r.limite ? ' / LT ' + r.limite : ''}` : '—',
-              [r.trajetoria, r.tipo_exposicao].filter(Boolean).join(' / ') || '—',
+              r.perigo || r.nome || '—',
+              nr ? `${r.severidade}/${r.probabilidade} — ${nr.faixa} (${nr.valor})` : '—',
+              r.possiveis_danos || '—',
+              r.valor ? `${r.valor}${r.unidade ? ' ' + r.unidade : ''}` : '—',
+              r.limite || '—',
+              r.equipamento || '—',
+              r.trajetoria || '—',
+              r.tipo_exposicao || '—',
             ]
           }),
           y,
+          (li, ci) => {
+            if (ci !== 5) return null
+            const nr = nivelRisco(g.riscos[li]?.severidade, g.riscos[li]?.probabilidade)
+            return nr ? { bg: hexRgb(nr.bg), texto: hexRgb(nr.cor) } : null
+          },
         )
-        const danos = g.riscos.filter((r: any) => r.possiveis_danos).map((r: any) => `${r.nome}: ${r.possiveis_danos}`).join(' · ')
-        if (danos) y = paragrafo(`Possíveis danos à saúde — ${danos}`, y, 7)
       } else {
         doc.setFontSize(8); doc.setTextColor(120)
         doc.text('Nenhum risco cadastrado neste GHE.', mg + 2, y); y += 5
@@ -770,7 +802,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhum GHE cadastrado.', mg + 2, y); y += 6
   }
-  y += 2; linha(y); y += 6
+
+  // volta para retrato para o restante do documento
+  doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
 
   // ── Plano de ação ─────────────────────────────────────
   if (y > 230) { doc.addPage(); y = 20 }
@@ -866,9 +900,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
     doc.setPage(p)
+    const pw = doc.internal.pageSize.getWidth()
+    const ph = doc.internal.pageSize.getHeight()
     doc.setFontSize(7); doc.setTextColor(150)
-    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
-    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, ph - 5)
+    doc.text(`Página ${p}/${totalPags}`, pw - mg, ph - 5, { align: 'right' })
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
