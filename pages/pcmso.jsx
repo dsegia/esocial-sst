@@ -67,6 +67,7 @@ export default function PCMSO() {
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
   const [respLegalEmpresa, setRespLegalEmpresa] = useState('')
+  const [empresaCompleta, setEmpresaCompleta] = useState(null)
   const [funcionarios, setFuncionarios] = useState([])
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
   const [ghesCadastro, setGhesCadastro] = useState([])
@@ -105,8 +106,13 @@ export default function PCMSO() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    supabase.from('empresas').select('razao_social,cnpj,resp_nome').eq('id', empId).single()
-      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || '') } })
+    const { data: emp } = await supabase.from('empresas').select('*').eq('id', empId).single()
+    if (emp) {
+      setNomeEmpresa(emp.razao_social)
+      setCnpjEmpresa(emp.cnpj)
+      setRespLegalEmpresa(emp.resp_nome || '')
+      setEmpresaCompleta(emp)
+    }
 
     const [funcsRes, ltcatRes, ghesRes, asosRes, progRes, medicoRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome').limit(2000),
@@ -324,8 +330,8 @@ export default function PCMSO() {
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {} },
-              { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
+              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {} },
+              { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
             )
           }}>📄 Exportar PDF</button>
           <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar PDF</button>
