@@ -31,6 +31,7 @@ export default function LTCAT() {
   const [_empresaId, setEmpresaId] = useState('')
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
+  const [respLegalEmpresa, setRespLegalEmpresa] = useState('')
   const [ltcats, setLtcats] = useState([])
   const [todosFunc, setTodosFunc] = useState([])
   const [ltcatSel, setLtcatSel] = useState(null)
@@ -52,8 +53,8 @@ export default function LTCAT() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
-      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
+    supabase.from('empresas').select('razao_social,cnpj,resp_nome').eq('id', empId).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || '') } })
     const { data } = await supabase.from('ltcats').select('*').eq('empresa_id', empId).order('data_emissao', { ascending: false })
     setLtcats(data || [])
     if (data?.length > 0) setLtcatSel(data[0])
@@ -297,7 +298,7 @@ export default function LTCAT() {
                         ↻ Atualizar do cadastro
                       </button>
                       <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
-                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes, textos_legais_custom: ltcatSel.textos_legais_custom || {} }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa })}>
+                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes, textos_legais_custom: ltcatSel.textos_legais_custom || {} }, { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa })}>
                         ↓ Exportar PDF
                       </button>
                       {ltcatSel.ativo && (

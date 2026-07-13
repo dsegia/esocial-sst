@@ -8,6 +8,35 @@ import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
+// Bloco de assinaturas em duas colunas — responsável técnico (esquerda) e
+// representante legal da empresa (direita) — usado ao final de todos os
+// documentos que têm valor técnico-jurídico (PGR, LTCAT, PCMSO, AET, LIP, PPP).
+function desenharAssinaturas(
+  doc: any, y: number, mg: number, W: number,
+  respTecnico: { label: string; nome?: string; extra?: string },
+  respLegal: { nome?: string }
+): number {
+  const largura = (W - mg * 2 - 20) / 2
+  const xEsq = mg + largura / 2
+  const xDir = W - mg - largura / 2
+  doc.setDrawColor(120)
+  doc.line(xEsq - largura / 2, y, xEsq + largura / 2, y)
+  doc.line(xDir - largura / 2, y, xDir + largura / 2, y)
+  y += 4
+  doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
+  doc.text(respTecnico.label, xEsq, y, { align: 'center' })
+  doc.text('Representante legal da empresa', xDir, y, { align: 'center' })
+  y += 4
+  doc.setFontSize(7); doc.setTextColor(120)
+  doc.text(respTecnico.nome || '—', xEsq, y, { align: 'center' })
+  doc.text(respLegal.nome || '—', xDir, y, { align: 'center' })
+  if (respTecnico.extra) {
+    y += 3.5
+    doc.text(respTecnico.extra, xEsq, y, { align: 'center' })
+  }
+  return y
+}
+
 export async function gerarPdfAso(dados: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -334,6 +363,13 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     linha(y); y += 5
   }
 
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
+    { nome: empresa?.resp_nome }
+  )
+
   // Rodapé
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
@@ -452,6 +488,13 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     }
     y += 4
   }
+
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; doc.setDrawColor(220, 220, 220); doc.line(mg, y, W - mg, y); y += 10
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Médico coordenador do PCMSO', nome: dg.medico_nome, extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined },
+    { nome: empresa?.resp_nome }
+  )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
@@ -812,6 +855,13 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.text(`${sv.v} — ${sv.l}: ${sv.efeito}`, mg + 2, y); y += 4.5
   }
 
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Responsável pela elaboração', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
+    { nome: empresa?.resp_nome }
+  )
+
   // ── Rodapé ────────────────────────────────────────────
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
@@ -945,13 +995,12 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
     doc.text('Nenhum posto de trabalho avaliado.', mg + 2, y); y += 6
   }
 
-  if (y > 255) { doc.addPage(); y = 20 }
+  if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
-  const xMed = W / 2
-  doc.line(xMed - 45, y, xMed + 45, y)
-  y += 4
-  doc.setFontSize(8); doc.setTextColor(80)
-  doc.text('Assinatura e carimbo do responsável técnico', xMed, y, { align: 'center' })
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
+    { nome: empresa?.resp_nome }
+  )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
@@ -1258,13 +1307,12 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
     y += 3
   }
 
-  if (y > 255) { doc.addPage(); y = 20 }
+  if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
-  const xMed = W / 2
-  doc.line(xMed - 45, y, xMed + 45, y)
-  y += 4
-  doc.setFontSize(8); doc.setTextColor(80)
-  doc.text('Assinatura e carimbo do responsável técnico', xMed, y, { align: 'center' })
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
+    { nome: empresa?.resp_nome }
+  )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
@@ -1383,13 +1431,12 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
     doc.text('Nenhum período de exposição registrado.', mg + 2, y); y += 6
   }
 
-  if (y > 255) { doc.addPage(); y = 20 }
+  if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
-  const xMed = W / 2
-  doc.line(xMed - 45, y, xMed + 45, y)
-  y += 4
-  doc.setFontSize(8); doc.setTextColor(80)
-  doc.text('Assinatura do responsável pelo preenchimento', xMed, y, { align: 'center' })
+  y = desenharAssinaturas(doc, y, mg, W,
+    { label: 'Responsável pelo preenchimento', nome: dg.resp_nome, extra: dg.resp_cargo || undefined },
+    { nome: empresa?.resp_nome }
+  )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {

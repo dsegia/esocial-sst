@@ -35,6 +35,7 @@ export default function PPP() {
   const [empresaId, setEmpresaId] = useState('')
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
+  const [respLegalEmpresa, setRespLegalEmpresa] = useState('')
   const [funcionarios, setFuncionarios] = useState([])
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
   const [ppps, setPpps] = useState([])
@@ -56,8 +57,8 @@ export default function PPP() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
-      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
+    supabase.from('empresas').select('razao_social,cnpj,resp_nome').eq('id', empId).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || '') } })
 
     const [funcsRes, ltcatRes, pppRes] = await Promise.all([
       // Inclui desligados também — o PPP precisa continuar acessível mesmo depois
@@ -191,7 +192,7 @@ export default function PPP() {
   function exportarPdf(ppp, func) {
     gerarPdfPpp(
       { funcionario: func, dados_gerais: { data_emissao: ppp.data_emissao, resp_nome: ppp.resp_nome, resp_cargo: ppp.resp_cargo }, historico: ppp.historico || [] },
-      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
+      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
     )
   }
 

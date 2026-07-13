@@ -25,6 +25,7 @@ export default function AET() {
   const [empresaId, setEmpresaId] = useState('')
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
+  const [respLegalEmpresa, setRespLegalEmpresa] = useState('')
   const [aets, setAets] = useState([])
   const [aetSel, setAetSel] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -46,8 +47,8 @@ export default function AET() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
-      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
+    supabase.from('empresas').select('razao_social,cnpj,resp_nome').eq('id', empId).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || '') } })
 
     const { data } = await supabase.from('aet').select('*').eq('empresa_id', empId).order('criado_em', { ascending: false })
     setAets(data || [])
@@ -185,7 +186,7 @@ export default function AET() {
         postos_trabalho: aet.postos_trabalho || [],
         textos_legais_custom: aet.textos_legais_custom || {},
       },
-      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
+      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
     )
   }
 

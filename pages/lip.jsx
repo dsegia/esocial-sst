@@ -59,6 +59,7 @@ export default function LIP() {
   const [empresaId, setEmpresaId] = useState('')
   const [nomeEmpresa, setNomeEmpresa] = useState('')
   const [cnpjEmpresa, setCnpjEmpresa] = useState('')
+  const [respLegalEmpresa, setRespLegalEmpresa] = useState('')
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
   const [lips, setLips] = useState([])
   const [lipSel, setLipSel] = useState(null)
@@ -79,8 +80,8 @@ export default function LIP() {
     if (!user) { router.push('/login'); return }
     const empId = await getEmpresaIdValida(supabase, session.user.id, user.empresa_id)
     setEmpresaId(empId)
-    supabase.from('empresas').select('razao_social,cnpj').eq('id', empId).single()
-      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj) } })
+    supabase.from('empresas').select('razao_social,cnpj,resp_nome').eq('id', empId).single()
+      .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || '') } })
 
     const [ltcatRes, lipRes] = await Promise.all([
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo', true).order('data_emissao', { ascending: false }).limit(1).maybeSingle(),
@@ -209,7 +210,7 @@ export default function LIP() {
         funcoes: lip.funcoes || [],
         textos_legais_custom: lip.textos_legais_custom || {},
       },
-      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa }
+      { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
     )
   }
 
