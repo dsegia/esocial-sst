@@ -5,6 +5,7 @@ import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADR
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
 import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
+import { SECOES_PCMSO } from './pcmso-conteudo-completo'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
@@ -515,6 +516,52 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
         doc.setTextColor(80); doc.text(period, mg + 110, y)
         doc.setDrawColor(240); doc.line(mg, y + 1.5, W - mg, y + 1.5)
         y += 5.5
+      }
+    }
+    y += 4
+  }
+
+  // ── 16 Seções de Saúde Ocupacional ────────────────────────────────
+  const secoesCust = dados?.secoes_custom || {}
+  for (const secaoItem of SECOES_PCMSO) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    y = secao(secaoItem.titulo, y)
+
+    // Conteúdo principal
+    const conteudoSecao = secoesCust[secaoItem.id] || secaoItem.conteudo
+    y = paragrafo(conteudoSecao, y, 10)
+
+    // Subseções
+    if (secaoItem.subsecoes) {
+      for (const sub of secaoItem.subsecoes) {
+        if (y > 250) { doc.addPage(); y = 20 }
+        doc.setFontSize(9); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+        doc.text(`→ ${sub.titulo}`, mg + 5, y); y += 5
+        doc.setFont('helvetica', 'normal')
+        y = paragrafo(sub.conteudo, y, 9)
+        y += 2
+      }
+    }
+
+    // Tabelas
+    if (secaoItem.tabelas) {
+      for (const tabela of secaoItem.tabelas) {
+        if (y > 250) { doc.addPage(); y = 20 }
+        doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+        doc.text(`${tabela.titulo}:`, mg, y); y += 5
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+
+        const linhasTab = tabela.linhas.slice(0, 15)
+        for (const linha of linhasTab) {
+          if (y > 275) { doc.addPage(); y = 20 }
+          const texto = linha.join(' | ')
+          const linhas = doc.splitTextToSize(texto, W - mg * 2 - 10)
+          for (const l of linhas) {
+            if (y > 275) { doc.addPage(); y = 20 }
+            doc.text(l, mg + 5, y); y += 4
+          }
+        }
+        y += 2
       }
     }
     y += 4

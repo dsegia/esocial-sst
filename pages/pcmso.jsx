@@ -93,6 +93,8 @@ export default function PCMSO() {
   const [salvandoMedico, setSalvandoMedico] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
   const [secaoAberta, setSecaoAberta] = useState(null)
+  const [editandoSecao, setEditandoSecao] = useState(null)
+  const [formSecoes, setFormSecoes] = useState({})
 
   useEffect(() => { init() }, [])
 
@@ -167,6 +169,32 @@ export default function PCMSO() {
       await init()
     }
     setSalvandoMedico(false)
+  }
+
+  function abrirEdicaoSecao(idSecao) {
+    setFormSecoes(medico?.secoes_custom || {})
+    setEditandoSecao(idSecao)
+  }
+
+  async function salvarSecoes() {
+    if (!medico) return
+    const dados = {
+      empresa_id: empresaId,
+      secoes_custom: formSecoes,
+      atualizado_em: new Date().toISOString(),
+    }
+    const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
+    if (error) { alert('Erro ao salvar: ' + error.message) }
+    else {
+      setEditandoSecao(null)
+      await init()
+    }
+  }
+
+  function obterConteudoSecao(idSecao) {
+    if (formSecoes?.[idSecao]) return formSecoes[idSecao]
+    const secao = SECOES_PCMSO.find(s => s.id === idSecao)
+    return secao ? secao.conteudo : ''
   }
 
   function ultimoAso(funcId) {
@@ -743,11 +771,18 @@ export default function PCMSO() {
             return (
               <div key={secao.id} style={{ ...s.card, marginBottom:0, padding:0, overflow:'hidden' }}>
                 {/* Header da seção */}
-                <button onClick={() => setSecaoAberta(aberta ? null : secao.id)}
-                  style={{ width:'100%', padding:'14px 16px', background:'#fff', border:'none', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: aberta ? '1px solid #e5e7eb' : 'none' }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#111', textAlign:'left' }}>{secao.titulo}</div>
-                  <div style={{ fontSize:18, color:'#9ca3af', fontWeight:300 }}>{aberta ? '−' : '+'}</div>
-                </button>
+                <div style={{ padding:'14px 16px', background:'#fff', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom: aberta ? '1px solid #e5e7eb' : 'none' }}>
+                  <button onClick={() => setSecaoAberta(aberta ? null : secao.id)}
+                    style={{ flex:1, background:'none', border:'none', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', padding:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#111', textAlign:'left' }}>{secao.titulo}</div>
+                    <div style={{ fontSize:18, color:'#9ca3af', fontWeight:300 }}>{aberta ? '−' : '+'}</div>
+                  </button>
+                  {medico && (
+                    <button onClick={() => abrirEdicaoSecao(secao.id)} style={{ ...s.btnAcao, marginLeft:8, whiteSpace:'nowrap' }}>
+                      Editar
+                    </button>
+                  )}
+                </div>
 
                 {/* Conteúdo expandível */}
                 {aberta && (
@@ -800,6 +835,28 @@ export default function PCMSO() {
               </div>
             )
           })}
+
+          {/* ── Editor de Seção ── */}
+          {editandoSecao && (
+            <div style={{ ...s.card, marginTop:16, borderColor:'#185FA5', borderWidth:2 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:12 }}>
+                ✎ Editando: {SECOES_PCMSO.find(s => s.id === editandoSecao)?.titulo}
+              </div>
+              <textarea
+                style={{ ...s.input, minHeight:300, fontSize:12, lineHeight:1.6, fontFamily:'monospace' }}
+                value={obterConteudoSecao(editandoSecao)}
+                onChange={e => setFormSecoes({...formSecoes, [editandoSecao]: e.target.value})}
+                placeholder="Edite o conteúdo desta seção..."
+              />
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
+                Use quebras de linha naturais. Subseções com "→" no início serão formatadas automaticamente.
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
+                <button style={s.btnOutline} onClick={() => setEditandoSecao(null)}>Cancelar</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
