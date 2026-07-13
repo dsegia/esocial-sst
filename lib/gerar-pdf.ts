@@ -1,7 +1,7 @@
 // lib/gerar-pdf.ts
 // Geração de PDF para ASO, LTCAT e PCMSO usando jsPDF
 
-import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, nivelRisco } from './pgr-conteudo'
+import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, nivelRisco, DEFINICOES_PGR } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
 import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
@@ -524,7 +524,6 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   let W = 210, H = 297
   const mg = 15
   let y = 15
-  let indicePages: Array<{titulo: string, pagina: number}> = []
   const paginas: any = { capa: 1 }
 
   function hexRgb(hex: string): [number, number, number] {
@@ -638,6 +637,13 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const planoAcao = dados?.plano_acao || []
   const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico', aci: 'Mecânico/Acidentes', psi: 'Psicossocial' }
 
+  function linhaDupla(labelA: string, valA: string, labelB: string, valB: string, yPos: number, larguraTotal: number): number {
+    const colW = larguraTotal / 2 - 3
+    const yA = campo(labelA, valA, mg, yPos, colW)
+    const yB = campo(labelB, valB, mg + larguraTotal / 2 + 3, yPos, colW)
+    return Math.max(yA, yB)
+  }
+
   // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 30, 'F')
@@ -651,11 +657,19 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   doc.setFontSize(9)
   doc.text('Conforme Portaria 1.419/2024 (Vigência: 26/05/2026)', W / 2, 24, { align: 'center' })
 
-  y = 50
-  doc.setFontSize(12); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-  doc.text(empresa?.razao_social || 'EMPRESA', W / 2, y, { align: 'center' }); y += 8
-  doc.setFontSize(9); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
-  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, y, { align: 'center' }); y += 20
+  y = 55
+  doc.setFont('helvetica', 'bold')
+  let nomeFontSize = 22
+  doc.setFontSize(nomeFontSize)
+  const nomeEmpresaTxt = empresa?.razao_social || 'EMPRESA'
+  while (doc.getTextWidth(nomeEmpresaTxt) > (W - 40) && nomeFontSize > 13) {
+    nomeFontSize -= 1
+    doc.setFontSize(nomeFontSize)
+  }
+  doc.setTextColor(24, 95, 165)
+  doc.text(nomeEmpresaTxt, W / 2, y, { align: 'center' }); y += 10
+  doc.setFontSize(10); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, y, { align: 'center' }); y += 22
 
   doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
   doc.text('Dados do Documento', mg, y); y += 8
@@ -671,45 +685,44 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   doc.text(`Elaboração: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), mg, y); y += 5
   doc.text(`Representante Legal: ${empresa?.resp_nome || '—'}`, mg, y); y += 15
 
-  y += 30
+  y += 20
   doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
   doc.text('Este documento é confidencial e de uso exclusivo da empresa acima identificada.', W / 2, y, { align: 'center' })
 
   paginas.capa = 1
 
-  // ── PÁGINA 2: CONTRACAPA COM DADOS COMPLETOS ────────
+  // ── PÁGINA 2: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
   doc.addPage()
   y = 20
   y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
-  let yw = (W - mg * 2)
-  y = campo('Razão Social', empresa?.razao_social, mg, y, yw) + 2
-  y = campo('Nome Fantasia', empresa?.nome_fantasia || '—', mg, y, yw) + 2
-  y = campo('CNPJ', empresa?.cnpj, mg, y, yw / 2)
-  y = campo('Inscrição Estadual', empresa?.inscricao_estadual, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
-  y = campo('Inscrição Municipal', empresa?.inscricao_municipal || '—', mg, y, yw / 2)
-  y = campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
-  y = campo('Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco || '—'}`, mg, y, yw / 3)
-  y = campo('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', mg + yw / 3 + 2, y - (yw/3 + 4), yw / 3 - 2)
-  y = campo('Horário de Funcionamento', empresa?.horario_funcionamento || '—', mg + (yw / 3) * 2 + 2, y - (yw/3 + 4), yw / 3 - 2) + 2
-  y = campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw) + 2
-  y = campo('Telefone', empresa?.telefone, mg, y, yw / 2)
-  y = campo('E-mail', empresa?.email, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
+  const yw = (W - mg * 2)
+  y = linhaDupla('Razão Social', empresa?.razao_social, 'Nome Fantasia', empresa?.nome_fantasia || '—', y, yw) + 3
+  y = linhaDupla('CNPJ', empresa?.cnpj, 'Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco != null ? empresa.grau_risco : '—'}`, y, yw) + 3
+  y = linhaDupla('Inscrição Estadual', empresa?.inscricao_estadual || '—', 'Inscrição Municipal', empresa?.inscricao_municipal || '—', y, yw) + 3
+  y = campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg, y, yw) + 3
+  y = campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw) + 3
+  y = linhaDupla('Telefone', empresa?.telefone || '—', 'E-mail', empresa?.email || '—', y, yw) + 3
+  y = linhaDupla('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', 'Horário de Funcionamento', empresa?.horario_funcionamento || '—', y, yw) + 5
 
-  y += 4; y = secao('RESPONSÁVEIS PELO PGR', y)
-  y = campo('Responsável Legal (Implementação)', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` — ${empresa.resp_cargo}` : ''}`, mg, y, yw) + 2
-  y = campo('Responsável Técnico (Elaboração)', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim(), mg, y, yw) + 2
+  y = secao('RESPONSÁVEIS PELO PGR', y)
+  y = campo('Responsável Legal (Implementação)', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` — ${empresa.resp_cargo}` : ''}`, mg, y, yw) + 3
+  y = campo('Responsável Técnico (Elaboração)', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim(), mg, y, yw) + 3
   if (empresa?.resp_telefone || empresa?.resp_email) {
-    y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 2
+    y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 3
   }
 
   paginas.contracapa = 2
 
-  // ── PÁGINA 3: HISTÓRICO DE REVISÕES ────────────────
+  // ── PÁGINA 3: ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
   doc.addPage()
-  y = 20
-  y = secao('HISTÓRICO DE REVISÕES', y)
+  paginas.indice = (doc as any).internal.getNumberOfPages()
+
+  // ── HISTÓRICO DE REVISÕES — só aparece quando existe de fato mais de uma revisão ─
   const historicoRevisoes = dados?.historico_revisoes || []
-  if (historicoRevisoes.length > 0) {
+  const temHistoricoReal = historicoRevisoes.length > 1 || (dg.numero_revisao && dg.numero_revisao > 1)
+  if (temHistoricoReal) {
+    doc.addPage(); y = 20
+    y = secao('HISTÓRICO DE REVISÕES', y)
     y = tabela(
       [
         { titulo: 'REV', largura: 20 },
@@ -725,101 +738,28 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       ]),
       y,
     )
-  } else {
-    doc.setFontSize(9); doc.setTextColor(120)
-    doc.text('Nenhuma revisão anterior registrada (Documento inicial).', mg + 2, y); y += 6
-  }
-  paginas.historico = 3
-
-  // ── PÁGINA 4: OBJETIVOS E RESPONSABILIDADES ────────
-  doc.addPage()
-  y = 20
-  y = secao('OBJETIVOS E RESPONSABILIDADES', y)
-  y = subSecao('Objetivo do PGR', y)
-  y = paragrafo(
-    'Estabelecer e implementar medidas de proteção da saúde e da integridade física dos trabalhadores através da identificação, avaliação, ' +
-    'monitoramento e controle dos riscos ambientais presentes nos locais de trabalho, em conformidade com a NR-1 (Portaria 6.730/2020) e legislação correlata.',
-    y, 9
-  )
-  y = subSecao('Responsabilidades da Empresa', y)
-  const responsabilidades = [
-    'Garantir a implementação das medidas de proteção contra riscos ambientais',
-    'Disponibilizar recursos financeiros, materiais e humanos necessários',
-    'Manter o PGR atualizado e disponível para consulta dos trabalhadores',
-    'Realizar avaliações periódicas dos riscos conforme cronograma estabelecido',
-    'Adotar medidas de eliminação ou minimização de riscos',
-    'Fornecer equipamentos de proteção individual e coletiva',
-  ]
-  for (const resp of responsabilidades) {
-    doc.setFontSize(9); doc.setTextColor(50)
-    doc.text(`• ${resp}`, mg + 5, y); y += 5
-  }
-  y += 3
-  y = subSecao('Responsabilidades do Responsável Técnico', y)
-  const respTec = [
-    'Elaborar, atualizar e revisar o PGR',
-    'Supervisionar a implementação das medidas de controle',
-    'Fornecer assessoria técnica à empresa',
-    'Acompanhar o cumprimento das obrigações legais',
-  ]
-  for (const rt of respTec) {
-    doc.setFontSize(9); doc.setTextColor(50)
-    doc.text(`• ${rt}`, mg + 5, y); y += 5
+    paginas.historico = (doc as any).internal.getNumberOfPages()
   }
 
-  paginas.objetivos = 4
-
-  // ── PÁGINA 5: ÍNDICE AUTOMÁTICO ────────────────────
-  doc.addPage()
-  y = 20
-  y = secao('ÍNDICE', y)
-  y += 4
-  indicePages = [
-    { titulo: '1. Identificação da Empresa', pagina: 2 },
-    { titulo: '2. Histórico de Revisões', pagina: 3 },
-    { titulo: '3. Objetivos e Responsabilidades', pagina: 4 },
-    { titulo: '4. Ambientes de Trabalho', pagina: 6 },
-    { titulo: '5. Inventário de Riscos', pagina: 7 },
-    { titulo: '6. Plano de Ação', pagina: 9 },
-    { titulo: '7. Matriz de Riscos', pagina: 10 },
-    { titulo: '8. Anexos', pagina: 11 },
-  ]
-  doc.setFontSize(9); doc.setTextColor(30)
-  for (const item of indicePages) {
-    doc.text(item.titulo, mg, y)
-    doc.text(String(item.pagina), W - mg - 5, y, { align: 'right' })
-    y += 6
+  // ── DEFINIÇÕES (glossário técnico do GRO/PGR) ────────
+  doc.addPage(); y = 20
+  y = secao('DEFINIÇÕES', y)
+  y = paragrafo('Para efeito deste documento, aplicam-se as definições a seguir, baseadas no Anexo I ("Termos e Definições") da NR-1, na redação dada pela Portaria MTE nº 1.419/2024, complementadas por conceitos técnicos consagrados na prática de segurança e saúde do trabalho.', y, 8.5)
+  y += 1
+  for (const d of DEFINICOES_PGR) {
+    if (y > 265) { doc.addPage(); y = 20 }
+    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    const linhasTermo = doc.splitTextToSize(d.termo, W - mg * 2)
+    doc.text(linhasTermo, mg, y); y += linhasTermo.length * 4.3 + 1
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(d.definicao, y, 8.5)
+    y += 1.5
   }
-  y += 6; linha(y); y += 6
-  doc.setFontSize(8); doc.setTextColor(100)
-  doc.text(`Total de páginas: ${(doc as any).internal.getNumberOfPages()}`, mg, y)
+  paginas.definicoes = (doc as any).internal.getNumberOfPages()
 
-  paginas.indice = 5
-
-  // ── Dados da empresa ──────────────────────────────────
-  doc.addPage()
-  y = 20
-  y = secao('DADOS DA EMPRESA', y)
-  yw = (W - mg * 2)
-  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
-  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10
-  campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg, y, yw / 2)
-  campo('Grau de Risco', empresa?.grau_risco != null ? String(empresa.grau_risco) : '—', mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10
-  campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw)
-  y += 10
-  campo('Telefone', empresa?.telefone, mg, y, yw / 2)
-  campo('E-mail', empresa?.email, mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10
-  campo('Inscrição Estadual', empresa?.inscricao_estadual, mg, y, yw / 3)
-  campo('Inscrição Municipal', empresa?.inscricao_municipal, mg + yw / 3, y, yw / 3)
-  campo('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', mg + (yw / 3) * 2, y, yw / 3)
-  y += 12
-  campo('Representante Legal', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` (${empresa.resp_cargo})` : ''}`, mg, y, yw)
-  y += 12; linha(y); y += 6
-
-  // ── Textos legais (NR-1) ──────────────────────────────
+  // ── Textos legais (NR-1): Introdução, Objetivos, Responsabilidades etc. ─
+  doc.addPage(); y = 20
+  paginas.introducao = (doc as any).internal.getNumberOfPages()
   const textosCustom = dados?.textos_legais_custom || {}
   for (const secaoTexto of TEXTOS_LEGAIS_PGR) {
     if (y > 250) { doc.addPage(); y = 20 }
@@ -831,15 +771,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   if (y > 240) { doc.addPage(); y = 20 }
   linha(y); y += 6
 
-  // ── Responsáveis ──────────────────────────────────────
-  y = secao('RESPONSÁVEIS PELO PGR', y)
-  campo('Responsável pela implementação (representante legal)', empresa?.resp_nome, mg, y, yw)
-  y += 12
-  campo('Responsável pela elaboração', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim(), mg, y, yw)
-  y += 14; linha(y); y += 6
-
   // ── Ambientes de trabalho ─────────────────────────────
   if (y > 245) { doc.addPage(); y = 20 }
+  paginas.ambientes = (doc as any).internal.getNumberOfPages()
   y = secao(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
   if (ambientes.length) {
     for (const a of ambientes) {
@@ -869,6 +803,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Inventário de riscos por GHE (página em paisagem) ─
   doc.addPage('a4', 'landscape'); W = 297; H = 210; y = 20
+  paginas.inventario = (doc as any).internal.getNumberOfPages()
   y = secao(`INVENTÁRIO DE RISCOS POR GHE (${inventario.length})`, y)
   if (inventario.length) {
     for (const g of inventario) {
@@ -986,34 +921,30 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   if (y > H - 50) { doc.addPage(); y = 20 }
   y = subSecao('Distribuição de Riscos por Nível', y)
 
-  // Contar riscos por nível
-  const distribuicaoRiscos: Record<string, number> = { 'CRÍTICO': 0, 'ALTO': 0, 'MÉDIO': 0, 'BAIXO': 0, 'IRRELEVANTE': 0 }
+  // Contar riscos por nível — usa as MESMAS faixas de nivelRisco() (Quadro 2 da
+  // NR-1), reaproveitando QUADRO2_INTERPRETACAO para rótulo e cor, evitando
+  // categorias inventadas que nunca bateriam com o resultado real de nivelRisco().
+  const distribuicaoRiscos: Record<string, number> = {}
+  for (const q of QUADRO2_INTERPRETACAO) distribuicaoRiscos[q.label] = 0
   for (const g of inventario) {
     for (const r of (g.riscos || [])) {
       const nr = nivelRisco(r.severidade, r.probabilidade)
-      if (nr?.faixa) distribuicaoRiscos[nr.faixa]++
+      if (nr?.faixa) distribuicaoRiscos[nr.faixa] = (distribuicaoRiscos[nr.faixa] || 0) + 1
     }
   }
 
   const totalRiscos = Object.values(distribuicaoRiscos).reduce((a, b) => a + b, 0)
+  paginas.distribuicao = (doc as any).internal.getNumberOfPages()
   if (totalRiscos > 0) {
-    // Desenhar barras horizontal
     let yy = y
-    const corRiscos: Record<string, [number, number, number]> = {
-      'CRÍTICO': [220, 20, 20],
-      'ALTO': [255, 140, 0],
-      'MÉDIO': [255, 193, 7],
-      'BAIXO': [100, 200, 50],
-      'IRRELEVANTE': [150, 200, 100],
-    }
-
-    for (const [nivel, count] of Object.entries(distribuicaoRiscos)) {
-      const pct = totalRiscos > 0 ? (count / totalRiscos) * 100 : 0
+    for (const q of QUADRO2_INTERPRETACAO) {
+      const count = distribuicaoRiscos[q.label] || 0
+      const pct = (count / totalRiscos) * 100
       const larguraBarra = (pct / 100) * 120
+      const [r, g, b] = hexRgb(q.cor)
       doc.setFontSize(8); doc.setTextColor(50)
-      doc.text(`${nivel}:`, mg, yy);
-      const [r, g, b] = corRiscos[nivel]
-      doc.setFillColor(r, g, b); doc.rect(mg + 35, yy - 2.5, larguraBarra, 3, 'F')
+      doc.text(`${q.label}:`, mg, yy)
+      doc.setFillColor(r, g, b); doc.rect(mg + 35, yy - 2.5, Math.max(larguraBarra, count > 0 ? 2 : 0), 3, 'F')
       doc.setTextColor(50); doc.text(`${count} (${pct.toFixed(0)}%)`, mg + 35 + larguraBarra + 5, yy)
       yy += 6
     }
@@ -1028,6 +959,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Plano de ação ─────────────────────────────────────
   if (y > 230) { doc.addPage(); y = 20 }
+  paginas.planoAcao = (doc as any).internal.getNumberOfPages()
   y = secao(`PLANO DE AÇÃO (${planoAcao.length})`, y)
   const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
   const priorMap: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
@@ -1068,6 +1000,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Anexo I — Plano de Emergência ─────────────────────
   doc.addPage(); y = 20
+  paginas.planoEmergencia = (doc as any).internal.getNumberOfPages()
   y = secao(TEXTO_PLANO_EMERGENCIA.titulo, y)
   for (const secaoEmerg of TEXTO_PLANO_EMERGENCIA.secoes) {
     if (y > 260) { doc.addPage(); y = 20 }
@@ -1078,63 +1011,69 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Anexo II — Matriz de Risco Visual (Heatmap) ─────
   doc.addPage(); y = 20
+  paginas.matrizRisco = (doc as any).internal.getNumberOfPages()
   y = secao('ANEXO — MATRIZ DE RISCO', y)
-  y = subSecao('Heatmap Visual — Distribuição de Riscos (Probabilidade × Severidade)', y)
+  y = subSecao('Matriz de Referência — Severidade × Probabilidade', y)
+  y = paragrafo('Grade de referência da NR-1 (Quadros 2 e 3), com o nível de risco resultante de cada combinação de severidade e probabilidade. O número em cada célula indica quantos riscos do inventário caíram exatamente nessa combinação.', y, 8)
+  y += 2
 
-  // Construir matriz 5x5 com riscos
-  const matrizRiscos: number[][] = Array(5).fill(0).map(() => Array(5).fill(0))
+  // Matriz de referência: linhas = severidade (decrescente), colunas = probabilidade (crescente) —
+  // usa os MESMOS valores discretos de SEVERIDADE_OPCOES/PROBABILIDADE_OPCOES e a
+  // MESMA função nivelRisco() da tabela de inventário, evitando reinventar uma escala
+  // (bug anterior: assumia 1–5 quando os valores reais são 2/4/8/16/32 e 2/3/5/8/13).
+  const severidadesDesc = [...SEVERIDADE_OPCOES].reverse()
+  const contagemMatriz: number[][] = severidadesDesc.map(() => PROBABILIDADE_OPCOES.map(() => 0))
   for (const g of inventario) {
     for (const r of (g.riscos || [])) {
-      const sev = parseInt(r.severidade) || 3
-      const prob = parseInt(r.probabilidade) || 3
-      if (sev >= 1 && sev <= 5 && prob >= 1 && prob <= 5) {
-        matrizRiscos[5 - sev][prob - 1]++
-      }
+      const si = severidadesDesc.findIndex(s => s.v === Number(r.severidade))
+      const pi = PROBABILIDADE_OPCOES.findIndex(p => p.v === Number(r.probabilidade))
+      if (si >= 0 && pi >= 0) contagemMatriz[si][pi]++
     }
   }
 
-  // Desenhar grid 5x5
-  const tamCelula = 12
-  const startX = mg + 20
+  const tamCelula = 14
+  const startX = mg + 24
   const startY = y + 10
-  const corMatriz = ['#E5F3E5', '#D4EDD4', '#FFF4E6', '#FFE6CC', '#FFB3B3'] // Verde → Vermelho
 
   doc.setFontSize(7); doc.setTextColor(100)
   doc.text('SEVERIDADE ↓', mg + 2, startY - 5)
-  doc.text('PROBABILIDADE →', startX + (tamCelula * 5) / 2 - 20, startY + (tamCelula * 5) + 5)
+  doc.text('PROBABILIDADE →', startX + (tamCelula * PROBABILIDADE_OPCOES.length) / 2 - 22, startY + (tamCelula * severidadesDesc.length) + 5)
 
-  // Cabeçalho (Probabilidade)
-  for (let p = 1; p <= 5; p++) {
+  // Cabeçalho (probabilidade)
+  for (let pi = 0; pi < PROBABILIDADE_OPCOES.length; pi++) {
     doc.setFillColor(240, 240, 240)
-    doc.rect(startX + (p - 1) * tamCelula, startY - tamCelula, tamCelula, tamCelula)
-    doc.setFontSize(6); doc.setTextColor(80)
-    doc.text(String(p), startX + (p - 1) * tamCelula + tamCelula / 2, startY - tamCelula / 2 + 2, { align: 'center' })
+    doc.rect(startX + pi * tamCelula, startY - tamCelula, tamCelula, tamCelula)
+    doc.setFontSize(6.5); doc.setTextColor(80)
+    doc.text(String(PROBABILIDADE_OPCOES[pi].v), startX + pi * tamCelula + tamCelula / 2, startY - tamCelula / 2 + 1, { align: 'center' })
+    doc.setFontSize(5); const linhasLabel = doc.splitTextToSize(PROBABILIDADE_OPCOES[pi].l, tamCelula - 2)
+    doc.text(linhasLabel, startX + pi * tamCelula + tamCelula / 2, startY - tamCelula / 2 + 4, { align: 'center' })
   }
 
-  // Linhas (Severidade)
-  for (let s = 5; s >= 1; s--) {
+  // Linhas (severidade) + células coloridas pela mesma classificação usada no inventário
+  for (let si = 0; si < severidadesDesc.length; si++) {
     doc.setFillColor(240, 240, 240)
-    doc.rect(startX - tamCelula, startY + (5 - s) * tamCelula, tamCelula, tamCelula)
-    doc.setFontSize(6); doc.setTextColor(80)
-    doc.text(String(s), startX - tamCelula / 2, startY + (5 - s) * tamCelula + tamCelula / 2 + 2, { align: 'center' })
-  }
+    doc.rect(startX - tamCelula, startY + si * tamCelula, tamCelula, tamCelula)
+    doc.setFontSize(6.5); doc.setTextColor(80)
+    doc.text(String(severidadesDesc[si].v), startX - tamCelula / 2, startY + si * tamCelula + tamCelula / 2 + 1, { align: 'center' })
+    doc.setFontSize(5); const linhasLabelSev = doc.splitTextToSize(severidadesDesc[si].l, tamCelula - 2)
+    doc.text(linhasLabelSev, startX - tamCelula / 2, startY + si * tamCelula + tamCelula / 2 + 4, { align: 'center' })
 
-  // Preencher matriz
-  for (let s = 1; s <= 5; s++) {
-    for (let p = 1; p <= 5; p++) {
-      const count = matrizRiscos[5 - s][p - 1]
-      const idx = Math.min(Math.floor((count / 10) * 5), 4) // Escala de 0-4
-      const [r, g, b] = hexRgb(corMatriz[idx])
-      doc.setFillColor(r, g, b)
-      doc.rect(startX + (p - 1) * tamCelula, startY + (5 - s) * tamCelula, tamCelula, tamCelula, 'FD')
+    for (let pi = 0; pi < PROBABILIDADE_OPCOES.length; pi++) {
+      const nr = nivelRisco(severidadesDesc[si].v, PROBABILIDADE_OPCOES[pi].v)
+      const [rB, gB, bB] = hexRgb(nr?.bg || '#EAF3DE')
+      doc.setFillColor(rB, gB, bB)
+      doc.rect(startX + pi * tamCelula, startY + si * tamCelula, tamCelula, tamCelula, 'FD')
+      const count = contagemMatriz[si][pi]
       if (count > 0) {
-        doc.setFontSize(7); doc.setTextColor(0)
-        doc.text(String(count), startX + (p - 1) * tamCelula + tamCelula / 2, startY + (5 - s) * tamCelula + tamCelula / 2 + 1.5, { align: 'center' })
+        const [rC, gC, bC] = hexRgb(nr?.cor || '#27500A')
+        doc.setFontSize(8); doc.setTextColor(rC, gC, bC); doc.setFont('helvetica', 'bold')
+        doc.text(String(count), startX + pi * tamCelula + tamCelula / 2, startY + si * tamCelula + tamCelula / 2 + 2, { align: 'center' })
+        doc.setFont('helvetica', 'normal')
       }
     }
   }
 
-  y = startY + (tamCelula * 5) + 15
+  y = startY + (tamCelula * severidadesDesc.length) + 15
 
   y = subSecao('Quadro 1 — Interpretação por faixa de risco', y)
   for (const q of QUADRO2_INTERPRETACAO) {
@@ -1172,6 +1111,36 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     { label: 'Responsável pela elaboração', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
     { nome: empresa?.resp_nome }
   )
+
+  // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  doc.setPage(paginas.indice)
+  let yIndice = 20
+  yIndice = secao('ÍNDICE', yIndice)
+  yIndice += 4
+  const itensIndice: Array<[string, number | undefined]> = [
+    ['Identificação da Empresa', paginas.contracapa],
+    ['Histórico de Revisões', paginas.historico],
+    ['Definições', paginas.definicoes],
+    ['Introdução, Objetivos e Responsabilidades', paginas.introducao],
+    ['Ambientes de Trabalho', paginas.ambientes],
+    ['Inventário de Riscos por GHE', paginas.inventario],
+    ['Distribuição de Riscos por Nível', paginas.distribuicao],
+    ['Plano de Ação', paginas.planoAcao],
+    ['Anexo I — Plano de Emergência', paginas.planoEmergencia],
+    ['Anexo II — Matriz de Risco', paginas.matrizRisco],
+  ]
+  doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
+  let numItemIndice = 1
+  for (const [tituloItem, paginaItem] of itensIndice) {
+    if (paginaItem == null) continue
+    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+    doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
+    yIndice += 6
+    numItemIndice++
+  }
+  yIndice += 6; linha(yIndice); yIndice += 6
+  doc.setFontSize(8); doc.setTextColor(100)
+  doc.text(`Total de páginas: ${(doc as any).internal.getNumberOfPages()}`, mg, yIndice)
 
   // ── Rodapé ────────────────────────────────────────────
   const totalPags = (doc as any).internal.getNumberOfPages()

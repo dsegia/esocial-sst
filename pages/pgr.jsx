@@ -202,9 +202,10 @@ export default function PGR() {
   async function atualizarLogo(logoUrl) {
     setSalvandoLogo(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/empresa/atualizar-logo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ logo_url: logoUrl })
       })
       if (!res.ok) throw new Error('Erro ao atualizar logo')
@@ -591,12 +592,15 @@ export default function PGR() {
     gerarPdfPgr(
       {
         dados_gerais: {
+          numero_revisao: pgr.numero_revisao,
+          status: pgr.status,
           data_elaboracao: pgr.data_elaboracao,
           prox_revisao: pgr.prox_revisao,
           resp_nome: pgr.resp_nome,
           resp_conselho: pgr.resp_conselho,
           resp_registro: pgr.resp_registro,
         },
+        historico_revisoes: pgr.historico_revisoes || [],
         ambientes: pgr.ambientes || [],
         inventario: pgr.inventario || [],
         plano_acao: pgr.plano_acao || [],

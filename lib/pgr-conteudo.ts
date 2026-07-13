@@ -77,6 +77,36 @@ export const QUADRO4_SEVERIDADE = [
   { v: 32, l: 'Catastrófica', efeito: 'Risco de vida ou doença/lesão incapacitante' },
 ]
 
+export interface Definicao { termo: string; definicao: string }
+
+// Glossário técnico do GRO/PGR — baseado no Anexo I "Termos e Definições" da NR-1
+// (redação dada pela Portaria MTE nº 1.419/2024) e em conceitos consagrados na
+// prática de segurança e saúde do trabalho no Brasil.
+export const DEFINICOES_PGR: Definicao[] = [
+  { termo: 'Perigo (ou fator de risco ocupacional)', definicao: 'Elemento ou situação que, isoladamente ou em combinação, tem o potencial de dar origem a lesões ou agravos à saúde do trabalhador.' },
+  { termo: 'Risco ocupacional', definicao: 'Combinação da probabilidade de ocorrência de um determinado evento indesejado, relacionado a um perigo, com a severidade das lesões ou dos agravos à saúde que dele podem resultar.' },
+  { termo: 'Dano', definicao: 'Lesão à integridade física ou mental do trabalhador, ou agravo à sua saúde, inclusive em decorrência de exposição a fatores de risco psicossociais relacionados ao trabalho.' },
+  { termo: 'Gerenciamento de Riscos Ocupacionais (GRO)', definicao: 'Processo contínuo e sistemático de identificação de perigos e de avaliação, classificação, tratamento e monitoramento dos riscos ocupacionais, com o objetivo de proporcionar ambientes de trabalho seguros e saudáveis.' },
+  { termo: 'Programa de Gerenciamento de Riscos (PGR)', definicao: 'Documento que consolida o GRO em um estabelecimento, formado, no mínimo, pelo inventário de riscos ocupacionais e pelo plano de ação.' },
+  { termo: 'Inventário de riscos ocupacionais', definicao: 'Documento que consolida os dados da identificação de perigos e das avaliações de riscos ocupacionais realizadas na organização.' },
+  { termo: 'Plano de ação', definicao: 'Documento que indica as medidas de prevenção a serem introduzidas, aprimoradas ou mantidas, definindo cronograma, formas de acompanhamento e de aferição de resultados.' },
+  { termo: 'Identificação de perigos', definicao: 'Etapa do GRO em que são reconhecidos os perigos existentes, descritas as possíveis lesões ou agravos à saúde, identificadas as fontes ou circunstâncias e caracterizado o grupo de trabalhadores expostos.' },
+  { termo: 'Avaliação de riscos ocupacionais', definicao: 'Processo de determinação do nível de risco, a partir da combinação entre a severidade das possíveis lesões e a probabilidade de sua ocorrência, para subsidiar a definição das medidas de prevenção necessárias.' },
+  { termo: 'Levantamento preliminar de perigos', definicao: 'Etapa inicial de reconhecimento de perigos, realizada antes do início de funcionamento do estabelecimento, de novas instalações ou da introdução de novos processos ou atividades de trabalho.' },
+  { termo: 'Medidas de prevenção', definicao: 'Ações destinadas a eliminar, minimizar ou controlar riscos ocupacionais, adotadas segundo a ordem de prioridade: eliminação do perigo; medidas de proteção coletiva (EPC); medidas administrativas ou de organização do trabalho; e medidas de proteção individual (EPI).' },
+  { termo: 'Severidade', definicao: 'Magnitude esperada das lesões ou dos agravos à saúde decorrentes de um determinado perigo, considerando também o número de trabalhadores potencialmente afetados.' },
+  { termo: 'Probabilidade', definicao: 'Chance estimada de ocorrência do dano, considerando a frequência e a duração da exposição, os requisitos normativos e as medidas de prevenção já implementadas.' },
+  { termo: 'Nível de risco', definicao: 'Resultado da combinação entre severidade e probabilidade (severidade × probabilidade), utilizado para classificar e priorizar a implementação das medidas de prevenção (Baixo, Médio, Alto ou Muito Alto).' },
+  { termo: 'Fatores de Risco Psicossociais Relacionados ao Trabalho (FRPRT)', definicao: 'Fatores relacionados à organização e à gestão do trabalho capazes de causar dano à saúde física e mental do trabalhador, como sobrecarga e ritmo excessivos, jornadas extenuantes, assédio moral e sexual, violência no trabalho e conflitos interpessoais — incluídos de forma expressa no inventário de riscos pela Portaria MTE nº 1.419/2024.' },
+  { termo: 'Perigo externo', definicao: 'Perigo alheio às atividades da organização, mas que, em razão do local ou das circunstâncias de trabalho, pode afetar a segurança e a saúde dos trabalhadores.' },
+  { termo: 'Risco ocupacional evidente', definicao: 'Risco de fácil constatação, cuja gravidade dispensa avaliação técnica aprofundada para a adoção imediata de medida de prevenção.' },
+  { termo: 'Emergência de grande magnitude', definicao: 'Evento inesperado cujas consequências extrapolam os limites da organização, podendo atingir a população ou o meio ambiente do entorno.' },
+  { termo: 'Organização contratada', definicao: 'Pessoa jurídica ou física contratada para prestação de serviços nas dependências da organização contratante, responsável pelo gerenciamento dos riscos ocupacionais das próprias atividades.' },
+  { termo: 'Grupo Homogêneo de Exposição (GHE)', definicao: 'Agrupamento metodológico de trabalhadores que compartilham, de forma similar, os mesmos perigos, atividades e condições de exposição — termo de uso consagrado na prática de higiene ocupacional (herdado da antiga NR-9/PPRA), que permite tratar riscos em conjunto de forma mais eficiente, embora não conste de forma expressa na redação atual da NR-1.' },
+  { termo: 'Equipamento de Proteção Individual (EPI)', definicao: 'Dispositivo de uso individual destinado a proteger a saúde e a integridade física do trabalhador, sujeito às disposições da NR-6.' },
+  { termo: 'Equipamento de Proteção Coletiva (EPC)', definicao: 'Dispositivo, sistema ou mecanismo que protege o conjunto de trabalhadores expostos a um risco, atuando na fonte ou na trajetória do perigo, antes que este atinja o trabalhador.' },
+]
+
 export interface SecaoLegal { titulo: string; paragrafos: string[] }
 
 export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
@@ -111,6 +141,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     titulo: '4. PROCESSO DE IDENTIFICAÇÃO DE PERIGOS E AVALIAÇÃO DE RISCOS OCUPACIONAIS',
     paragrafos: [
       'O processo de identificação de perigos e avaliação de riscos ocupacionais deve considerar o disposto nas Normas Regulamentadoras e demais exigências legais de segurança e saúde no trabalho.',
+      'O processo é conduzido em etapas sequenciais: (i) levantamento preliminar de perigos; (ii) identificação de perigos, com a descrição das fontes ou circunstâncias e do grupo de trabalhadores expostos; (iii) avaliação dos riscos ocupacionais, com a determinação do nível de risco; (iv) classificação dos riscos, para priorização das medidas de prevenção; e (v) elaboração do plano de ação. Este ciclo é contínuo, sendo retroalimentado sempre que houver mudanças nos processos de trabalho, novas evidências de exposição ou resultados de monitoramento que indiquem a necessidade de revisão.',
     ],
   },
   {
@@ -163,17 +194,18 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
   {
     titulo: '11. FORMAS DE AVALIAÇÃO',
     paragrafos: [
-      'Comparando os resultados obtidos em avaliações quantitativas e/ou qualitativas, antes e depois da implantação das medidas de controle, por critérios técnicos.',
+      'A avaliação dos riscos ocupacionais pode ser qualitativa ou quantitativa. A avaliação qualitativa baseia-se na análise técnica da atividade, do ambiente, das fontes geradoras e da percepção dos trabalhadores, sendo suficiente para a maioria dos riscos quando não há dúvida quanto à necessidade e à eficácia das medidas de prevenção. A avaliação quantitativa, por sua vez, é exigida sempre que houver dúvida razoável sobre a exposição dos trabalhadores a agentes físicos e químicos, sendo realizada por meio de medições instrumentais, comparando os resultados obtidos com os limites de tolerância e valores de referência estabelecidos pela NR-15 e pelas Normas de Higiene Ocupacional da Fundacentro.',
+      'Em ambos os casos, os resultados obtidos antes e depois da implantação das medidas de controle são comparados por critérios técnicos, permitindo verificar a eficácia das ações adotadas e subsidiar a revisão do nível de risco atribuído no inventário.',
     ],
   },
   {
     titulo: '12. CONTROLE DOS RISCOS',
     paragrafos: [
-      '11.1 Medidas de prevenção: serão adotadas medidas necessárias e suficientes para eliminação, minimização ou controle dos riscos ambientais sempre que verificada ao menos uma das situações: exigências das Normas Regulamentadoras e dispositivos legais; determinação pela classificação de riscos ocupacionais; ou evidências de associação, por controle médico, entre lesões/agravos à saúde e os riscos identificados. Quando comprovada a inviabilidade de medidas de proteção coletiva, ou quando insuficientes, devem ser adotadas, na ordem: medidas de caráter administrativo ou de organização do trabalho; e medidas de caráter individual (EPI).',
-      '11.2 Implementação e acompanhamento das medidas de prevenção: a empresa, por meio de análise das ações executadas, inspeções nos ambientes de trabalho e monitoramento das condições ambientais e exposições, avaliará a eficácia das medidas existentes e implantadas, estabelecendo novas medidas quando necessário. Quando identificada ineficácia, devem ser realizados ajustes para corrigir as deficiências, com histórico registrado.',
-      '11.3 Acompanhamento da saúde ocupacional dos trabalhadores: realizado de forma periódica e contínua, de acordo com os riscos ocupacionais identificados e atendendo às diretrizes da NR-7, integrado às demais medidas de saúde e segurança do trabalho.',
-      '11.4 Análise de acidentes e doenças relacionadas ao trabalho: todos os acidentes e doenças relacionadas ao trabalho são analisados e documentados, considerando as fontes causadoras, as atividades desenvolvidas, os materiais utilizados e a organização do ambiente de trabalho, identificando fatores que forneçam evidências para revisar as medidas de prevenção existentes.',
-      '11.5 Preparação para emergências: é de responsabilidade da organização elaborar, implementar e manter atualizados os procedimentos de resposta a cenários de emergência, considerando os riscos ocupacionais identificados e as características das atividades desenvolvidas — ver Anexo I (Plano de Emergência).',
+      '12.1 Medidas de prevenção: serão adotadas medidas necessárias e suficientes para eliminação, minimização ou controle dos riscos ambientais sempre que verificada ao menos uma das situações: exigências das Normas Regulamentadoras e dispositivos legais; determinação pela classificação de riscos ocupacionais; ou evidências de associação, por controle médico, entre lesões/agravos à saúde e os riscos identificados. Quando comprovada a inviabilidade de medidas de proteção coletiva, ou quando insuficientes, devem ser adotadas, na ordem: medidas de caráter administrativo ou de organização do trabalho; e medidas de caráter individual (EPI).',
+      '12.2 Implementação e acompanhamento das medidas de prevenção: a empresa, por meio de análise das ações executadas, inspeções nos ambientes de trabalho e monitoramento das condições ambientais e exposições, avaliará a eficácia das medidas existentes e implantadas, estabelecendo novas medidas quando necessário. Quando identificada ineficácia, devem ser realizados ajustes para corrigir as deficiências, com histórico registrado.',
+      '12.3 Acompanhamento da saúde ocupacional dos trabalhadores: realizado de forma periódica e contínua, de acordo com os riscos ocupacionais identificados e atendendo às diretrizes da NR-7, integrado às demais medidas de saúde e segurança do trabalho.',
+      '12.4 Análise de acidentes e doenças relacionadas ao trabalho: todos os acidentes e doenças relacionadas ao trabalho são analisados e documentados, considerando as fontes causadoras, as atividades desenvolvidas, os materiais utilizados e a organização do ambiente de trabalho, identificando fatores que forneçam evidências para revisar as medidas de prevenção existentes.',
+      '12.5 Preparação para emergências: é de responsabilidade da organização elaborar, implementar e manter atualizados os procedimentos de resposta a cenários de emergência, considerando os riscos ocupacionais identificados e as características das atividades desenvolvidas — ver Anexo I (Plano de Emergência).',
     ],
   },
   {
@@ -203,6 +235,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
       'MINISTÉRIO DO TRABALHO E EMPREGO. Normas Regulamentadoras nº 7, 9, 15, 16 e 17, e seus respectivos Anexos.',
       'FUNDACENTRO. Normas de Higiene Ocupacional — NHO. Disponível em: gov.br/fundacentro/pt-br/centrais-de-conteudo/biblioteca/nhos.',
       'ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR ISO 45001:2024 — Sistemas de gestão de saúde e segurança ocupacional.',
+      'MINISTÉRIO DO TRABALHO E EMPREGO. Manual sobre o Gerenciamento de Riscos Ocupacionais (GRO) e o Programa de Gerenciamento de Riscos (PGR) da NR-1. Secretaria de Inspeção do Trabalho.',
     ],
   },
 ]
