@@ -38,7 +38,7 @@ function desenharAssinaturas(
   return y
 }
 
-export async function gerarPdfAso(dados: any): Promise<void> {
+export async function gerarPdfAso(dados: any, empresa?: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -83,6 +83,9 @@ export async function gerarPdfAso(dados: any): Promise<void> {
   // ── Cabeçalho ──────────────────────────────────────────────
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(14)
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
@@ -281,6 +284,9 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   // Cabeçalho
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('LAUDO TÉCNICO DAS CONDIÇÕES AMBIENTAIS DO TRABALHO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -413,6 +419,9 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   // Cabeçalho
   doc.setFillColor(39, 80, 10)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('PROGRAMA DE CONTROLE MÉDICO DE SAÚDE OCUPACIONAL', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -516,7 +525,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const mg = 15
   let y = 15
   let indicePages: Array<{titulo: string, pagina: number}> = []
-  const paginas = { capa: 1 }
+  const paginas: any = { capa: 1 }
 
   function hexRgb(hex: string): [number, number, number] {
     const h = (hex || '#999999').replace('#', '')
@@ -632,6 +641,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 30, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+  }
   doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 12, { align: 'center' })
   doc.setFontSize(10); doc.setFont('helvetica', 'normal')
@@ -876,10 +888,30 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         y = inserirImagens(g.imagens, y)
       }
       if (g.funcoes?.length) {
-        const funcoesTexto = g.funcoes
-          .map((f: any) => (f.atividades ? `${f.nome} (${f.atividades})` : f.nome))
-          .filter(Boolean).join('; ')
-        if (funcoesTexto) y = paragrafo(`Funções: ${funcoesTexto}`, y, 8)
+        doc.setFontSize(8); doc.setTextColor(90); doc.setFont('helvetica', 'bold')
+        doc.text('Funções neste GHE:', mg + 2, y); y += 4
+        for (const f of g.funcoes) {
+          doc.setFontSize(7.5); doc.setTextColor(50); doc.setFont('helvetica', 'bold')
+          doc.text(`${f.nome || '—'}`, mg + 4, y)
+          if (f.cbo || f.nivel) {
+            doc.setFontSize(7); doc.setTextColor(100)
+            doc.text(`${f.cbo ? `CBO ${f.cbo}` : ''}${f.cbo && f.nivel ? ' | ' : ''}${f.nivel ? `Nível: ${f.nivel}` : ''}`, mg + 4, y + 3)
+          }
+          y += 3 + (f.cbo || f.nivel ? 3 : 0)
+          if (f.atividades) {
+            doc.setFontSize(7); doc.setTextColor(70); doc.setFont('helvetica', 'normal')
+            const linhasAt = doc.splitTextToSize(f.atividades, 270)
+            for (const ln of linhasAt) { doc.text(ln, mg + 6, y); y += 3 }
+          }
+          if (f.requisitos) {
+            doc.setFontSize(7); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+            doc.text('Requisitos:', mg + 4, y); y += 2.5
+            doc.setFont('helvetica', 'normal')
+            const linhasReq = doc.splitTextToSize(f.requisitos, 270)
+            for (const ln of linhasReq) { doc.text(ln, mg + 6, y); y += 3 }
+          }
+          doc.setDrawColor(220); doc.line(mg + 2, y, mg + 285, y); y += 3
+        }
       }
       y += 1
 
@@ -1195,6 +1227,9 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('ANÁLISE ERGONÔMICA DO TRABALHO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -1323,6 +1358,9 @@ export async function gerarPdfApr(dados: any, empresa: any): Promise<void> {
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('ANÁLISE PRELIMINAR DE RISCO', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
@@ -1480,6 +1518,9 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
   doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
   doc.text('LAUDO DE INSALUBRIDADE E PERICULOSIDADE', W / 2, 8, { align: 'center' })
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')

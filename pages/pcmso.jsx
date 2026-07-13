@@ -123,7 +123,7 @@ export default function PCMSO() {
   }
 
   function abrirEdicaoMedico() {
-    setFormMedico(medico ? { ...medico } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{} })
+    setFormMedico(medico ? { ...medico, textos_legais_custom: medico.textos_legais_custom || {} } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{} })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
   }

@@ -36,7 +36,14 @@ function riscoVazio() {
     medicao_quantitativa: false, metodologia: '',
   }
 }
-const funcaoVazia = () => ({ nome: '', atividades: '' })
+const funcaoVazia = () => ({
+  nome: '',
+  cbo: '',
+  nivel: 'Pleno',
+  atividades: '',
+  requisitos: '',
+  periodicidade_monitoramento: 'Anual'
+})
 const epiGheVazio = () => ({ nome: '', atenuacao: '', eficaz: true })
 const medidaAdmVazia = (risco = '') => ({ risco, medida: '' })
 
@@ -1057,10 +1064,27 @@ export default function PGR() {
 
                 <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', marginBottom:4 }}>FUNÇÕES DESTE GHE</div>
                 {(g.funcoes || []).map((fn, fi) => (
-                  <div key={fi} style={{ display:'grid', gridTemplateColumns:'1fr 2fr 28px', gap:6, marginBottom:6, alignItems:'center' }}>
-                    <input style={s.inputSm} placeholder="Função (ex: Auxiliar Adm.)" value={fn.nome} onChange={e => setFuncaoGhe(gi, fi, 'nome', e.target.value)} />
-                    <input style={s.inputSm} placeholder="Descrição das atividades" value={fn.atividades} onChange={e => setFuncaoGhe(gi, fi, 'atividades', e.target.value)} />
-                    <button onClick={() => removerFuncaoGhe(gi, fi)} style={s.btnRemover}>×</button>
+                  <div key={fi} style={{ border:'0.5px solid #e5e7eb', borderRadius:6, padding:10, marginBottom:8, background:'#fafbfc' }}>
+                    <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                      <button onClick={() => removerFuncaoGhe(gi, fi)} style={s.btnRemover}>×</button>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:6, marginBottom:6 }}>
+                      <input style={s.inputSm} placeholder="Nome da função (ex: Auxiliar Administrativo)" value={fn.nome} onChange={e => setFuncaoGhe(gi, fi, 'nome', e.target.value)} />
+                      <input style={s.inputSm} placeholder="CBO (ex: 4110-10)" value={fn.cbo||''} onChange={e => setFuncaoGhe(gi, fi, 'cbo', e.target.value)} />
+                      <select style={s.inputSm} value={fn.nivel || 'Pleno'} onChange={e => setFuncaoGhe(gi, fi, 'nivel', e.target.value)}>
+                        <option value="Junior">Junior</option>
+                        <option value="Pleno">Pleno</option>
+                        <option value="Sênior">Sênior</option>
+                      </select>
+                    </div>
+                    <textarea style={{ ...s.inputSm, minHeight:40, marginBottom:6 }} placeholder="Descrição das atividades (ex: Atendimento ao cliente, organização de arquivos, elaboração de documentos)" value={fn.atividades} onChange={e => setFuncaoGhe(gi, fi, 'atividades', e.target.value)} />
+                    <textarea style={{ ...s.inputSm, minHeight:35, marginBottom:6 }} placeholder="Requisitos técnicos (ex: Conhecimento em Excel, Word, NoSQL. Experiência mínima 2 anos...)" value={fn.requisitos||''} onChange={e => setFuncaoGhe(gi, fi, 'requisitos', e.target.value)} />
+                    <select style={s.inputSm} value={fn.periodicidade_monitoramento || 'Anual'} onChange={e => setFuncaoGhe(gi, fi, 'periodicidade_monitoramento', e.target.value)}>
+                      <option value="Trimestral">Avaliação Trimestral</option>
+                      <option value="Semestral">Avaliação Semestral</option>
+                      <option value="Anual">Avaliação Anual</option>
+                      <option value="Eventual">Avaliação Eventual</option>
+                    </select>
                   </div>
                 ))}
                 <button style={{ ...s.btnAcao, fontSize:11, marginBottom:12 }} onClick={() => addFuncaoGhe(gi)}>+ Função</button>

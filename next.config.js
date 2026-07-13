@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production'
     return [
       {
         source: '/(.*)',
@@ -18,11 +19,13 @@ const nextConfig = {
           // Desabilita funcionalidades desnecessárias
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           // CSP — permite Supabase, Stripe, Meta Pixel, Google Ads
+          // 'unsafe-eval' só em dev: o Fast Refresh do `next dev` usa eval() e,
+          // sem isso, o React nunca hidrata (toda página autenticada trava em "Carregando...")
           {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com https://cdnjs.cloudflare.com",
+              `script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval' " : ''}https://js.stripe.com https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com https://cdnjs.cloudflare.com`,
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
               "img-src 'self' data: https:",
