@@ -8,33 +8,44 @@ import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
-// Bloco de assinaturas em duas colunas — responsável técnico (esquerda) e
-// representante legal da empresa (direita) — usado ao final de todos os
-// documentos que têm valor técnico-jurídico (PGR, LTCAT, PCMSO, AET, LIP, PPP).
+// Bloco de assinaturas empilhado — primeiro o responsável pela implementação
+// (representante legal da empresa), depois o responsável técnico pela
+// elaboração — cada um com título, descrição da responsabilidade, espaço em
+// branco para a assinatura física e, por fim, linha + nome + cargo/registro.
+// Usado ao final de todos os documentos técnico-jurídicos (PGR, LTCAT,
+// PCMSO, AET, LIP, PPP).
 function desenharAssinaturas(
   doc: any, y: number, mg: number, W: number,
-  respTecnico: { label: string; nome?: string; extra?: string },
-  respLegal: { nome?: string }
+  respImplementacao: { tituloBloco: string; descricao: string; nome?: string },
+  respElaboracao: { tituloBloco: string; descricao: string; nome?: string; cargo: string; extra?: string }
 ): number {
-  y += 16 // espaço em branco acima da linha, para caber a assinatura
-  const largura = (W - mg * 2 - 20) / 2
-  const xEsq = mg + largura / 2
-  const xDir = W - mg - largura / 2
-  doc.setDrawColor(120)
-  doc.line(xEsq - largura / 2, y, xEsq + largura / 2, y)
-  doc.line(xDir - largura / 2, y, xDir + largura / 2, y)
-  y += 4
-  doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
-  doc.text(respTecnico.label, xEsq, y, { align: 'center' })
-  doc.text('Representante legal da empresa', xDir, y, { align: 'center' })
-  y += 4
-  doc.setFontSize(7); doc.setTextColor(120)
-  doc.text(respTecnico.nome || '—', xEsq, y, { align: 'center' })
-  doc.text(respLegal.nome || '—', xDir, y, { align: 'center' })
-  if (respTecnico.extra) {
-    y += 3.5
-    doc.text(respTecnico.extra, xEsq, y, { align: 'center' })
+  if (y > 140) { doc.addPage(); y = 20 }
+  const centerX = W / 2
+  const larguraLinha = 80
+
+  function bloco(tituloBloco: string, descricao: string, nome: string | undefined, cargoOuLabel: string, extra?: string) {
+    if (y > 210) { doc.addPage(); y = 20 }
+    doc.setFontSize(11); doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold')
+    doc.text(tituloBloco, centerX, y, { align: 'center' }); y += 6
+    doc.setFontSize(8); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'normal')
+    const linhasDesc = doc.splitTextToSize(descricao, W - mg * 2 - 30)
+    doc.text(linhasDesc, centerX, y, { align: 'center' }); y += linhasDesc.length * 4 + 18
+    doc.setDrawColor(120)
+    doc.line(centerX - larguraLinha / 2, y, centerX + larguraLinha / 2, y); y += 5
+    doc.setFontSize(9); doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold')
+    doc.text(nome || '—', centerX, y, { align: 'center' }); y += 4.5
+    doc.setFontSize(8); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'normal')
+    doc.text(cargoOuLabel, centerX, y, { align: 'center' }); y += 4
+    if (extra) {
+      doc.setFontSize(7.5); doc.setTextColor(100)
+      doc.text(extra, centerX, y, { align: 'center' }); y += 4
+    }
+    y += 12
   }
+
+  bloco(respImplementacao.tituloBloco, respImplementacao.descricao, respImplementacao.nome, 'Representante Legal')
+  bloco(respElaboracao.tituloBloco, respElaboracao.descricao, respElaboracao.nome, respElaboracao.cargo, respElaboracao.extra)
+
   return y
 }
 
@@ -373,8 +384,18 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO LTCAT',
+      descricao: 'Será responsável pelo cumprimento e implementação do LTCAT — Laudo Técnico das Condições Ambientais de Trabalho, conforme NR-9.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DO LTCAT',
+      descricao: 'Laudo Técnico das Condições Ambientais de Trabalho, conforme NR-9.',
+      nome: dg.resp_nome,
+      cargo: 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
   )
 
   // Rodapé
@@ -502,8 +523,18 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; doc.setDrawColor(220, 220, 220); doc.line(mg, y, W - mg, y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Médico coordenador do PCMSO', nome: dg.medico_nome, extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO PCMSO',
+      descricao: 'Será responsável pelo cumprimento e implementação do PCMSO — Programa de Controle Médico de Saúde Ocupacional, conforme NR-7.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA COORDENAÇÃO DO PCMSO',
+      descricao: 'Programa de Controle Médico de Saúde Ocupacional, conforme NR-7.',
+      nome: dg.medico_nome,
+      cargo: 'Médico Coordenador',
+      extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined,
+    }
   )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
@@ -1108,8 +1139,18 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Responsável pela elaboração', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO PGR',
+      descricao: 'Será responsável pelo cumprimento e implementação do PGR — Programa de Gerenciamento de Riscos, conforme NR-1.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DO PGR',
+      descricao: 'Programa de Gerenciamento de Riscos, conforme NR-1.',
+      nome: dg.resp_nome,
+      cargo: dg.resp_conselho === 'CRM' ? 'Médico do Trabalho' : 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
   )
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
@@ -1283,8 +1324,18 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DA AET',
+      descricao: 'Será responsável pelo cumprimento e implementação da AET — Análise Ergonômica do Trabalho, conforme NR-17.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DA AET',
+      descricao: 'Análise Ergonômica do Trabalho, conforme NR-17.',
+      nome: dg.resp_nome,
+      cargo: 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
   )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
@@ -1601,8 +1652,18 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Responsável técnico', nome: dg.resp_nome, extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO LIP',
+      descricao: 'Será responsável pelo cumprimento e implementação do LIP — Laudo de Insalubridade e Periculosidade, conforme NR-15 e NR-16.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DO LIP',
+      descricao: 'Laudo de Insalubridade e Periculosidade, conforme NR-15 e NR-16.',
+      nome: dg.resp_nome,
+      cargo: 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
   )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
@@ -1728,8 +1789,17 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
-    { label: 'Responsável pelo preenchimento', nome: dg.resp_nome, extra: dg.resp_cargo || undefined },
-    { nome: empresa?.resp_nome }
+    {
+      tituloBloco: 'RESPONSÁVEL PELA EMISSÃO DO PPP',
+      descricao: 'Será responsável pela veracidade das informações do PPP — Perfil Profissiográfico Previdenciário, conforme Instrução Normativa PRES/INSS.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELO PREENCHIMENTO',
+      descricao: 'Perfil Profissiográfico Previdenciário — PPP.',
+      nome: dg.resp_nome,
+      cargo: dg.resp_cargo || 'Responsável pelo preenchimento',
+    }
   )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
