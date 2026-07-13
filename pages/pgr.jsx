@@ -7,6 +7,7 @@ import { gerarPdfPgr } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, nivelRisco, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
+import { AGENTES_POR_TIPO } from '../lib/agentes-risco'
 import { redimensionarImagem } from '../lib/imagem-util'
 import { sugerirParaRisco } from '../lib/pgr-sugestoes'
 
@@ -221,9 +222,16 @@ export default function PGR() {
     const inventario = gheInventarioDoCadastro(ghesCadastro)
     const ambientes = ambientesDoCadastro(ghesCadastro)
     const nomesRiscos = [...new Set(inventario.flatMap(g => g.riscos.map(r => r.nome)).filter(Boolean))]
+    const hoje = new Date().toISOString().split('T')[0]
+    const proxyear = new Date()
+    proxyear.setFullYear(proxyear.getFullYear() + 1)
+    const proximaRevisao = proxyear.toISOString().split('T')[0]
+
     setForm({
-      data_elaboracao: new Date().toISOString().split('T')[0],
-      prox_revisao: '',
+      numero_revisao: 1,
+      status: 'Ativo',
+      data_elaboracao: hoje,
+      prox_revisao: proximaRevisao,
       resp_nome: ltcatAtivo?.resp_nome || '',
       resp_conselho: ltcatAtivo?.resp_conselho || 'CREA',
       resp_registro: ltcatAtivo?.resp_registro || '',
@@ -232,6 +240,14 @@ export default function PGR() {
       plano_acao: nomesRiscos.map(acaoVazia),
       textos_legais_custom: {},
       imagens_anexas: [],
+      historico_revisoes: [
+        {
+          numero: 1,
+          data: hoje,
+          responsavel: ltcatAtivo?.resp_nome || '',
+          alteracoes: 'PGR Inicial'
+        }
+      ],
     })
     setAba('editar')
     setSucesso(''); setErro('')
@@ -270,6 +286,8 @@ export default function PGR() {
 
     const dados = {
       empresa_id: empresaId,
+      numero_revisao: form.numero_revisao || 1,
+      status: form.status || 'Ativo',
       data_elaboracao: form.data_elaboracao,
       prox_revisao: form.prox_revisao || null,
       resp_nome: form.resp_nome,
@@ -280,6 +298,7 @@ export default function PGR() {
       plano_acao: form.plano_acao || [],
       textos_legais_custom: form.textos_legais_custom || {},
       imagens_anexas: form.imagens_anexas || [],
+      historico_revisoes: form.historico_revisoes || [],
       atualizado_em: new Date().toISOString(),
     }
 
@@ -879,6 +898,39 @@ export default function PGR() {
             <button onClick={cancelarEdicao} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
           </div>
 
+          <div style={{ background:'#f9fafb', padding:12, borderRadius:8, marginBottom:16, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+            <div>
+              <label style={s.label}>Nº da revisão</label>
+              <input type="number" style={s.input} min="1" value={form.numero_revisao || 1} onChange={e => setForm({ ...form, numero_revisao: parseInt(e.target.value) || 1 })} />
+            </div>
+            <div>
+              <label style={s.label}>Status</label>
+              <select style={s.input} value={form.status || 'Ativo'} onChange={e => setForm({ ...form, status: e.target.value })}>
+                <option value="Ativo">Ativo</option>
+                <option value="Revisão">Em Revisão</option>
+                <option value="Arquivado">Arquivado</option>
+              </select>
+            </div>
+            <div>
+              <label style={s.label}>Responsável elaboração</label>
+              <select style={s.input} value={form.resp_nome || ''} onChange={e => {
+                const nome = e.target.value
+                const hoje = new Date().toISOString().split('T')[0]
+                const hist = form.historico_revisoes || []
+                setForm({
+                  ...form,
+                  resp_nome: nome,
+                  historico_revisoes: !form.id && hist.length === 1 && hist[0].responsavel !== nome
+                    ? [{ ...hist[0], responsavel: nome }]
+                    : hist
+                })
+              }}>
+                <option value="">Selecionar responsável...</option>
+                <option value={ltcatAtivo?.resp_nome || ''}>{ltcatAtivo?.resp_nome || 'Responsável LTCAT'}</option>
+              </select>
+            </div>
+          </div>
+
           <div style={s.row2}>
             <div>
               <label style={s.label}>Data de elaboração *</label>
@@ -1025,7 +1077,7 @@ export default function PGR() {
                         <select style={s.inputSm} value={r.tipo} onChange={e => setRiscoGhe(gi, ri, 'tipo', e.target.value)}>
                           {Object.entries(TIPO_AGENTE).map(([k,l]) => <option key={k} value={k}>{l}</option>)}
                         </select>
-                        <input style={s.inputSm} placeholder="Agente / risco (ex: Ruído)" value={r.nome}
+                        <input style={s.inputSm} placeholder="Agente / risco (ex: Ruído)" list={`lista-agentes-${r.tipo}`} value={r.nome}
                           onChange={e => setRiscoGhe(gi, ri, 'nome', e.target.value)}
                           onBlur={() => aoSairDoNomeRisco(gi, ri)} />
                         <input style={s.inputSm} placeholder="Perigo (ex: Intensidade)" value={r.perigo} onChange={e => setRiscoGhe(gi, ri, 'perigo', e.target.value)} />
@@ -1107,6 +1159,11 @@ export default function PGR() {
             <datalist id="lista-codigo-esocial">
               {ESOCIAL_TABELA24.map(a => <option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
             </datalist>
+            {Object.entries(AGENTES_POR_TIPO).map(([tipo, agentes]) => (
+              <datalist key={tipo} id={`lista-agentes-${tipo}`}>
+                {agentes.map(nome => <option key={nome} value={nome} />)}
+              </datalist>
+            ))}
             <datalist id="unidades-medida-pgr">
               <option value="dB(A)" /><option value="ppm" /><option value="mg/m³" /><option value="µg/m³" />
               <option value="fibras/cm³" /><option value="IBUTG °C" /><option value="lux" /><option value="m/s²" /><option value="%" />

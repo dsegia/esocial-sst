@@ -515,6 +515,8 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   let W = 210, H = 297
   const mg = 15
   let y = 15
+  let indicePages: Array<{titulo: string, pagina: number}> = []
+  const paginas = { capa: 1 }
 
   function hexRgb(hex: string): [number, number, number] {
     const h = (hex || '#999999').replace('#', '')
@@ -627,20 +629,125 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const planoAcao = dados?.plano_acao || []
   const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico', aci: 'Mecânico/Acidentes', psi: 'Psicossocial' }
 
-  // ── Capa ──────────────────────────────────────────────
+  // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
   doc.setFillColor(24, 95, 165)
-  doc.rect(0, 0, W, 24, 'F')
-  doc.setFontSize(14); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 9, { align: 'center' })
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text('PGR — NR-1 · Portaria SEPRT nº 6.730/2020', W / 2, 15, { align: 'center' })
-  if (dg.data_elaboracao) {
-    const periodo = `Período: ${new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR')}${dg.prox_revisao ? ` a ${new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR')}` : ''}`
-    doc.text(periodo, W / 2, 20.5, { align: 'center' })
+  doc.rect(0, 0, W, 30, 'F')
+  doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 12, { align: 'center' })
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  doc.text('PGR — NR-1 / Portaria SEPRT nº 6.730/2020', W / 2, 18, { align: 'center' })
+  doc.setFontSize(9)
+  doc.text('Conforme Portaria 1.419/2024 (Vigência: 26/05/2026)', W / 2, 24, { align: 'center' })
+
+  y = 50
+  doc.setFontSize(12); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+  doc.text(empresa?.razao_social || 'EMPRESA', W / 2, y, { align: 'center' }); y += 8
+  doc.setFontSize(9); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, y, { align: 'center' }); y += 20
+
+  doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+  doc.text('Dados do Documento', mg, y); y += 8
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
+  doc.text(`Revisão: ${dg.numero_revisao || '1'}`, mg, y); y += 5
+  doc.text(`Data de Elaboração: ${dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—'}`, mg, y); y += 5
+  doc.text(`Vigência: ${dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—'}${dg.prox_revisao ? ` a ${new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR')}` : ''}`, mg, y); y += 5
+  doc.text(`Status: ${dg.status || 'Ativo'}`, mg, y); y += 15
+
+  doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+  doc.text('Responsáveis', mg, y); y += 8
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
+  doc.text(`Elaboração: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), mg, y); y += 5
+  doc.text(`Representante Legal: ${empresa?.resp_nome || '—'}`, mg, y); y += 15
+
+  y += 30
+  doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
+  doc.text('Este documento é confidencial e de uso exclusivo da empresa acima identificada.', W / 2, y, { align: 'center' })
+
+  paginas.capa = 1
+
+  // ── PÁGINA 2: CONTRACAPA COM DADOS COMPLETOS ────────
+  doc.addPage()
+  y = 20
+  y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  y = campo('Razão Social', empresa?.razao_social, mg, y, yw) + 2
+  y = campo('Nome Fantasia', empresa?.nome_fantasia || '—', mg, y, yw) + 2
+  y = campo('CNPJ', empresa?.cnpj, mg, y, yw / 2)
+  y = campo('Inscrição Estadual', empresa?.inscricao_estadual, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
+  y = campo('Inscrição Municipal', empresa?.inscricao_municipal || '—', mg, y, yw / 2)
+  y = campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
+  y = campo('Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco || '—'}`, mg, y, yw / 3)
+  y = campo('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', mg + yw / 3 + 2, y - (yw/3 + 4), yw / 3 - 2)
+  y = campo('Horário de Funcionamento', empresa?.horario_funcionamento || '—', mg + (yw / 3) * 2 + 2, y - (yw/3 + 4), yw / 3 - 2) + 2
+  y = campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw) + 2
+  y = campo('Telefone', empresa?.telefone, mg, y, yw / 2)
+  y = campo('E-mail', empresa?.email, mg + yw / 2 + 2, y - (yw/2 + 4), yw / 2 - 2) + 2
+
+  y += 4; y = secao('RESPONSÁVEIS PELO PGR', y)
+  y = campo('Responsável Legal (Implementação)', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` — ${empresa.resp_cargo}` : ''}`, mg, y, yw) + 2
+  y = campo('Responsável Técnico (Elaboração)', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim(), mg, y, yw) + 2
+  if (empresa?.resp_telefone || empresa?.resp_email) {
+    y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 2
   }
-  y = 30
+
+  paginas.contracapa = 2
+
+  // ── PÁGINA 3: HISTÓRICO DE REVISÕES ────────────────
+  doc.addPage()
+  y = 20
+  y = secao('HISTÓRICO DE REVISÕES', y)
+  const historicoRevisoes = dados?.historico_revisoes || []
+  if (historicoRevisoes.length > 0) {
+    y = tabela(
+      [
+        { titulo: 'REV', largura: 20 },
+        { titulo: 'DATA', largura: 35 },
+        { titulo: 'RESPONSÁVEL', largura: 60 },
+        { titulo: 'ALTERAÇÕES PRINCIPAIS', largura: 60 },
+      ],
+      historicoRevisoes.map((h: any) => [
+        h.numero || '—',
+        h.data ? new Date(h.data + 'T00:00').toLocaleDateString('pt-BR') : '—',
+        h.responsavel || '—',
+        h.alteracoes || '—',
+      ]),
+      y,
+    )
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhuma revisão anterior registrada (Documento inicial).', mg + 2, y); y += 6
+  }
+  paginas.historico = 3
+
+  // ── PÁGINA 4: ÍNDICE AUTOMÁTICO ────────────────────
+  doc.addPage()
+  y = 20
+  y = secao('ÍNDICE', y)
+  y += 4
+  indicePages = [
+    { titulo: '1. Identificação da Empresa', pagina: 2 },
+    { titulo: '2. Histórico de Revisões', pagina: 3 },
+    { titulo: '3. Objetivos e Responsabilidades', pagina: 4 },
+    { titulo: '4. Ambientes de Trabalho', pagina: 5 },
+    { titulo: '5. Inventário de Riscos', pagina: 6 },
+    { titulo: '6. Plano de Ação', pagina: 7 },
+    { titulo: '7. Anexos e Matrizes', pagina: 8 },
+  ]
+  doc.setFontSize(9); doc.setTextColor(30)
+  for (const item of indicePages) {
+    doc.text(item.titulo, mg, y)
+    doc.text(String(item.pagina), W - mg - 5, y, { align: 'right' })
+    y += 6
+  }
+  y += 6; linha(y); y += 6
+  doc.setFontSize(8); doc.setTextColor(100)
+  doc.text(`Total de páginas: ${(doc as any).internal.getNumberOfPages()}`, mg, y)
+
+  paginas.indice = 4
 
   // ── Dados da empresa ──────────────────────────────────
+  doc.addPage()
+  y = 20
   y = secao('DADOS DA EMPRESA', y)
   const yw = (W - mg * 2)
   campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
@@ -803,6 +910,47 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhum GHE cadastrado.', mg + 2, y); y += 6
   }
+
+  // ── GRÁFICO: Distribuição de Riscos por Nível ────────
+  if (y > H - 50) { doc.addPage(); y = 20 }
+  y = subSecao('Distribuição de Riscos por Nível', y)
+
+  // Contar riscos por nível
+  const distribuicaoRiscos: Record<string, number> = { 'CRÍTICO': 0, 'ALTO': 0, 'MÉDIO': 0, 'BAIXO': 0, 'IRRELEVANTE': 0 }
+  for (const g of inventario) {
+    for (const r of (g.riscos || [])) {
+      const nr = nivelRisco(r.severidade, r.probabilidade)
+      if (nr?.faixa) distribuicaoRiscos[nr.faixa]++
+    }
+  }
+
+  const totalRiscos = Object.values(distribuicaoRiscos).reduce((a, b) => a + b, 0)
+  if (totalRiscos > 0) {
+    // Desenhar barras horizontal
+    let yy = y
+    const corRiscos: Record<string, [number, number, number]> = {
+      'CRÍTICO': [220, 20, 20],
+      'ALTO': [255, 140, 0],
+      'MÉDIO': [255, 193, 7],
+      'BAIXO': [100, 200, 50],
+      'IRRELEVANTE': [150, 200, 100],
+    }
+
+    for (const [nivel, count] of Object.entries(distribuicaoRiscos)) {
+      const pct = totalRiscos > 0 ? (count / totalRiscos) * 100 : 0
+      const larguraBarra = (pct / 100) * 120
+      doc.setFontSize(8); doc.setTextColor(50)
+      doc.text(`${nivel}:`, mg, yy);
+      const [r, g, b] = corRiscos[nivel]
+      doc.setFillColor(r, g, b); doc.rect(mg + 35, yy - 2.5, larguraBarra, 3, 'F')
+      doc.setTextColor(50); doc.text(`${count} (${pct.toFixed(0)}%)`, mg + 35 + larguraBarra + 5, yy)
+      yy += 6
+    }
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum risco cadastrado.', mg + 2, y); y += 5
+  }
+  y += 35
 
   // volta para retrato para o restante do documento
   doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
