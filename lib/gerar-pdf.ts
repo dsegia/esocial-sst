@@ -1412,11 +1412,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
   y += 35
 
-  // volta para retrato para o restante do documento
-  doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
-
-  // ── Plano de ação ─────────────────────────────────────
-  if (y > 230) { doc.addPage(); y = 20 }
+  // ── Plano de ação (página em paisagem — os textos de "o que/por que/como"
+  // costumam ser longos e ficavam espremidos em retrato) ─────
+  doc.addPage('a4', 'landscape'); W = 297; H = 210; y = 20
   paginas.planoAcao = (doc as any).internal.getNumberOfPages()
   y = secao(`PLANO DE AÇÃO (${planoAcao.length})`, y)
   const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
@@ -1424,11 +1422,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   if (planoAcao.length) {
     y = tabela(
       [
-        { titulo: 'RISCO (PRIORIDADE)', largura: 35 },
-        { titulo: 'O QUE', largura: 45 },
-        { titulo: 'POR QUE', largura: 35 },
-        { titulo: 'QUEM / COMO / ONDE', largura: 40 },
-        { titulo: 'QUANDO / STATUS', largura: 25 },
+        { titulo: 'RISCO (PRIORIDADE)', largura: 45 },
+        { titulo: 'O QUE', largura: 65 },
+        { titulo: 'POR QUE', largura: 55 },
+        { titulo: 'QUEM / COMO / ONDE', largura: 62 },
+        { titulo: 'QUANDO / STATUS', largura: 40 },
       ],
       planoAcao.map((a: any) => [
         `${a.risco || '—'}${a.priorizacao ? ` (${priorMap[a.priorizacao] || a.priorizacao})` : ''}`,
@@ -1443,6 +1441,9 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhuma ação cadastrada.', mg + 2, y); y += 6
   }
+
+  // volta para retrato para o restante do documento
+  doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
 
   // ── Imagens anexas ────────────────────────────────────
   const imagensAnexas = dados?.imagens_anexas || []
