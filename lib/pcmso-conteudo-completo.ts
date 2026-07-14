@@ -1,67 +1,110 @@
-// PCMSO Completo — 16 seções robustas com normas NBR, NR-7, NR-9, NR-15, NR-17
-// Conteúdo estruturado para exibição em abas/seções interativas
-
+// PCMSO Completo — Conteúdo robusto baseado em NR-7, NR-9, NR-15, NR-17
 export interface SecaoPcmso {
   id: string
   titulo: string
   conteudo: string
   subsecoes?: Array<{ titulo: string; conteudo: string }>
   tabelas?: Array<{ titulo: string; linhas: string[][] }>
-  imagem?: string // URL ou data URI
 }
 
 export const SECOES_PCMSO: SecaoPcmso[] = [
   {
     id: 'perfil-profissiografico',
     titulo: '1. Perfil Profissiográfico',
-    conteudo: `Descrição dos perfis profissionais cadastrados na empresa com suas funções, setores, GHEs (Grupos Homogêneos de Exposição) e riscos associados.`,
+    conteudo: `O Perfil Profissiográfico do trabalhador constando todas as condições a que o mesmo esteve exposto, suas reações e estado físico perante estas exposições a lhe ser entregue quando do desligamento, ou na forma da lei, deverá ser preenchido por preposto administrativo da empresa e as informações de monitoramento biológico serão encaminhadas diretamente ao perito do INSS quando couber em cumprimento à resolução nº 1.715 de 08 de janeiro de 2004 do CFM – Conselho Federal de Medicina.
+
+Descrição dos perfis profissionais cadastrados na empresa com suas funções, setores, GHEs (Grupos Homogêneos de Exposição) e riscos associados.`,
     subsecoes: [
       {
         titulo: 'Informações por Função',
-        conteudo: `Cada função cadastrada deve conter: nome da função, CBO (Classificação Brasileira de Ocupações), setor/departamento, GHE vinculado e descrição das atividades principais.`
+        conteudo: `Cada função cadastrada deve conter:
+• Nome da função conforme CBO (Classificação Brasileira de Ocupações)
+• Setor/departamento de atuação
+• GHE (Grupo Homogêneo de Exposição) vinculado
+• Descrição detalhada das atividades principais
+• Equipamentos utilizados
+• Produtos químicos ou agentes biológicos manipulados`
       },
       {
         titulo: 'Mapeamento de Riscos',
-        conteudo: `Os riscos identificados no PGR (Programa de Gerenciamento de Riscos) devem estar vinculados ao perfil profissiográfico para estabelecer a base dos exames médicos ocupacionais e monitoramento biológico.`
+        conteudo: `Os riscos identificados no PGR (Programa de Gerenciamento de Riscos) devem estar vinculados ao perfil profissiográfico para estabelecer a base dos exames médicos ocupacionais e monitoramento biológico.
+
+Cada função deve ter documentado:
+• Riscos físicos presentes
+• Riscos químicos
+• Riscos biológicos
+• Riscos ergonômicos
+• Riscos de acidentes
+• Matriz de exposição por GHE`
       }
     ]
   },
   {
     id: 'classificacao-riscos',
     titulo: '2. Classificação dos Riscos',
-    conteudo: `Conforme NR-1 e NR-9, os riscos ocupacionais são classificados em:`,
+    conteudo: `O Médico Coordenador do PCMSO deve conhecer todos os setores da empresa, e deve estar apto a realizar análise qualitativa dos ambientes de trabalho, assim como análise das atividades de trabalho, dos produtos e instrumentos de trabalho utilizados nas diversas atividades laborais de forma a identificar os possíveis riscos e/ou situação que possam gerar danos à saúde do empregado.
+
+Conforme NR-1 e NR-9, os riscos ocupacionais são classificados em:`,
     subsecoes: [
       {
         titulo: 'Riscos Físicos',
-        conteudo: `Ruído, vibração, radiações ionizantes, radiações não ionizantes, temperaturas extremas, pressões anormais e iluminação inadequada. Monitorados através de audiometria, espirometria, dosimetria e exames clínicos.`
+        conteudo: `DEFINIÇÃO: São as diversas formas de energia a que podem estar submetidos os trabalhadores, como: ruído, calor, frio, umidade, vibrações, radiações, infra-som, ultra-som e pressões anormais.
+
+FONTE GERADORA: São geradas por máquinas, equipamentos, ferramentas elétricas e condições ambientais de trabalho.
+
+DANOS À SAÚDE: PAIR – Perda Auditiva Induzida pelo Ruído, stress, fadiga, mutilamento, queda de nível diferente, queda de mesmo nível, queda de material, corpo estranho nos olhos, cortes e perfurações, entre outros.
+
+MONITORAMENTO: Audiometria, espirometria, dosimetria e exames clínicos periódicos.`
       },
       {
         titulo: 'Riscos Químicos',
-        conteudo: `Poeiras, fumos, gases, vapores e névoas. Monitorados através de dosimetria pessoal, exame toxicológico, hemograma completo e espirometria conforme exposição.`
+        conteudo: `DEFINIÇÃO: São substâncias compostas ou produtos e fórmulas químicas, capazes de penetrar no organismo através da pele, por via respiratória e oral, nas formas de poeira, fumos, névoas, neblina, gases ou vapores.
+
+FONTE GERADORA: Serviços de pintura e preparação de tintas, manuseio de solventes e queima de eletrodos, entre outros.
+
+DANOS À SAÚDE: Irritação respiratória, intoxicação por fumos metálicos, dermatoses, pneumoconioses e outros.
+
+MONITORAMENTO: Dosimetria pessoal, exame toxicológico, hemograma completo e espirometria conforme exposição.`
       },
       {
         titulo: 'Riscos Biológicos',
-        conteudo: `Bactérias, vírus, fungos, parasitas e outros agentes biológicos. Monitorados através de sorologia (hepatite B, hepatite C, HIV), hemograma completo e avaliação clínica.`
+        conteudo: `DEFINIÇÃO: São as bactérias, fungos, bacilos, parasitas, protozoários, vírus, entre outras formas vivas de penetração no organismo humano.
+
+FONTE GERADORA: Serviços de drenagem e limpeza de canais, esgotos, escavação de aterro sanitário, ausência de fossas sépticas e vasos sanitários no canteiro de obras.
+
+DANOS À SAÚDE: Infecções, diarréias, viroses, leptospirose e outros.
+
+MONITORAMENTO: Sorologia (hepatite B, hepatite C, HIV), hemograma completo e avaliação clínica.`
       },
       {
         titulo: 'Riscos Ergonômicos',
-        conteudo: `Postura, repetitividade, esforço físico, levantamento de peso, ritmo de trabalho. Avaliação através de AET (Análise Ergonômica do Trabalho), exame clínico e avaliação psicossocial.`
+        conteudo: `DEFINIÇÃO: São máquinas, equipamentos e condições de trabalho incompatíveis com as características psicológicas e físicas do trabalhador, ou qualquer outra forma de interação inadequada entre o trabalhador e o seu ambiente laboral.
+
+FONTE GERADORA: São atividades que exigem movimentos repetitivos como operar máquinas de escritório, digitar, transporte de materiais diversos, posturas desconfortáveis e inadequadas, dirigir veículos e/ou operar equipamentos e máquinas.
+
+DANOS À SAÚDE: Lesões por Esforço Repetitivo – LER ou Doença Ósteo-Ligamentar Relacionada ao Trabalho – DORT, tendo como consequência as tenossinovites, epicondilites, lombalgias, cervicalgias e hérnias inguinais.
+
+AVALIAÇÃO: AET (Análise Ergonômica do Trabalho), exame clínico e avaliação psicossocial.`
       },
       {
         titulo: 'Riscos de Acidentes',
-        conteudo: `Máquinas inadequadas, equipamentos sem proteção, eletricidade, incêndio, explosão. Monitorados através de inspeções, treinamentos e exame clínico periódico.`
+        conteudo: `DEFINIÇÃO: São situações favoráveis a ocorrência de acidentes do trabalho, provocada consciente ou inconscientemente pela empresa ou pelos trabalhadores e classificam-se como atos inseguros e condições inseguras de trabalho.
+
+ATOS INSEGUROS: São atos inerentes à personalidade ou estado de bom humor do trabalhador e resulta de vários fatores pessoais como: pressa, preguiça, distrações, desatenção, uso de drogas, problemas familiares, resistência às normas de segurança.
+
+CONDIÇÕES INSEGURAS: São falhas ou situações que podem provocar acidentes ou doenças que dependem exclusivamente da empresa, como: falta de EPI; ferramentas e equipamentos defeituosos; arrumações inadequadas de materiais; falta de sinalização, de ordem e limpeza, falta de proteção quanto à queda de materiais ou intempéries, instalações elétricas deficientes, escadas ou acesso improvisados, falta de proteção em máquinas e equipamentos e contra quedas de altura.`
       }
     ],
     tabelas: [
       {
         titulo: 'Classificação de Riscos Segundo NR-1 e NR-9',
         linhas: [
-          ['Categoria', 'Exemplos', 'Monitoramento Recomendado'],
-          ['Físicos', 'Ruído > 85 dB(A), Vibração, Calor > 30°C, Frio < 0°C', 'Audiometria, Espirometria, Exame Clínico'],
-          ['Químicos', 'Solventes, Ácidos, Bases, Fumos Metálicos', 'Dosimetria, Hemograma, Exame Toxicológico'],
-          ['Biológicos', 'Vírus, Bactérias, Fungos', 'Sorologia, Hemograma Completo'],
-          ['Ergonômicos', 'Postura inadequada, Repetitividade > 2x/min', 'AET, Exame Clínico, Avaliação Psicossocial'],
-          ['Acidentes', 'Máquinas sem proteção, Eletricidade', 'Inspeção, Treinamento, Exame Clínico']
+          ['CATEGORIA', 'EXEMPLOS', 'MONITORAMENTO RECOMENDADO'],
+          ['FÍSICOS', 'Ruído > 85 dB(A), Vibração, Calor > 30°C, Frio < 0°C, Pressão anormal', 'Audiometria, Espirometria, Exame Clínico, Dosimetria'],
+          ['QUÍMICOS', 'Solventes, Ácidos, Bases, Fumos Metálicos, Poeiras, Nevoas', 'Dosimetria, Hemograma, Exame Toxicológico, Avaliação Respiratória'],
+          ['BIOLÓGICOS', 'Vírus, Bactérias, Fungos, Parasitas, Bacilos', 'Sorologia, Hemograma Completo, Cultura, Avaliação Clínica'],
+          ['ERGONÔMICOS', 'Postura inadequada, Repetitividade > 2x/min, Levantamento peso', 'AET, Exame Clínico, Avaliação Psicossocial, Rx coluna'],
+          ['ACIDENTES', 'Máquinas sem proteção, Eletricidade, Quedas altura, Cortes', 'Inspeção, Treinamento, Exame Clínico, Investigação CAT']
         ]
       }
     ]
@@ -69,7 +112,19 @@ export const SECOES_PCMSO: SecaoPcmso[] = [
   {
     id: 'primeiros-socorros',
     titulo: '3. Primeiros Socorros',
-    conteudo: `Procedimentos imediatos em caso de acidentes ou emergências ocupacionais.`,
+    conteudo: `Todo estabelecimento deverá estar equipado com material necessário a prestação dos primeiros socorros, considerando-se as características da atividade desenvolvida; manter esse material guardado em local adequado, e aos cuidados de pessoa treinada para esse fim. (Portaria SSST N° 24, de 29 de dezembro de 1994).
+
+Kit de Primeiros Socorros deve conter:
+• Tesoura ponta romba (1 un)
+• Termômetro
+• Luvas Cirúrgicas descartáveis (5 pares)
+• Gaze Estéril (5 pacotes)
+• Soro Fisiológico (1 un)
+• Atadura de crepe (5 un)
+• Band Aid (1 caixa)
+• Clorexidina Spray (1 un)
+• Micropore (1 un)
+• Esparadrapo (1 un)`,
     subsecoes: [
       {
         titulo: 'Procedimentos Básicos',
@@ -77,312 +132,141 @@ export const SECOES_PCMSO: SecaoPcmso[] = [
 2. Verificar responsividade e respiração
 3. Chamar o SAMU (192) ou orientar encaminhamento para a UPA/Hospital
 4. Prestar primeiros socorros conforme treinamento (RCP, compressão abdominal, etc)
-5. Registrar todas as ações e hora do atendimento`
+5. Registrar todas as ações e hora do atendimento
+6. Manter o acidentado em local seguro e aquecido enquanto aguarda resgate`
       },
       {
         titulo: 'Casos Específicos',
-        conteudo: `Intoxicação: remover o agente, arejar local, encaminhar para atendimento médico
-Queimadura: esfriar com água por 10-20 minutos, não remover aderências
-Fraturas: imobilizar o membro, aplicar gelo local, encaminhar para hospital
-Hemorragia: fazer compressão com gaze/pano limpo, elevar membro se possível
-Choque Elétrico: desligar fonte, afastar o acidentado, verificar respiração`
-      }
-    ]
-  },
-  {
-    id: 'cronograma-acoes',
-    titulo: '4. Cronograma de Ações',
-    conteudo: `Planejamento anual de ações de saúde ocupacional integradas ao calendário da empresa.`,
-    tabelas: [
-      {
-        titulo: 'Exemplo de Cronograma Anual',
-        linhas: [
-          ['Mês', 'Ação', 'Responsável', 'Meta'],
-          ['Jan', 'Exames Admissionais', 'Médico Coordenador', '100% dos novos admitidos'],
-          ['Fev', 'Audiometria Periódica (Expostos a Ruído)', 'Médico + Clínica', '100% dos expostos'],
-          ['Mar', 'Treinamento de Primeiros Socorros', 'Segurança do Trabalho', '100% da empresa'],
-          ['Abr', 'Avaliação Ergonômica (AET)', 'Eng. de Segurança', '50% da empresa'],
-          ['Mai', 'Campanhas de Vacinação', 'Médico Coordenador', '100% da empresa'],
-          ['Jun', 'Revisão do PGR e PCMSO', 'Médico + SIPA', 'Relatório completo'],
-          ['Jul', 'Espirometria (Expostos a Pó/Vapor)', 'Clínica', '100% dos expostos'],
-          ['Ago', 'Avaliação Psicossocial (se indicado)', 'Psicólogo/Médico', 'Conforme demanda'],
-          ['Set', 'Exames Demissionais', 'Médico Coordenador', '100% dos desligados'],
-          ['Out', 'Hemograma Completo (Rotina)', 'Clínica', '50% da empresa'],
-          ['Nov', 'Treinamento em Segurança', 'Segurança do Trabalho', '100% da empresa'],
-          ['Dez', 'Análise de Resultados e Planejamento Próximo Ano', 'Médico', 'Relatório Anual']
-        ]
-      }
-    ]
-  },
-  {
-    id: 'fluxo-acidente',
-    titulo: '5. Fluxo de Atendimento a Acidente do Trabalho',
-    conteudo: `Procedimento padrão desde o momento do acidente até o encerramento do caso.`,
-    subsecoes: [
-      {
-        titulo: 'Etapas do Fluxo',
-        conteudo: `1. IMEDIATO: Comunicação ao supervisor/gerente
-2. PRIMEIROS SOCORROS: Avaliação inicial e estabilização conforme item 3
-3. COMUNICAÇÃO: Notificar à segurança e médico coordenador
-4. AVALIAÇÃO MÉDICA: Atendimento clínico no dia do acidente
-5. CAT: Emissão da Comunicação de Acidente do Trabalho em até 24h
-6. ACOMPANHAMENTO: Exames complementares conforme necessidade
-7. REABILITAÇÃO: Reintegração gradual às atividades
-8. ENCERRAMENTO: Alta médica ou afastamento permanente`
-      }
-    ]
-  },
-  {
-    id: 'fluxo-emergencias',
-    titulo: '6. Fluxo de Atendimento a Emergências e Primeiros Socorros',
-    conteudo: `Procedimentos para situações de risco iminente à vida.`,
-    subsecoes: [
-      {
-        titulo: 'Emergências Incluídas',
-        conteudo: `Choque Anafilático: adrenalina IM, deitar com pernas elevadas, encaminhar SAMU
-Infarto: repouso imediato, nitrato sublingual, oxigênio, ECG, encaminhar SAMU
-Acidente Vascular Cerebral (AVC): repouso, verificar hora do início, encaminhar SAMU urgente
-Parada Cardiorrespiratória: iniciar RCP imediatamente, chamar SAMU, desfibrilador se disponível
-Intoxicação Aguda: remover fonte, descontaminação, encaminhar SAMU com amostra do agente
-Queimadura Grave: esfriar água corrente, encaminhar SAMU, não remover roupas aderidas
-Trauma Grave: imobilizar, encaminhar SAMU, não movimentar desnecessariamente`
+        conteudo: `INTOXICAÇÃO: Remover o agente, arejar local, encaminhar para atendimento médico, levar informações sobre o produto.
+
+QUEIMADURA: Esfriar com água por 10-20 minutos, não remover aderências, cobrir com pano limpo estéril, encaminhar imediatamente.
+
+FRATURAS: Imobilizar o membro, aplicar gelo local, elevar se possível, encaminhar para hospital.
+
+HEMORRAGIA: Fazer compressão com gaze/pano limpo, elevar membro se possível, manter pressão até cessar sangramento.
+
+CHOQUE ELÉTRICO: Desligar fonte, afastar o acidentado, verificar respiração, iniciar RCP se necessário.
+
+EMERGÊNCIAS: Sempre acionar o resgate/bombeiros (193) que conduzirá o acidentado ao primeiro atendimento.`
       }
     ]
   },
   {
     id: 'ppr',
-    titulo: '7. Programa de Proteção Respiratória (PPR)',
-    conteudo: `Conforme NR-6, item 6.5.1 a 6.5.3, estabelece requisitos para uso de equipamentos de proteção respiratória.`,
+    titulo: '5. PPR (Programa de Proteção Respiratória)',
+    conteudo: `OBJETIVO: Realizar o controle eficaz de uso e indicação do equipamento adequado para o controle das doenças ocupacionais provocadas pela inalação de ar contaminado com poeiras, fungos, nevoas, fumaças, gases e vapores, conforme NR-6, item 6.5.1 a 6.5.3.
+
+SELEÇÃO DE RESPIRADORES: Devemos levar em conta o biótipo do trabalhador, hábitos e costumes, para que possamos avaliar os seguintes itens que podem prejudicar o bom funcionamento do respirador:
+
+• Barba, bigode, costeletas e cabelos longos, cicatrizes profunda, prótese dentária – Dificultam a vedação
+• Não deve ser usado bonés ou gorros que comprometam vedação
+• Tomar cuidado com os tirantes do respirador para não envolver partes de capacete ou máscaras
+• Tomar cuidado com o uso de lentes corretivas, óculos de proteção ou ocular
+• Uso de lentes de contato não é indicado devido a contaminação por aerodispersoídes
+• Ter cuidado ao falar alto para não deslocar o respirador`,
     subsecoes: [
       {
-        titulo: 'Objetivos do PPR',
-        conteudo: `1. Proteger trabalhadores contra inhalação de agentes contaminantes
-2. Estabelecer critérios para seleção do equipamento adequado
-3. Garantir uso correto através de treinamento
-4. Realizar testes de vedação (fit test) periódicos
-5. Manter inspeção e manutenção dos equipamentos`
-      },
-      {
-        titulo: 'Seleção do Equipamento',
-        conteudo: `A seleção baseia-se em:
-- Agente contaminante identificado (gás, vapor, partícula)
-- Concentração ambiental vs. Limite de Exposição Ocupacional (LEO)
-- Fator de Proteção Requerido (FPR)
-- Nível de Oxigênio do ambiente (mínimo 19,5%)`
-      },
-      {
-        titulo: 'Tipos de Equipamentos',
-        conteudo: `- Respirador Purificador de Ar (filtro P1, P2, P3 ou carvão ativado)
-- Respirador de Adução de Ar (tubo com compressor ou cilindro)
-- Respirador Autônomo (cilindro de ar contido no equipamento)
-- Máscaras Autoadesivas (uso único para particulados)`
-      },
-      {
-        titulo: 'Treinamento e Fit Test',
-        conteudo: `ANTES DO USO:
-1. Treinamento teórico: partes do equipamento, modo correto de colocação, limitações
-2. Treinamento prático: colocação, vedação, respiração, movimento
-3. Teste de Vedação Qualitativo (qualitative fit test): isoamyl acetate (smell test) ou sacarina
-4. Teste de Vedação Quantitativo (quantitative fit test): equipamento especial, mínimo Fator 100
+        titulo: 'Tipos de Respiradores',
+        conteudo: `RESPIRADOR PURIFICADOR DE AR:
+a) Para proteção contra poeiras e névoas (P1)
+b) Para proteção contra poeiras, névoas e fumos (P2)
+c) Para proteção contra poeiras, névoas, fumos e radionuclídeos (P3)
+d) Para proteção contra vapores orgânicos em concentração < 50 ppm
+e) Para proteção contra gases emanados de produtos químicos
+f) Para proteção contra partículas e gases químicos
+g) Respirador motorizado para proteção contra poeiras, névoas, fumos
 
-PERIODICIDADE:
-- Anual obrigatório
-- Antes do uso se houver alteração na geometria facial (peso, barba, etc)
-- Imediatamente após qualquer incidente`
+RESPIRADOR DE ADUÇÃO DE AR:
+a) Linha de ar comprimido para atmosferas IPVS (Imediatamente Perigosa à Vida e Saúde)
+b) Máscara autônoma de circuito aberto ou fechado para atmosferas IPVS
+
+RESPIRADOR DE FUGA:
+a) Para escape de atmosferas imediatamente perigosas ou com O2 < 18%`
+      },
+      {
+        titulo: 'Treinamento e Testes de Vedação',
+        conteudo: `TREINAMENTO deve abranger:
+1. Empregado: Conhecer o respirador, aprender a manobrar com o aparelho
+2. Líder: Conhecer o aparelho, resolver problemas, treinar, escolher o adequado
+3. Almoxarife: Distribuir o respirador adequado
+
+TESTES DE VEDAÇÃO:
+1. Teste da sacarina: Filtros P1, P2, P3 para aerodispersoídes
+2. Teste Acetato de isoamila (óleo de banana): Para sensibilidade gustativa
+3. Teste da fumaça-irritante: Para filtros P3 e vapores
+
+MANUTENÇÃO:
+• Verificar validade e vida útil
+• Inspecionar peças e borrachas danificadas
+• Proteger contra agentes químicos e físicos
+• Evitar choque, luz solar, calor, frio, umidade`
       }
     ]
   },
   {
     id: 'pca',
-    titulo: '8. Programa de Conservação Auditiva (PCA)',
-    conteudo: `Conforme NR-15, Anexo 1, item 85 dB(A) de ação e 90 dB(A) de limite.`,
+    titulo: '6. PCA (Programa de Conservação Auditiva)',
+    conteudo: `OBJETIVOS:
+1. Estabelecer diretrizes para avaliação e acompanhamento de audição
+2. Fornecer subsídios para prevenção da perda auditiva induzida por ruído (PAIR)
+3. Conservação da saúde auditiva conforme NR-15, Anexo 1
+
+Todos os empregados em ambientes com níveis de pressão sonora acima dos níveis de ação (80 dB(A)) devem ser submetidos a exames audiométricos de referência e sequenciais.`,
     subsecoes: [
-      {
-        titulo: 'Objetivos',
-        conteudo: `1. Identificar trabalhadores expostos a ruído > 80 dB(A)
-2. Implementar medidas de controle na fonte e na trajetória
-3. Distribuir EPI adequado (protetores auriculares)
-4. Realizar monitoramento audiométrico periódico
-5. Orientar sobre prevenção de perda auditiva induzida por ruído (PAIR)`
-      },
       {
         titulo: 'Definições e Caracterizações',
-        conteudo: `Ruído Contínuo: variação < 5 dB(A) ao longo do período
-Ruído Intermitente: variação > 5 dB(A) ao longo do período
-Ruído de Impacto: picos de pressão sonora com duração < 1 segundo, intervalo > 1 segundo entre picos
-Nível de Ação: 80 dB(A) - requer vigilância, treinamento
-Limite de Exposição: 90 dB(A) - não pode ser excedido com EPI`
+        conteudo: `RUÍDO CONTÍNUO: Variação < 5 dB(A) ao longo do período
+RUÍDO INTERMITENTE: Variação > 5 dB(A) ao longo do período
+RUÍDO DE IMPACTO: Picos de pressão sonora com duração < 1 segundo, intervalo > 1 segundo
+
+NÍVEL DE AÇÃO: 80 dB(A) - requer vigilância, treinamento
+LIMITE DE EXPOSIÇÃO: 90 dB(A) - não pode ser excedido com EPI
+
+PAIR (Perda Auditiva Induzida por Ruído): Padrão com entalhe em 3-6 kHz (tipicamente 4 kHz)`
       },
       {
-        titulo: 'Interpretação de Resultados Audiométricos',
-        conteudo: `AUDIOMETRIA TONAL LIMIAR:
-- Limiar Normal: até 20 dB(HL) em todas as frequências
-- Perda Auditiva Leve: 21-40 dB(HL)
-- Perda Auditiva Moderada: 41-70 dB(HL)
-- Perda Auditiva Severa: 71-90 dB(HL)
-- Perda Auditiva Profunda: > 90 dB(HL)
+        titulo: 'Periodicidade de Exames',
+        conteudo: `AUDIOMETRIA OBRIGATÓRIA:
+• Admissional
+• Anual (tendo como referência exame admissional)
+• Demissional (até 120 dias antes da finalização)
 
-PAIR (Perda Auditiva Induzida por Ruído):
-- Padrão: entalhe em 3-6 kHz (tipicamente 4 kHz)
-- Critério de Diagnóstico: diferença média de 10 dB(HL) entre o lado exposto e não exposto
-- Comparação com audiometria anterior: mudança permanente ≥ 10 dB(HL) em frequências ≥ 1 kHz
+INTERVALO: Pode ser reduzido a critério do médico do trabalho
 
-CONDUTA:
-- Aumento > 10 dB(HL): investigar exposição, reforçar EPI, afastar de fonte se possível
-- Padrão de PAIR confirmado: iniciar acompanhamento mais frequente (semestral/trimestral)
-- Considerar reabilitação auditiva (aparelho auditivo) em casos avançados`
+REPOUSO AUDITIVO: Mínimo de 14 horas antes do exame
+
+FREQUÊNCIAS: 500, 1.000, 2.000, 3.000, 4.000, 6.000 e 8.000 Hz
+
+AMBIENTE: Cabina audiométrica conforme ISO 8253-1`
+      },
+      {
+        titulo: 'Interpretação de Resultados',
+        conteudo: `LIMITES ACEITÁVEIS:
+• Limiares ≤ 25 dB(NA) em todas as frequências = NORMAL
+
+SUGESTIVO DE PAIR:
+• Audiograma com limiares > 25 dB(NA) em 3000, 4000 e/ou 6000 Hz
+• Entalhe típico em frequências altas
+
+DIAGNÓSTICO:
+• Análise clínica e ocupacional
+• História ocupacional e pregressa
+• Idade e tempo de exposição
+• Demanda auditiva do trabalho
+• Exposições não ocupacionais
+• Capacitação profissional
+
+EVOLUÇÃO SEQUENCIAL:
+• Diferença ≥ 10 dB(NA) em frequências 3000, 4000, 6000 Hz = AGRAVAMENTO
+• Piora ≥ 15 dB(NA) em frequência isolada = AGRAVAMENTO`
       }
-    ]
-  },
-  {
-    id: 'criterios-cat',
-    titulo: '9. Critérios para Abertura de CAT',
-    conteudo: `A Comunicação de Acidente do Trabalho (CAT) é obrigatória quando ocorre lesão ou doença relacionada ao trabalho.`,
-    subsecoes: [
-      {
-        titulo: 'Situações que Exigem CAT',
-        conteudo: `1. ACIDENTE TÍPICO: lesão decorrente de ação súbita do ambiente de trabalho
-2. ACIDENTE DE TRAJETO: lesão ocorrida no percurso residência-trabalho ou trabalho-residência
-3. DOENÇA OCUPACIONAL: contraída no ambiente de trabalho (comprovada relação com atividade)
-4. DOENÇA PROFISSIONAL: inerente a determinadas profissões (ex: PAIR, silicose, asbestose)
-
-OBSERVAÇÃO: Afastamento por qualquer motivo relacionado ao acidente/doença ocupacional exige CAT`
-      },
-      {
-        titulo: 'Procedimento de Abertura',
-        conteudo: `1. Comunicação ao empregador dentro de 24h do acidente
-2. Emissão da CAT (papel ou digital) em até 24h do conhecimento do acidente
-3. Registro na seguradora ou INSS conforme regime
-4. Cópia para o trabalhador (protocolo)
-5. Documentação: croqui, fotos, testemunhas, avaliação médica
-
-PRAZOS:
-- Abertura: até 24h após o acidente
-- Entrega ao trabalhador: até 24h da emissão
-- Registro no INSS: até 15 dias (se sem afastamento) ou até o retorno (se com afastamento)`
-      }
-    ]
-  },
-  {
-    id: 'epi-auditiva',
-    titulo: '10. EPI para Proteção Auditiva',
-    conteudo: `Conforme NR-6, item 6.6.1 a 6.6.7, especifica tipos, seleção e manutenção.`,
-    subsecoes: [
-      {
-        titulo: 'Tipos de Protetores',
-        conteudo: `1. CONCHA AURICULAR (headset): cobre toda a orelha, recomendado para ambientes com ruído > 90 dB(A)
-   - Vantagens: vedação confortável, reutilizável, fácil colocação
-   - Limitações: calor local, desconforto em ambientes quentes
-
-2. INSERÇÃO AURICULAR (plug): entra no conduto auditivo externo, discreto
-   - Vantagens: conforto, discreto, acesso fácil a comunicações
-   - Limitações: requer ajuste correto, pode perder facilmente, maior variabilidade de vedação
-
-3. MOLDADO CUSTOMIZADO: confeccionado individualmente a partir de molde do ouvido
-   - Vantagens: excelente vedação, conforto superior, durável
-   - Limitações: custo mais alto, tempo de confecção
-
-4. SEMIINSERTADO: entre inserção e concha, cobre parte da orelha
-   - Vantagens: bom conforto, vedação intermediária
-   - Limitações: menos vedação que inserção`
-      },
-      {
-        titulo: 'Seleção Baseada em Nível de Ruído',
-        conteudo: `NÍVEL DE RUÍDO vs PROTETOR:
-- 80-85 dB(A): plug de espuma simples, Atenuação Média ≥ 15 dB
-- 85-90 dB(A): plug ou concha, Atenuação Média ≥ 20 dB
-- 90-95 dB(A): concha dupla ou inserção moldada, Atenuação Média ≥ 25 dB
-- > 95 dB(A): concha + inserção dupla ou respirador com proteção auditiva, Atenuação ≥ 30 dB
-
-OBSERVAÇÃO: Sempre subtrair 7 dB da Atenuação Nominal para conservadorismo (proteção real)`
-      },
-      {
-        titulo: 'Higiene e Manutenção',
-        conteudo: `LIMPEZA:
-- Diária com pano úmido ou álcool 70%
-- Semanal com água morna e sabão (se removível)
-- Inspeção visual para trincas, deformações
-
-ARMAZENAMENTO:
-- Temperatura ambiente (15-25°C)
-- Umidade relativa 45-75%
-- Longe de fontes de calor, luz solar direta
-- Em caixa ou sacola protetora
-
-SUBSTITUIÇÃO:
-- Concha: máximo 12 meses de uso
-- Inserção descartável: após cada uso
-- Moldado: máximo 24 meses ou quando deteriorado`
-      }
-    ]
-  },
-  {
-    id: 'condutas-preventivas',
-    titulo: '11. Condutas Preventivas',
-    conteudo: `Conjunto de medidas para reduzir exposição a riscos ocupacionais conforme Hierarquia ABNT.`,
-    subsecoes: [
-      {
-        titulo: 'Hierarquia de Controles',
-        conteudo: `1. ELIMINAÇÃO: remover completamente o risco
-   Exemplo: substituir solvente tóxico por menos tóxico
-
-2. SUBSTITUIÇÃO: trocar por processo/substância menos prejudicial
-   Exemplo: pintura a pó no lugar de pintura líquida com solvente
-
-3. ENCLAUSURAMENTO/ISOLAMENTO: separar a fonte do trabalhador
-   Exemplo: cabine de jato de areia com sucção
-
-4. VENTILAÇÃO: remover o contaminante do ar de respiração
-   Exemplo: captação local junto à fonte, ventilação geral diluição
-
-5. CONTROLE ADMINISTRATIVO: procedimentos, rodízio, treinamento
-   Exemplo: revezamento de tarefas, trabalho em equipes
-
-6. EPI: último recurso, requer treinamento e supervisão
-   Exemplo: respirador, protetor auricular, luva`
-      },
-      {
-        titulo: 'Medidas Específicas por Risco',
-        conteudo: `RUÍDO:
-- Substituição de máquinas ruidosas por versões silenciosas
-- Isolamento acústico de salas de máquinas
-- Redução de jornada para expostos > 90 dB(A)
-- EPI apropriado (plugue/concha conforme nível)
-- Manutenção preventiva para evitar desgaste que aumenta ruído
-
-CALOR:
-- Ventilação natural ou artificial adequada
-- Redução de jornada em períodos de calor extremo
-- Disponibilidade de água e bebidas isotônicas
-- Uniforme leve (algodão) em ambientes quentes
-- Pausas em locais mais frescos
-
-AGENTES QUÍMICOS:
-- Substituição por menos tóxicos
-- Ventilação local exaustora junto à fonte
-- Contenção de derramamentos
-- Rótulos e fichas de segurança visíveis
-- EPI (luva nitrílica, avental, máscara)
-
-RISCOS ERGONÔMICOS:
-- Ajustes de altura de bancadas (até cotovelo trabalhador)
-- Rotação entre tarefas diferentes
-- Pausas para alongamento (5-10 min a cada 2 horas)
-- Treinamento de postura correta
-- Equipamentos auxiliares (luva, cinto de segurança se necessário)`
-      }
-    ]
-  },
-  {
-    id: 'limites-tolerancia-continuo',
-    titulo: '12. Limites de Tolerância para Ruído Contínuo e Intermitente',
-    conteudo: `Conforme NR-15, Anexo 1, estabelece limites de exposição diária.`,
+    ],
     tabelas: [
       {
-        titulo: 'Limites de Tolerância - NR-15 Anexo 1',
+        titulo: 'Limites de Tolerância NR-15 Anexo 1 - Ruído Contínuo/Intermitente',
         linhas: [
-          ['Nível Sonoro dB(A)', 'Tempo de Exposição Máxima'],
-          ['80', 'Sem limite (mas exige vigilância)'],
+          ['NÍVEL SONORO dB(A)', 'TEMPO DE EXPOSIÇÃO MÁXIMA'],
+          ['80', 'Sem limite (exige vigilância)'],
           ['82', '16 horas'],
           ['83', '13,6 horas'],
           ['85', '8 horas'],
@@ -395,219 +279,184 @@ RISCOS ERGONÔMICOS:
           ['92', '1,6 horas'],
           ['93', '1,3 horas'],
           ['94', '1 hora'],
-          ['95', '48 minutos'],
-          ['96', '38 minutos'],
-          ['97', '30 minutos'],
-          ['98', '24 minutos'],
-          ['99', '19 minutos'],
-          ['100', '15 minutos']
+          ['95', '48 minutos']
         ]
-      }
-    ],
-    subsecoes: [
-      {
-        titulo: 'Método de Cálculo (Dose de Ruído)',
-        conteudo: `Para jornadas com múltiplos níveis de ruído, calcular dose equivalente:
-
-Dose = (T1/L1) + (T2/L2) + ... + (Tn/Ln) × 100
-
-Onde: T = tempo em cada nível, L = limite máximo naquele nível
-
-Exemplo: 2h a 90 dB + 4h a 85 dB:
-Dose = (2/2,5) + (4/8) × 100 = (0,8 + 0,5) × 100 = 130%
-
-Se Dose > 100%, há excesso de exposição e requer medidas corretivas`
-      }
-    ]
-  },
-  {
-    id: 'limites-tolerancia-impacto',
-    titulo: '13. Limites de Tolerância para Ruídos de Impacto',
-    conteudo: `Conforme NR-15, Anexo 1, item 6, para ruído de impacto com picos de pressão sonora.`,
-    subsecoes: [
-      {
-        titulo: 'Definição e Características',
-        conteudo: `Ruído de Impacto: pressão sonora de pico com duração < 1 segundo, intervalo > 1 segundo entre picos.
-
-Exemplos: martelo pneumático, prensa, bigorna, disparo de arma, porta fechando com força`
-      },
-      {
-        titulo: 'Limites Estabelecidos',
-        conteudo: `- Pico de Pressão Sonora: máximo 140 dB(A) (≈ 200 Pa)
-- Nível de Exposição: até 6 impactos/dia
-- Acima de 6 impactos: requer audiometria trimestral
-
-Para múltiplos impactos, considerar:
-- Número total de impactos por jornada
-- Nível de pico de cada impacto
-- Distribuição temporal dos impactos`
-      },
-      {
-        titulo: 'Medidas de Controle para Ruído de Impacto',
-        conteudo: `1. SUBSTITUIÇÃO: usar ferramentas com amortecimento de impacto
-2. ISOLAMENTO: separar local de trabalho, cabines acústicas
-3. REDUÇÃO DE JORNADA: limitar tempo de exposição
-4. EPI DUPLO: concha + inserção auricular de máxima atenuação (mínimo 30 dB de redução)
-5. MONITORAMENTO: audiometria semestral ou trimestral conforme exposição`
       }
     ]
   },
   {
     id: 'programa-ergonomico',
-    titulo: '14. Programa Ergonômico',
-    conteudo: `Programa integrado de análise e melhoria das condições ergonômicas do trabalho conforme NR-17.`,
+    titulo: '7. Programa Ergonômico',
+    conteudo: `APRESENTAÇÃO: O Programa Ergonômico visa estabelecer os critérios básicos para prevenção de acidentes e doenças ocupacionais do Trabalho conforme NR-17.
+
+A ergonomia envolve a aplicação dos conhecimentos sobre as características do ser humano para beneficiar seu bem-estar físico e mental e os resultados de seu trabalho e da empresa. Toda atividade industrial pode ser vista como um sistema homem-máquina dentro de um ambiente de produção.
+
+OBJETIVO: Adaptar as condições de trabalho, dando um arranjo à área de trabalho para economia de movimentos, redução de manipulações e repetições, melhora do ritmo do trabalho, adequação do formato ao operador.`,
     subsecoes: [
       {
-        titulo: 'Objetivos do Programa',
-        conteudo: `1. Realizar Análise Ergonômica do Trabalho (AET) periódica
-2. Identificar riscos ergonômicos (posturas inadequadas, repetitividade, sobrecarga)
-3. Implementar melhorias na organização do trabalho
-4. Capacitar trabalhadores e supervisores
-5. Monitorar saúde (afastamentos, queixas músculo-esqueléticas)
-6. Avaliar eficácia das ações implementadas`
+        titulo: 'Fatores Ergonômicos Principais',
+        conteudo: `Conforme NR-17 devem ser avaliados:
+
+1. LEVANTAMENTO, TRANSPORTE E DESCARGA INDIVIDUAL DE MATERIAIS
+   • Peso máximo: 23 kg (mulher), 25 kg (homem)
+   • Técnica adequada de levantamento
+   • Frequência de movimentos
+
+2. MOBILIÁRIO DOS POSTOS DE TRABALHO
+   • Mesas com altura adequada
+   • Cadeiras com regulagem de altura e encosto
+   • Apoio de pés quando necessário
+
+3. EQUIPAMENTOS DOS POSTOS DE TRABALHO
+   • Posicionamento do monitor: altura dos olhos
+   • Teclado e mouse ergonômicos
+   • Suporte para documentos
+
+4. CONDIÇÕES AMBIENTAIS DE TRABALHO
+   • Iluminação: 300-500 lux para atividades comuns
+   • Temperatura: 20-23°C
+   • Umidade relativa: 40-60%
+   • Ruído: < 85 dB(A)
+
+5. ORGANIZAÇÃO DO TRABALHO
+   • Pausas regulares (5-10 min a cada 2 horas)
+   • Rodízio de atividades
+   • Ritmo adequado
+   • Controle sobre o trabalho`
       },
       {
-        titulo: 'Reconhecimento dos Riscos Ergonômicos',
-        conteudo: `- POSTURA INADEQUADA: coluna não reta, pescoço estendido, ombros elevados
-- REPETITIVIDADE: movimentos > 2 vezes/minuto por > 2 horas contínuas
-- SOBRECARGA DINÂMICA: levantamento de peso > 23 kg (mulher) / 25 kg (homem)
-- SOBRECARGA ESTÁTICA: posição mantida > 2 horas contínuas
-- VIBRAÇÃO: exposição a vibração de corpo inteiro (motoristas) ou localizada (furadeira)
-- FALTA DE PAUSAS: jornadas contínuas sem pausa de recuperação`
-      },
-      {
-        titulo: 'Possíveis Lesões Músculo-Esqueléticas',
-        conteudo: `- LER/DORT (Lesão por Esforço Repetitivo / Doença Osteomuscular Relacionada ao Trabalho)
-  Síndroma do Túnel do Carpo (punho), Epicondilite Lateral (cotovelo), Tendinite (ombro)
+        titulo: 'Postura Ergonomicamente Correta',
+        conteudo: `TRABALHO SENTADO:
+• Cadeira com altura ajustável (pés apoiados no chão)
+• Costas apoiadas no encosto (ângulo 95-110°)
+• Cotovelos flexionados 90°, antebraço sobre a mesa
+• Monitor à altura dos olhos, distância 50-70 cm
+• Teclado próximo ao corpo, sem extensão de punho
 
-- LESÕES DE COLUNA
-  Hérnia de Disco (cervical/lombar), Espondilite, Discopatia Degenerativa
-
-- LESÕES DE JOELHO
-  Condromalácia Patelar, Síndroma Patelofemoral
-
-- LESÕES DE QUADRIL/BACIA
-  Bursite, Artrose Precoce
-
-Fatores de Risco: idade > 40 anos, jornada > 8h, falta de pausas, peso corporal elevado`
-      },
-      {
-        titulo: 'Recomendações para Postura Ergononomicamente Correta',
-        conteudo: `TRABALHO SENTADO (ex: digitador, montador):
-- Cadeira com altura ajustável (pés apoiados no chão ou apoio de pés)
-- Costas apoiadas no encosto (ângulo 95-110°)
-- Cotovelos flexionados 90°, antebraço sobre a mesa
-- Monitor à altura dos olhos, distância 50-70 cm
-- Teclado próximo ao corpo, sem extensão de punho
-
-TRABALHO EM PÉ (ex: vendedor, operador de máquina):
-- Distribuição equilibrada do peso entre os dois pés
-- Flexão leve dos joelhos para absorver impacto
-- Coluna ereta, ombros relaxados
-- Antepés voltados levemente para frente
-- Sapato com salto 2-3 cm, solado confortável
+TRABALHO EM PÉ:
+• Distribuição equilibrada do peso entre os dois pés
+• Flexão leve dos joelhos para absorver impacto
+• Coluna ereta, ombros relaxados
+• Antepés voltados levemente para frente
+• Sapato com salto 2-3 cm, solado confortável
 
 LEVANTAMENTO DE PESO:
-- Manter a coluna reta (não curvar)
-- Agachar com flexão de joelho (não cintura)
-- Manter o objeto próximo ao corpo
-- Levantar com pernas (não costas)
-- Nunca girar o tronco com peso nos ombros`
+• Manter a coluna reta (não curvar)
+• Agachar com flexão de joelho (não cintura)
+• Manter o objeto próximo ao corpo
+• Levantar com pernas (não costas)
+• Nunca girar o tronco com peso nos ombros`
       },
       {
-        titulo: 'Procedimento para Aquecimento e Treinamentos',
+        titulo: 'Procedimento para Aquecimento',
         conteudo: `AQUECIMENTO PRÉ-TURNO (5 minutos):
-- Rotação de pescoço: 10 movimentos circulares para cada lado
-- Flexão de ombros: 10 movimentos para frente, 10 para trás
-- Alongamento de coluna: inclinação lateral esquerda/direita (15 seg cada)
-- Rotação de tronco: 10 rotações para cada lado
-- Alongamento de pernas: flexão de quadril, estresse em posterior (15 seg cada)
-- Rotação de tornozelos: 10 movimentos em cada pé
+• Rotação de pescoço: 10 movimentos circulares para cada lado
+• Flexão de ombros: 10 movimentos para frente, 10 para trás
+• Alongamento de coluna: inclinação lateral esquerda/direita (15 seg cada)
+• Rotação de tronco: 10 rotações para cada lado
+• Alongamento de pernas: flexão de quadril, estresse em posterior (15 seg cada)
+• Rotação de tornozelos: 10 movimentos em cada pé
 
 EXERCÍCIOS A CADA 2 HORAS (3-5 minutos):
-- Alongamento de pescoço (flexão/extensão, inclinação)
-- Alongamento de ombros (levantamento, rotação)
-- Alongamento de antebraço (extensão/flexão de punho)
-- Alongamento de coluna (torção, inclinação)
-
-ESCALA PSICOFÍSICA DE BORG (percepção de esforço):
-Escala 0-10:
-0 = Repouso completo
-2 = Esforço muito leve
-4 = Esforço leve
-6 = Esforço moderado
-8 = Esforço intenso
-10 = Esforço máximo absoluto
-
-CONDUTA: Se esforço ≥ 6 durante jornada normal, requer análise e melhoria ergonômica`
+• Alongamento de pescoço (flexão/extensão, inclinação)
+• Alongamento de ombros (levantamento, rotação)
+• Alongamento de antebraço (extensão/flexão de punho)
+• Alongamento de coluna (torção, inclinação)`
       }
     ]
   },
   {
-    id: 'cronograma-anual-saude',
-    titulo: '15. Cronograma Anual de Ações de Saúde Ocupacional',
-    conteudo: `Planejamento e distribuição de ações ao longo do ano para garantir cobertura de todos os monitoramentos e treinamentos.`,
-    tabelas: [
+    id: 'criterios-cat',
+    titulo: '8. Critérios para Abertura de CAT',
+    conteudo: `A Comunicação de Acidente do Trabalho (CAT) é obrigatória quando ocorre lesão ou doença relacionada ao trabalho.
+
+SITUAÇÕES QUE EXIGEM CAT:
+1. ACIDENTE TÍPICO: Lesão decorrente de ação súbita do ambiente de trabalho
+2. ACIDENTE DE TRAJETO: Lesão ocorrida no percurso residência-trabalho ou trabalho-residência
+3. DOENÇA OCUPACIONAL: Contraída no ambiente de trabalho (comprovada relação com atividade)
+4. DOENÇA PROFISSIONAL: Inerente a determinadas profissões (PAIR, silicose, asbestose)
+
+OBSERVAÇÃO: Afastamento por qualquer motivo relacionado ao acidente/doença ocupacional exige CAT`,
+    subsecoes: [
       {
-        titulo: 'Cronograma de Exames e Ações Conforme Risco',
-        linhas: [
-          ['Mês', 'Risco Físico (Ruído)', 'Risco Químico', 'Risco Ergonômico', 'Ações Gerais'],
-          ['Janeiro', '', '', '', 'Exame Admissional (novos)'],
-          ['Fevereiro', 'Audiometria 1º lote', 'Hemograma grupo 1', '', 'Treinamento Primeiros Socorros'],
-          ['Março', '', '', 'AET grupo 1', ''],
-          ['Abril', '', '', '', 'Revisão PGR/PCMSO'],
-          ['Maio', 'Audiometria 2º lote', '', '', 'Vacinação (Hepatite B, Tétano)'],
-          ['Junho', '', 'Espirometria grupo 1', 'AET grupo 2', 'Análise de afastamentos'],
-          ['Julho', '', '', '', 'Exame Demissional'],
-          ['Agosto', 'Audiometria 3º lote', 'Hemograma grupo 2', '', ''],
-          ['Setembro', '', '', 'Avaliação Psicossocial', 'Treinamento Ergonomia'],
-          ['Outubro', '', '', '', 'Revisão cronograma próximo ano'],
-          ['Novembro', 'Audiometria 4º lote', '', '', 'Treinamento Segurança'],
-          ['Dezembro', '', 'Espirometria grupo 2', '', 'Relatório Anual PCMSO']
-        ]
+        titulo: 'Procedimento de Abertura',
+        conteudo: `1. Comunicação ao empregador dentro de 24h do acidente
+2. Emissão da CAT (papel ou digital) em até 24h do conhecimento
+3. Registro na seguradora ou INSS conforme regime
+4. Cópia para o trabalhador (protocolo)
+5. Documentação: croqui, fotos, testemunhas, avaliação médica
+
+PRAZOS:
+• Abertura: até 24h após o acidente
+• Entrega ao trabalhador: até 24h da emissão
+• Registro no INSS: até 15 dias (sem afastamento) ou até retorno (com afastamento)`
+      }
+    ]
+  },
+  {
+    id: 'fluxo-atendimento-acidente',
+    titulo: '9. Fluxo de Atendimento a Acidentes',
+    conteudo: `Procedimento padrão desde o momento do acidente até o encerramento do caso.
+
+ETAPAS DO FLUXO:
+1. IMEDIATO: Comunicação ao supervisor/gerente
+2. PRIMEIROS SOCORROS: Avaliação inicial e estabilização
+3. COMUNICAÇÃO: Notificar à segurança e médico coordenador
+4. AVALIAÇÃO MÉDICA: Atendimento clínico no dia do acidente
+5. CAT: Emissão da Comunicação de Acidente do Trabalho em até 24h
+6. ACOMPANHAMENTO: Exames complementares conforme necessidade
+7. REABILITAÇÃO: Reintegração gradual às atividades
+8. ENCERRAMENTO: Alta médica ou afastamento permanente`,
+    subsecoes: [
+      {
+        titulo: 'Procedimentos do SESMT Após Socorro',
+        conteudo: `Em caso de acidente de trabalho Típicos e de trajeto, será feito pelo SESMT da Empresa a Investigação de Acidente do Trabalho registrado em formulário padrão (que ficará sob arquivo do próprio SESMT), para posterior análise e emissão do Comunicado de Acidente do Trabalho (CAT).
+
+O fluxo de atendimento de urgência e emergências deve ser orientado para o Hospital Conveniado com atendimento de emergência mais próximo.
+
+A Empresa oferece plano de saúde para seus funcionários, a fim de garantir Assistência de Saúde integral a seus colaboradores.`
       }
     ]
   },
   {
     id: 'programa-vacinacao',
-    titulo: '16. Programa de Vacinação',
-    conteudo: `Programa de imunização conforme calendário recomendado pela Organização Mundial de Saúde (OMS) e regulamentação brasileira (ANVISA/MS).`,
-    subsecoes: [
-      {
-        titulo: 'Vacinas Recomendadas para Trabalhadores',
-        conteudo: `ROTINA (todos os trabalhadores):
-- TÉTANO: 3 doses iniciais (0, 1, 6 meses), reforço a cada 10 anos
-- HEPATITE B: 3 doses (0, 1, 6 meses), sorologias 30 dias após últimas dose
-- HEPATITE A: 2 doses (0, 6 meses) ou conforme faixa etária/sorologia
-- DIFTERIA/COQUELUCHE: 1 reforço (dTpa)
+    titulo: '10. Programa de Vacinação',
+    conteudo: `Programa de imunização conforme calendário recomendado pela Organização Mundial de Saúde (OMS) e regulamentação brasileira (ANVISA/MS).
+
+VACINAS RECOMENDADAS:
+
+ROTINA (todos os trabalhadores):
+• TÉTANO: 3 doses iniciais (0, 1, 6 meses), reforço a cada 10 anos
+• HEPATITE B: 3 doses (0, 1, 6 meses), sorologias 30 dias após
+• HEPATITE A: 2 doses (0, 6 meses) ou conforme faixa etária
+• DIFTERIA/COQUELUCHE: 1 reforço (dTpa)
 
 CONFORME RISCO:
-- TUBERCULOSE (BCG): uma dose (se sem cicatriz)
-- FEBRE AMARELA: 1 dose (refuerço a cada 10 anos)
-- RAIVA: conforme exposição (veterinários, coletores lixo)
-- RUBÉOLA/CAXUMBA/SARAMPO (MMR): conforme sorologia
-- INFLUENZA (Gripe): anual (outono)
-- PNEUMOCOCO: conforme faixa etária`
-      },
+• TUBERCULOSE (BCG): Uma dose (se sem cicatriz)
+• FEBRE AMARELA: 1 dose (reforço a cada 10 anos)
+• RAIVA: Conforme exposição (veterinários, coletores de lixo)
+• RUBÉOLA/CAXUMBA/SARAMPO: Conforme sorologia
+• INFLUENZA: Anual (outono)
+• PNEUMOCOCO: Conforme faixa etária`,
+    subsecoes: [
       {
         titulo: 'Verificação de Status Vacinal',
         conteudo: `ADMISSIONAL:
-- Revisar caderneta de vacinação
-- Solicitar sorologias se não houver comprovação (Hepatite B, A, Sarampo)
-- Atualizar vacinação conforme deficiências encontradas
+• Revisar caderneta de vacinação
+• Solicitar sorologias se não houver comprovação
+• Atualizar vacinação conforme deficiências
 
 PERIÓDICO:
-- Reforços de Tétano (a cada 10 anos)
-- Influenza (anual, campanhas outono/maio)
-- Conforme novo calendário recomendado`
-      },
-      {
-        titulo: 'Registro e Acompanhamento',
-        conteudo: `- Manter cópia da caderneta ou registro eletrônico
-- Documentar sorologias (anti-HBs, anti-HAV, etc)
-- Registrar reações adversas (local, duração)
-- Encaminhar para vacinação conforme cronograma
-- Informar trabalhador sobre próximas doses necessárias`
+• Reforços de Tétano (a cada 10 anos)
+• Influenza (anual)
+• Conforme novo calendário recomendado
+
+REGISTRO E ACOMPANHAMENTO:
+• Manter cópia da caderneta ou registro eletrônico
+• Documentar sorologias (anti-HBs, anti-HAV, etc)
+• Registrar reações adversas
+• Encaminhar para vacinação conforme cronograma
+• Informar trabalhador sobre próximas doses`
       }
     ]
   }
