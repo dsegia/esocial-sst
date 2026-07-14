@@ -98,6 +98,7 @@ export default function PCMSO() {
   const [formSecoes, setFormSecoes] = useState({})
   const [secoesImagens, setSecoesImagens] = useState({})
   const [uploading, setUploading] = useState(false)
+  const [salvandoSecoes, setSalvandoSecoes] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -192,21 +193,31 @@ export default function PCMSO() {
   }
 
   async function salvarSecoes() {
-    const dados = {
-      empresa_id: empresaId,
-      secoes_custom: formSecoes, // Salva TODAS as seções customizadas
-      secoes_imagens: secoesImagens, // Salva URLs das imagens
-      atualizado_em: new Date().toISOString(),
+    setSalvandoSecoes(true)
+    try {
+      const dados = {
+        empresa_id: empresaId,
+        secoes_custom: formSecoes, // Salva TODAS as seções customizadas
+        secoes_imagens: secoesImagens, // Salva URLs das imagens
+        atualizado_em: new Date().toISOString(),
+      }
+      if (medico?.id) {
+        const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
+        if (error) throw error
+      }
+
+      // Recarrega dados para garantir que o PDF usa os dados mais recentes
+      await init()
+      setEditandoSecao(null)
+      alert('✅ Seção salva com sucesso! O PDF vai mostrar as mudanças.')
+    } catch (err) {
+      alert('❌ Erro ao salvar: ' + err.message)
+    } finally {
+      setSalvandoSecoes(false)
     }
-    if (medico?.id) {
-      const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
-      if (error) { alert('Erro ao salvar: ' + error.message); return }
-    } else {
-      const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
-      if (error) { alert('Erro ao salvar: ' + error.message); return }
-    }
-    setEditandoSecao(null)
-    await init()
   }
 
   function obterConteudoSecao(idSecao) {
@@ -903,8 +914,12 @@ export default function PCMSO() {
                           💡 Use quebras de linha naturais. Subseções com "→" no início. Tabelas em formato texto [TABELA: nome].
                         </div>
                         <div style={{ display:'flex', gap:8 }}>
-                          <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
-                          <button style={s.btnOutline} onClick={() => setEditandoSecao(null)}>Cancelar</button>
+                          <button style={s.btnPrimary} onClick={salvarSecoes} disabled={salvandoSecoes || uploading}>
+                            {salvandoSecoes ? 'Salvando...' : 'Salvar'}
+                          </button>
+                          <button style={s.btnOutline} onClick={() => setEditandoSecao(null)} disabled={salvandoSecoes}>
+                            Cancelar
+                          </button>
                         </div>
                       </div>
                     ) : (

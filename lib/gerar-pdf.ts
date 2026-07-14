@@ -528,7 +528,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   doc.text(`Município: ${empresa?.municipio || '—'} | UF: ${empresa?.uf || '—'}`, mg + 2, y + 18)
   doc.text(`Endereço: ${empresa?.endereco || '—'}`, mg + 2, y + 22)
   doc.text(`Telefone: ${empresa?.telefone || '—'} | Email: ${empresa?.email || '—'}`, mg + 2, y + 26)
-  doc.text(`CNAE: ${empresa?.cnae || '—'} | Grau de Risco: ${empresa?.grt || '—'}`, mg + 2, y + 30)
+  doc.text(`CNAE: ${empresa?.cnae || '—'} | Grau de Risco: ${empresa?.grau_risco || '—'}`, mg + 2, y + 30)
 
   doc.setFont('helvetica', 'bold')
   doc.text('REPRESENTANTE LEGAL:', mg + 2, y + 36); doc.text('MÉDICO COORDENADOR:', mg + 100, y + 36)
@@ -586,10 +586,23 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     }
 
     const conteudo = secoesCust[secaoItem.id] || secaoItem.conteudo
+    const temCustomizacao = !!secoesCust[secaoItem.id]
+
+    // Se não tem customização, renderiza subsecoes e tabelas da estrutura original
+    if (!temCustomizacao && secaoItem.subsecoes) {
+      for (const sub of secaoItem.subsecoes) {
+        if (y > 250) { doc.addPage(); y = 20 }
+        y = secaoHeader('→ ' + sub.titulo, y)
+        y = paragrafo(sub.conteudo, y, 9)
+      }
+    }
+
+    // Renderiza conteúdo (customizado ou padrão)
     y = paragrafo(conteudo, y, 9)
 
+    // Renderiza tabelas originais (sempre mostra, mesmo com customização)
     if (secaoItem.tabelas) {
-      for (const tab of secaoItem.tabelas.slice(0, 1)) {
+      for (const tab of secaoItem.tabelas.slice(0, 2)) {
         if (y > 245) { doc.addPage(); y = 20 }
         y = tabela(tab.linhas, tab.titulo, y)
       }
