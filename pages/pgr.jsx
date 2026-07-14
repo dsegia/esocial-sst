@@ -168,6 +168,88 @@ function inventarioDesatualizado(inventario, ghesCadastro) {
   })
 }
 
+function riscoParaCadastro(r) {
+  return {
+    id: crypto.randomUUID(),
+    tipo: r.tipo || 'fis',
+    nome: r.nome || '',
+    valor: r.valor || '',
+    limite: r.limite || '',
+    unidade: r.unidade || '',
+    supera_lt: false,
+    medicao_quantitativa: !!r.medicao_quantitativa,
+    metodologia: r.metodologia || '',
+    codigo_esocial: r.codigo_esocial || '',
+    fonte_geradora: r.equipamento || '',
+    danos_saude: r.possiveis_danos || '',
+  }
+}
+
+// Empurra para o cadastro central (/ghes) os GHEs e riscos criados/adicionados
+// diretamente no PGR (sem ghe_id/risco_id) — o sentido contrário de
+// sincronizarInventarioComCadastro. GHEs novos viram uma linha nova em `ghes`;
+// riscos novos dentro de um GHE já vinculado são anexados aos riscos existentes
+// daquele GHE. Assim LTCAT, PCMSO e /ghes passam a enxergar o que foi digitado no PGR.
+async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, empresaId) {
+  const novoInventario = JSON.parse(JSON.stringify(inventario || []))
+  const ghesMap = new Map((ghesCadastroAtual || []).map(g => [g.id, g]))
+
+  for (const grupo of novoInventario) {
+    const riscosNovos = (grupo.riscos || []).filter(r => !r.risco_id)
+    const funcoesNovas = [...new Set((grupo.funcoes || []).map(f => f.nome).filter(Boolean))]
+
+    if (!grupo.ghe_id) {
+      if (!grupo.nome?.trim() && !riscosNovos.length) continue
+      const riscosMapeados = riscosNovos.map(riscoParaCadastro)
+      const payload = {
+        empresa_id: empresaId,
+        nome: grupo.nome || grupo.ambientes_relacionados || 'GHE sem nome',
+        setor: grupo.ambientes_relacionados || grupo.nome || '',
+        qtd_trabalhadores: parseInt(grupo.numero_empregados) || 1,
+        funcoes: funcoesNovas,
+        riscos: riscosMapeados,
+        epi: (grupo.epis || []).map(e => ({ nome: e.nome || '', ca: '', eficaz: e.eficaz !== false })),
+        epc: [],
+        ativo: true,
+      }
+      const { data: inserido, error } = await supabase.from('ghes').insert(payload).select().single()
+      if (error || !inserido) continue
+      grupo.ghe_id = inserido.id
+      grupo.ghe_sync = { atualizado_em: inserido.atualizado_em }
+      riscosNovos.forEach((r, i) => {
+        r.risco_id = riscosMapeados[i].id
+        r.risco_sync = { atualizado_em: inserido.atualizado_em }
+      })
+      continue
+    }
+
+    const ghe = ghesMap.get(grupo.ghe_id)
+    if (!ghe) continue
+
+    const nomesFuncoesCadastro = new Set(ghe.funcoes || [])
+    const funcoesParaAdicionar = funcoesNovas.filter(f => !nomesFuncoesCadastro.has(f))
+    if (!riscosNovos.length && !funcoesParaAdicionar.length) continue
+
+    const riscosMapeados = riscosNovos.map(riscoParaCadastro)
+    const patch = {
+      riscos: [...(ghe.riscos || []), ...riscosMapeados],
+      funcoes: [...(ghe.funcoes || []), ...funcoesParaAdicionar],
+      atualizado_em: new Date().toISOString(),
+    }
+    const { data: atualizado, error } = await supabase.from('ghes').update(patch).eq('id', grupo.ghe_id).select().single()
+    if (error || !atualizado) continue
+    grupo.ghe_sync = { atualizado_em: atualizado.atualizado_em }
+    riscosNovos.forEach((r, i) => {
+      r.risco_id = riscosMapeados[i].id
+      r.risco_sync = { atualizado_em: atualizado.atualizado_em }
+    })
+    ghe.riscos = patch.riscos
+    ghe.funcoes = patch.funcoes
+  }
+
+  return novoInventario
+}
+
 const ambienteVazio = () => ({ nome: '', descricao: '', tipo: 'proprio', data_inicio: '', epcs: [], imagens: [] })
 
 const acaoVazia = (risco = '') => ({
@@ -314,6 +396,8 @@ export default function PGR() {
     if (!form.data_elaboracao) { setErro('Informe a data de elaboração.'); return }
     setSalvando(true); setErro(''); setSucesso('')
 
+    const inventarioSincronizado = await sincronizarInventarioParaCadastro(form.inventario, ghesCadastro, empresaId)
+
     const dados = {
       empresa_id: empresaId,
       numero_revisao: form.numero_revisao || 1,
@@ -324,7 +408,7 @@ export default function PGR() {
       resp_conselho: form.resp_conselho || 'CREA',
       resp_registro: form.resp_registro || null,
       ambientes: form.ambientes || [],
-      inventario: form.inventario || [],
+      inventario: inventarioSincronizado,
       plano_acao: form.plano_acao || [],
       textos_legais_custom: form.textos_legais_custom || {},
       imagens_anexas: form.imagens_anexas || [],
@@ -1086,6 +1170,9 @@ export default function PGR() {
                 <button style={{ ...s.btnAcao, fontSize:11, color:'#0C447C', borderColor:'#B5D4F4' }} onClick={prepararSincronizacao}>↻ Sincronizar do cadastro</button>
                 <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addGhe}>+ Adicionar GHE</button>
               </div>
+            </div>
+            <div style={{ fontSize:11, color:'#9ca3af', marginBottom:10 }}>
+              GHEs e riscos novos adicionados aqui são enviados ao cadastro central (/ghes) ao salvar o PGR, e passam a ficar disponíveis também no LTCAT e no PCMSO.
             </div>
             {(form.inventario || []).map((g, gi) => {
               const iqct = calcularIQCT(g.riscos)
