@@ -884,6 +884,20 @@ export default function PCMSO() {
                   }} />
                 </label>
               </div>
+              <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                <button
+                  style={{...s.btnAcao, background:'#185FA5', color:'white', border:'none'}}
+                  onClick={() => {
+                    const fileName = prompt('Nome/descrição da imagem:')
+                    if (fileName) {
+                      const conteudoAtual = formSecoes[editandoSecao] || ''
+                      setFormSecoes({...formSecoes, [editandoSecao]: conteudoAtual + '\n\n[📷 IMAGEM: ' + fileName + ']\n'})
+                    }
+                  }}
+                >
+                  📷 Inserir Imagem
+                </button>
+              </div>
               <div style={{ display:'flex', gap:8 }}>
                 <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
                 <button style={s.btnOutline} onClick={() => setEditandoSecao(null)}>Cancelar</button>
