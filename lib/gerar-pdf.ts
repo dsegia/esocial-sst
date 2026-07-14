@@ -744,21 +744,41 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const W = 210; const H = 297; const mg = 12
   let y = 15
 
+  // Capa no mesmo padrão visual do PGR e do LTCAT: barra com logo + nome do
+  // documento no topo, nome da empresa em destaque logo abaixo.
   function capa() {
     doc.setFillColor(24, 95, 165)
-    doc.rect(0, 0, W, H, 'F')
-    doc.setFontSize(36); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text('PCMSO', W / 2, 80, { align: 'center' })
-    doc.setFontSize(18); doc.setFont('helvetica', 'normal')
-    doc.text('Programa de Controle Médico de Saúde Ocupacional', W / 2, 100, { align: 'center' })
-    doc.setFontSize(12)
-    doc.text('NR-7 | Portaria MTE 3.214/78', W / 2, 115, { align: 'center' })
-    doc.setFontSize(11); doc.setTextColor(220, 220, 220)
-    doc.text(empresa?.razao_social || 'Empresa', W / 2, 160, { align: 'center' })
+    doc.rect(0, 0, W, 30, 'F')
+    if (empresa?.logo_url) {
+      try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+    }
+    doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text('PROGRAMA DE CONTROLE MÉDICO DE SAÚDE OCUPACIONAL', W / 2, 12, { align: 'center' })
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+    doc.text('PCMSO — NR-7 / Portaria MTE nº 3.214/78', W / 2, 18, { align: 'center' })
     doc.setFontSize(9)
-    doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, 170, { align: 'center' })
-    doc.setFontSize(10); doc.setTextColor(200, 200, 200)
-    doc.text(new Date().toLocaleDateString('pt-BR'), W / 2, H - 30, { align: 'center' })
+    doc.text('Base para o evento S-2220 do eSocial', W / 2, 24, { align: 'center' })
+
+    y = 90
+    doc.setFont('helvetica', 'bold')
+    let nomeFontSize = 22
+    doc.setFontSize(nomeFontSize)
+    const nomeEmpresaTxt = empresa?.razao_social || 'EMPRESA'
+    while (doc.getTextWidth(nomeEmpresaTxt) > (W - 40) && nomeFontSize > 13) {
+      nomeFontSize -= 1
+      doc.setFontSize(nomeFontSize)
+    }
+    doc.setTextColor(24, 95, 165)
+    doc.text(nomeEmpresaTxt, W / 2, y, { align: 'center' }); y += 10
+    doc.setFontSize(10); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
+    doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, y, { align: 'center' }); y += 30
+
+    doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
+    doc.text('Este documento é confidencial e de uso exclusivo da empresa acima identificada.', W / 2, y, { align: 'center' })
+
+    doc.setFontSize(8); doc.setTextColor(160); doc.setFont('helvetica', 'normal')
+    doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, W / 2, H - 15, { align: 'center' })
+
     doc.addPage()
     y = 20
   }
