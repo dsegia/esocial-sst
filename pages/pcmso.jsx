@@ -202,12 +202,41 @@ export default function PCMSO() {
   }
 
   function obterConteudoSecao(idSecao) {
-    // Retorna o conteúdo customizado ou o padrão
+    // Se foi customizado, retorna como está
     if (formSecoes?.[idSecao]) {
       return formSecoes[idSecao]
     }
+
+    // Senão, reconstrói a seção completa (conteudo + subsecoes + tabelas)
     const secao = SECOES_PCMSO.find(s => s.id === idSecao)
-    return secao ? secao.conteudo : ''
+    if (!secao) return ''
+
+    let texto = secao.conteudo || ''
+
+    // Adiciona subsecoes
+    if (secao.subsecoes?.length) {
+      for (const sub of secao.subsecoes) {
+        texto += '\n\n→ ' + sub.titulo + '\n' + sub.conteudo
+      }
+    }
+
+    // Adiciona tabelas em formato texto
+    if (secao.tabelas?.length) {
+      for (const tab of secao.tabelas) {
+        texto += '\n\n[TABELA: ' + tab.titulo + ']\n'
+        // Cabeçalho
+        if (tab.linhas[0]) {
+          texto += tab.linhas[0].join(' | ') + '\n'
+          texto += '-'.repeat(50) + '\n'
+        }
+        // Dados
+        for (let i = 1; i < tab.linhas.length; i++) {
+          texto += tab.linhas[i].join(' | ') + '\n'
+        }
+      }
+    }
+
+    return texto
   }
 
   function ultimoAso(funcId) {
