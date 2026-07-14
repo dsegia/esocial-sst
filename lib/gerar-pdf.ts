@@ -415,181 +415,163 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210; const mg = 15
+  const W = 210; const H = 297; const mg = 12
   let y = 15
 
-  function secao(texto: string, yPos: number): number {
-    doc.setFillColor(39, 80, 10)
-    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
-    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg + 3, yPos + 4.2)
-    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
-    return yPos + 10
+  function capa() {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(0, 0, W, H, 'F')
+    doc.setFontSize(36); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text('PCMSO', W / 2, 80, { align: 'center' })
+    doc.setFontSize(18); doc.setFont('helvetica', 'normal')
+    doc.text('Programa de Controle Médico de Saúde Ocupacional', W / 2, 100, { align: 'center' })
+    doc.setFontSize(12)
+    doc.text('NR-7 | Portaria MTE 3.214/78', W / 2, 115, { align: 'center' })
+    doc.setFontSize(11); doc.setTextColor(220, 220, 220)
+    doc.text(empresa?.razao_social || 'Empresa', W / 2, 160, { align: 'center' })
+    doc.setFontSize(9)
+    doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, 170, { align: 'center' })
+    doc.setFontSize(10); doc.setTextColor(200, 200, 200)
+    doc.text(new Date().toLocaleDateString('pt-BR'), W / 2, H - 30, { align: 'center' })
+    doc.addPage()
+    y = 20
   }
-  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
-    doc.setFontSize(tamanho); doc.setTextColor(50)
+
+  function secaoHeader(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 8, 'F')
+    doc.setFontSize(11); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 4, yPos + 5.5)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 12
+  }
+
+  function paragrafo(texto: string, yPos: number, tamanho = 10): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50, 50, 50); doc.setFont('helvetica', 'normal')
     const linhas = doc.splitTextToSize(texto, W - mg * 2)
     let yy = yPos
     for (const ln of linhas) {
-      if (yy > 278) { doc.addPage(); yy = 20 }
+      if (yy > 275) { doc.addPage(); yy = 20 }
       doc.text(ln, mg, yy)
-      yy += 4.3
+      yy += 4.5
     }
-    return yy + 2
+    return yy + 3
   }
 
-  // Cabeçalho
-  doc.setFillColor(39, 80, 10)
-  doc.rect(0, 0, W, 20, 'F')
-  if (empresa?.logo_url) {
-    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  function tabela(dados: string[][], titulo: string, yPos: number): number {
+    if (yPos > 250) { doc.addPage(); yPos = 20 }
+    let y = yPos
+    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(titulo, mg, y)
+    y += 6
+
+    const colWidth = (W - mg * 2) / dados[0].length
+
+    // Header
+    doc.setFillColor(24, 95, 165)
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+    for (let i = 0; i < dados[0].length; i++) {
+      doc.rect(mg + i * colWidth, y, colWidth, 6, 'F')
+      doc.text(dados[0][i], mg + i * colWidth + 1, y + 4, { maxWidth: colWidth - 2 })
+    }
+    y += 7
+
+    // Dados
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50, 50, 50)
+    for (let r = 1; r < dados.length && y < 270; r++) {
+      if (r % 2 === 0) {
+        doc.setFillColor(245, 247, 250)
+        doc.rect(mg, y - 0.5, W - mg * 2, 5, 'F')
+      }
+      doc.setDrawColor(200, 200, 200)
+      for (let c = 0; c < dados[r].length; c++) {
+        doc.rect(mg + c * colWidth, y - 0.5, colWidth, 5)
+        doc.text(dados[r][c], mg + c * colWidth + 1, y + 2, { maxWidth: colWidth - 2 })
+      }
+      y += 5.5
+    }
+    return y + 4
   }
-  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('PROGRAMA DE CONTROLE MÉDICO DE SAÚDE OCUPACIONAL', W / 2, 8, { align: 'center' })
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text('PCMSO — NR-7 / Portaria MTE 3.214/78', W / 2, 14, { align: 'center' })
-  y = 26
 
-  // Empresa
-  y = secao('DADOS DA EMPRESA', y)
-  doc.setFontSize(7); doc.setTextColor(100); doc.text('RAZÃO SOCIAL', mg, y); y += 4
-  doc.setFontSize(11); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
-  doc.text(empresa?.razao_social || '—', mg, y); doc.setFont('helvetica', 'normal'); y += 5
-  doc.setFontSize(9); doc.setTextColor(80)
-  doc.text(`CNPJ: ${empresa?.cnpj || '—'} | ${empresa?.municipio || '—'}/${empresa?.uf || '—'}`, mg, y); y += 8
+  // Capa
+  capa()
 
-  const dg = dados?.dados_gerais || {}
+  // Dados empresa
+  y = secaoHeader('DADOS DA EMPRESA', y)
+  doc.setFillColor(245, 247, 250); doc.rect(mg, y, W - mg * 2, 30, 'F')
+  doc.setFontSize(8); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
+  doc.text('RAZÃO SOCIAL:', mg + 2, y + 4)
+  doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
+  doc.text(empresa?.razao_social || '—', mg + 2, y + 8)
+  doc.setFontSize(8); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'} | ${empresa?.municipio || '—'}/${empresa?.uf || '—'}`, mg + 2, y + 14)
   doc.setFontSize(7); doc.setTextColor(100)
-  doc.text('MÉDICO COORDENADOR', mg, y); doc.text('CRM', mg + 90, y); doc.text('ELABORAÇÃO', mg + 140, y); y += 4
-  doc.setFontSize(10); doc.setTextColor(30)
-  doc.text(dg.medico_nome || '—', mg, y)
-  doc.text(dg.medico_crm ? `CRM ${dg.medico_crm}` : '—', mg + 90, y)
-  doc.text(dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + 140, y)
-  y += 5
-  if (dg.medico_cpf) {
-    doc.setFontSize(7); doc.setTextColor(100)
-    doc.text(`CPF: ${dg.medico_cpf}`, mg, y)
-  }
-  y += 5
+  const dg = dados?.dados_gerais || {}
+  doc.text('MÉDICO COORDENADOR', mg + 2, y + 20); doc.text('CRM', mg + 90, y + 20)
+  doc.setFontSize(9); doc.setTextColor(30)
+  doc.text(dg.medico_nome || '—', mg + 2, y + 24)
+  doc.text(dg.medico_crm ? `${dg.medico_crm}` : '—', mg + 90, y + 24)
+  y += 35
 
-  // ── Textos legais (NR-7) ────────────────────────────────
-  const textosCustomPcmso = dados?.textos_legais_custom || {}
-  for (const secaoTexto of TEXTOS_LEGAIS_PCMSO) {
+  // Textos legais
+  const textosCustom = dados?.textos_legais_custom || {}
+  for (const sec of TEXTOS_LEGAIS_PCMSO) {
     if (y > 250) { doc.addPage(); y = 20 }
-    y = secao(secaoTexto.titulo, y)
-    const paragrafos = textosCustomPcmso[secaoTexto.titulo] || secaoTexto.paragrafos
-    for (const p of paragrafos) y = paragrafo(p, y)
-    y += 2
+    y = secaoHeader(sec.titulo, y)
+    const pars = textosCustom[sec.titulo] || sec.paragrafos
+    for (const p of pars) y = paragrafo(p, y, 9)
+    y += 3
   }
+
   if (y > 240) { doc.addPage(); y = 20 }
-  y += 4
 
   // Programas por função
   const programas = dados?.programas || []
-  for (let pi = 0; pi < programas.length; pi++) {
-    const prog = programas[pi]
+  for (const prog of programas) {
     if (y > 245) { doc.addPage(); y = 20 }
-    y = secao(`FUNÇÃO: ${prog.funcao || '—'}${prog.setor ? ` — ${prog.setor}` : ''}`, y)
+    y = secaoHeader(`FUNÇÃO: ${prog.funcao || '—'}`, y)
 
-    if (prog.riscos?.length) {
-      doc.setFontSize(7); doc.setTextColor(100); doc.text('RISCOS OCUPACIONAIS', mg, y); y += 4
-      doc.setFontSize(9); doc.setTextColor(80)
-      const riscosText = prog.riscos.join(' • ')
-      const linhas = doc.splitTextToSize(riscosText, W - mg * 2)
-      doc.text(linhas, mg, y); y += linhas.length * 4 + 3
+    const exames = (prog.exames || []).map((e: any) => typeof e === 'string' ? [e, 'Anual'] : [e.nome || '', e.periodicidade || 'Anual'])
+    if (exames.length > 0) {
+      const tabDados = [['EXAME', 'PERIODICIDADE'], ...exames]
+      y = tabela(tabDados, 'EXAMES PREVISTOS', y)
     }
-
-    if (prog.exames?.length) {
-      doc.setFontSize(7); doc.setTextColor(100); doc.text('EXAMES PREVISTOS', mg, y); y += 4
-      doc.setFillColor(245, 247, 250)
-      doc.rect(mg, y, W - mg * 2, 5.5, 'F')
-      doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
-      doc.text('EXAME', mg + 2, y + 4); doc.text('PERIODICIDADE', mg + 110, y + 4)
-      doc.setFont('helvetica', 'normal'); y += 7
-
-      for (const ex of prog.exames) {
-        if (y > 270) { doc.addPage(); y = 20 }
-        const nome = typeof ex === 'string' ? ex : ex.nome
-        const period = typeof ex === 'object' ? ex.periodicidade || 'Anual' : 'Anual'
-        doc.setFontSize(9); doc.setTextColor(30)
-        doc.text(`• ${nome}`, mg + 2, y)
-        doc.setTextColor(80); doc.text(period, mg + 110, y)
-        doc.setDrawColor(240); doc.line(mg, y + 1.5, W - mg, y + 1.5)
-        y += 5.5
-      }
-    }
-    y += 4
   }
 
-  // ── 16 Seções de Saúde Ocupacional ────────────────────────────────
+  if (y > 240) { doc.addPage(); y = 20 }
+
+  // 16 Seções
   const secoesCust = dados?.secoes_custom || {}
   for (const secaoItem of SECOES_PCMSO) {
     if (y > 245) { doc.addPage(); y = 20 }
-    y = secao(secaoItem.titulo, y)
+    y = secaoHeader(secaoItem.titulo, y)
 
-    // Conteúdo principal
-    const conteudoSecao = secoesCust[secaoItem.id] || secaoItem.conteudo
-    y = paragrafo(conteudoSecao, y, 10)
+    const conteudo = secoesCust[secaoItem.id] || secaoItem.conteudo
+    y = paragrafo(conteudo, y, 9)
 
-    // Subseções
-    if (secaoItem.subsecoes) {
-      for (const sub of secaoItem.subsecoes) {
-        if (y > 250) { doc.addPage(); y = 20 }
-        doc.setFontSize(9); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
-        doc.text(`→ ${sub.titulo}`, mg + 5, y); y += 5
-        doc.setFont('helvetica', 'normal')
-        y = paragrafo(sub.conteudo, y, 9)
-        y += 2
-      }
-    }
-
-    // Tabelas
     if (secaoItem.tabelas) {
-      for (const tabela of secaoItem.tabelas) {
-        if (y > 250) { doc.addPage(); y = 20 }
-        doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
-        doc.text(`${tabela.titulo}:`, mg, y); y += 5
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
-
-        const linhasTab = tabela.linhas.slice(0, 15)
-        for (const linha of linhasTab) {
-          if (y > 275) { doc.addPage(); y = 20 }
-          const texto = linha.join(' | ')
-          const linhas = doc.splitTextToSize(texto, W - mg * 2 - 10)
-          for (const l of linhas) {
-            if (y > 275) { doc.addPage(); y = 20 }
-            doc.text(l, mg + 5, y); y += 4
-          }
-        }
-        y += 2
+      for (const tab of secaoItem.tabelas.slice(0, 1)) {
+        if (y > 245) { doc.addPage(); y = 20 }
+        y = tabela(tab.linhas, tab.titulo, y)
       }
     }
-    y += 4
+    y += 2
   }
 
   if (y > 250) { doc.addPage(); y = 20 }
-  y += 6; doc.setDrawColor(220, 220, 220); doc.line(mg, y, W - mg, y); y += 10
+  doc.setDrawColor(200, 200, 200); doc.line(mg, y, W - mg, y); y += 10
+
   y = desenharAssinaturas(doc, y, mg, W,
-    {
-      tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO PCMSO',
-      descricao: 'Será responsável pelo cumprimento e implementação do PCMSO — Programa de Controle Médico de Saúde Ocupacional, conforme NR-7.',
-      nome: empresa?.resp_nome,
-    },
-    {
-      tituloBloco: 'RESPONSÁVEL PELA COORDENAÇÃO DO PCMSO',
-      descricao: 'Programa de Controle Médico de Saúde Ocupacional, conforme NR-7.',
-      nome: dg.medico_nome,
-      cargo: 'Médico Coordenador',
-      extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined,
-    }
+    { tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO', descricao: 'Cumprimento do PCMSO conforme NR-7', nome: empresa?.resp_nome },
+    { tituloBloco: 'RESPONSÁVEL PELA COORDENAÇÃO', descricao: 'Médico Coordenador', nome: dg.medico_nome, cargo: 'Médico Coordenador', extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined }
   )
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
     doc.setPage(p)
     doc.setFontSize(7); doc.setTextColor(150)
-    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
-    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 291)
+    doc.text(`Pág. ${p}/${totalPags}`, W - mg, 291, { align: 'right' })
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
