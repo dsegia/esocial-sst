@@ -844,7 +844,8 @@ export default function PCMSO() {
                           placeholder="Edite o conteúdo desta seção..."
                         />
                         <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
-                          Use quebras de linha naturais. Subseções com "→" no início serão formatadas automaticamente.
+                          💡 Use quebras de linha naturais. Subseções com "→" no início. Tabelas em formato texto [TABELA: nome].
+                          <br/>⚠️ Este editor é apenas para texto — imagens não são suportadas aqui.
                         </div>
                         <div style={{ display:'flex', gap:8 }}>
                           <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
