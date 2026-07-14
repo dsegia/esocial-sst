@@ -3,7 +3,7 @@
 
 import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, nivelRisco, DEFINICOES_PGR } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
-import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
+import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { SECOES_PCMSO } from './pcmso-conteudo-completo'
@@ -531,6 +531,27 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     } else {
       doc.setFontSize(9); doc.setTextColor(39, 80, 10)
       doc.text('Sem agentes de risco significativos identificados neste GHE.', mg + 2, y); y += 6
+    }
+
+    // ── Metodologia e recomendações por tipo de agente presente no GHE ──
+    const tiposPresentes = Array.from(new Set((ghe.agentes || []).map((a: any) => a.tipo))).filter(
+      (t: any) => t && METODOLOGIAS_RISCO[t as keyof typeof METODOLOGIAS_RISCO],
+    ) as Array<keyof typeof METODOLOGIAS_RISCO>
+    for (const tipo of tiposPresentes) {
+      const met = METODOLOGIAS_RISCO[tipo]
+      if (y > 255) { doc.addPage(); y = 20 }
+      doc.setFontSize(8); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+      doc.text(`METODOLOGIA — RISCO ${met.titulo.toUpperCase()}`, mg, y); y += 5
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+      doc.text('Metodologia:', mg, y)
+      doc.setFont('helvetica', 'normal')
+      const linhasMet = doc.splitTextToSize(met.metodologia, W - mg * 2 - 22)
+      doc.text(linhasMet, mg + 22, y); y += linhasMet.length * 4.3 + 2
+      doc.setFontSize(8); doc.setTextColor(80); doc.setFont('helvetica', 'bold')
+      doc.text('Recomendações:', mg, y); y += 4.3
+      y = paragrafo(met.recomendacoes, y, 8)
+      y += 1
     }
 
     if (ghe.epc?.length) {

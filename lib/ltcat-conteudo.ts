@@ -4,6 +4,34 @@
 
 export interface SecaoLegal { titulo: string; paragrafos: string[] }
 
+// Metodologia de avaliação e recomendações técnicas por tipo de agente/risco
+// (físico, químico, biológico, ergonômico), exibidas no LTCAT para cada GHE
+// conforme os tipos de agente efetivamente identificados naquele grupo.
+export interface MetodologiaRisco { titulo: string; metodologia: string; recomendacoes: string }
+
+export const METODOLOGIAS_RISCO: Record<'fis' | 'qui' | 'bio' | 'erg', MetodologiaRisco> = {
+  erg: {
+    titulo: 'Ergonômico',
+    metodologia: 'Qualitativa, mediante observação do posto de trabalho, da postura, do mobiliário e da organização da atividade.',
+    recomendacoes: 'Mantenha o local de trabalho limpo e organizado. Ferramentas e materiais desarrumados, além de causar mau aspecto visual, atrasam as atividades e podem causar acidentes. Nunca deixe objetos pesados sobre armários ou arquivos: eles podem cair e lesionar partes do corpo; da mesma forma, não os acomode em gavetas ou prateleiras superiores, pois, ao abri-las, podem comprometer a estabilidade do móvel. Não deixe objetos cortantes ou perfurantes sem proteção dentro de gavetas. As instalações e fiações elétricas devem estar em perfeito estado de conservação: evite sobrecarregar tomadas com adaptadores do tipo "T" ou semelhantes, salvo se a instalação tiver sido projetada para tal, e não deixe fiação espalhada em locais de circulação de pessoas, carrinhos ou equipamentos. Mantenha ao alcance das mãos os materiais de uso mais frequente, evitando deslocamentos desnecessários, estresse e dores lombares. Ajuste os móveis da estação de trabalho à estatura do trabalhador, mantendo pernas e cotovelos em ângulo de aproximadamente 90°, com apoio para os pés quando necessário. Garanta iluminação adequada à atividade desempenhada, já que o excesso ou a falta de luz causam fadiga e podem provocar acidentes e doenças ocupacionais. Não deixe pisos molhados em áreas de circulação; quando não for possível limpá-los de imediato, sinalize o risco. Produtos químicos somente podem ser manuseados por pessoas habilitadas, devendo ser guardados em local adequado e identificado, sem reutilização de embalagens originais. Evite permanecer por longos períodos na mesma posição (sentado ou em pé), alternando pausas e mudanças de postura ao longo da jornada. Comunique toda situação de risco encontrada no ambiente de trabalho: cada trabalhador é o maior responsável por sua própria segurança.',
+  },
+  fis: {
+    titulo: 'Físico',
+    metodologia: 'Qualitativa e, quando aplicável, quantitativa, mediante instrumento de medição calibrado, conforme as Normas de Higiene Ocupacional (NHO) da Fundacentro pertinentes ao agente (NHO-01 para ruído, NHO-06 para calor, entre outras) e os Anexos da NR-15.',
+    recomendacoes: 'Priorizar medidas de proteção coletiva que atuem na fonte geradora do agente físico — enclausuramento e manutenção preventiva de máquinas e equipamentos ruidosos, isolamento acústico, ventilação e exaustão para controle de calor, anteparos e sinalização para radiação — antes de recorrer ao uso de Equipamento de Proteção Individual. Fornecer e exigir o uso correto de protetor auricular, vestimenta adequada ou demais EPI pertinentes ao agente identificado, com Certificado de Aprovação (CA) válido, treinamento de uso e substituição periódica. Respeitar os limites de tolerância e os tempos máximos de exposição diária estabelecidos na NR-15 e nas NHO da Fundacentro, promovendo pausas e rodízio de funções quando tecnicamente necessário. Realizar avaliações periódicas (audiometria e demais exames clínicos previstos no PCMSO) para monitorar a saúde dos trabalhadores expostos.',
+  },
+  qui: {
+    titulo: 'Químico',
+    metodologia: 'Qualitativa e, quando aplicável, quantitativa, mediante dosimetria ou amostragem do ar e comparação com os limites de tolerância da NR-15.',
+    recomendacoes: 'Priorizar a substituição do produto químico por outro de menor toxicidade ou pela adoção de processo que dispense o uso do agente, sempre que tecnicamente viável. Manter os ambientes ventilados, reduzindo a concentração do agente no ar, e limitar o tempo de exposição dos trabalhadores. Armazenar produtos químicos em local adequado, identificado e ventilado, mantendo as embalagens originais e as Fichas de Informação de Segurança de Produtos Químicos (FISPQ) acessíveis aos trabalhadores. Fornecer e exigir o uso de EPI adequado ao agente (luvas, respiradores, óculos de proteção), com CA válido, treinamento de uso correto e substituição periódica. Proibir a reutilização de embalagens originais para acondicionamento de outros produtos, evitando reações químicas indesejadas. Realizar monitoramento biológico e demais exames complementares previstos no PCMSO para os trabalhadores expostos.',
+  },
+  bio: {
+    titulo: 'Biológico',
+    metodologia: 'Qualitativa, pela identificação da natureza da atividade e do contato permanente com pacientes, material biológico, microrganismos ou animais.',
+    recomendacoes: 'Fornecer e exigir o uso de Equipamentos de Proteção Individual adequados ao risco (luvas, máscaras, óculos de proteção, aventais), com descarte correto após o uso. Disponibilizar instalações sanitárias e lavatórios, com materiais para higienização das mãos, em quantidade suficiente e de fácil acesso. Manter atualizado o esquema vacinal dos trabalhadores expostos, conforme orientação do médico coordenador do PCMSO. Adotar procedimentos seguros de manuseio, acondicionamento e descarte de material biológico e perfurocortante, observando a NR-32 quando aplicável às atividades da empresa. Comunicar imediatamente ao serviço de saúde ocupacional qualquer acidente com material biológico, para adoção das medidas profiláticas cabíveis.',
+  },
+}
+
 export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
   {
     titulo: '1. INTRODUÇÃO',
