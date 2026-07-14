@@ -202,7 +202,10 @@ export default function PCMSO() {
   }
 
   function obterConteudoSecao(idSecao) {
-    if (formSecoes?.[idSecao]) return formSecoes[idSecao]
+    if (formSecoes?.[idSecao]) {
+      const conteudo = formSecoes[idSecao]
+      return typeof conteudo === 'string' ? conteudo : conteudo.join('\n\n')
+    }
     const secao = SECOES_PCMSO.find(s => s.id === idSecao)
     return secao ? secao.conteudo : ''
   }
