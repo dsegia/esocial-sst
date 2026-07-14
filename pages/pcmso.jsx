@@ -126,11 +126,36 @@ export default function PCMSO() {
       supabase.from('pcmso_dados').select('*').eq('empresa_id', empId).maybeSingle(),
     ])
 
+    const ghesAtuais = ghesRes.data || []
+    let programaAtual = progRes.data || []
+
+    // Acrescenta aos programas já vinculados a um GHE os riscos que o cadastro
+    // central ganhou desde a última vez (ex.: riscos digitados no PGR) — nunca
+    // remove um risco que o usuário tenha tirado manualmente da função.
+    const ghesPorId = new Map(ghesAtuais.map(g => [g.id, g]))
+    const atualizacoes = []
+    programaAtual = programaAtual.map(prog => {
+      if (!prog.ghe_id) return prog
+      const ghe = ghesPorId.get(prog.ghe_id)
+      if (!ghe) return prog
+      const nomesAtuais = Array.isArray(prog.riscos) ? prog.riscos : []
+      const nomesNovos = (ghe.riscos || []).map(r => r.nome).filter(n => n && !nomesAtuais.includes(n))
+      if (!nomesNovos.length) return prog
+      const riscosMerged = [...nomesAtuais, ...nomesNovos]
+      atualizacoes.push({ id: prog.id, riscos: riscosMerged })
+      return { ...prog, riscos: riscosMerged }
+    })
+    if (atualizacoes.length) {
+      await Promise.all(atualizacoes.map(a =>
+        supabase.from('pcmso_programa').update({ riscos: a.riscos, atualizado_em: new Date().toISOString() }).eq('id', a.id)
+      ))
+    }
+
     setFuncionarios(funcsRes.data || [])
     setLtcatAtivo(ltcatRes.data || null)
-    setGhesCadastro(ghesRes.data || [])
+    setGhesCadastro(ghesAtuais)
     setAsos(asosRes.data || [])
-    setPrograma(progRes.data || [])
+    setPrograma(programaAtual)
     setMedico(medicoRes.data || null)
     setCarregando(false)
   }

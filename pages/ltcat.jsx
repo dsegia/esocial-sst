@@ -56,7 +56,18 @@ export default function LTCAT() {
     setEmpresaId(empId)
     supabase.from('empresas').select('*').eq('id', empId).single()
       .then(({ data: emp }) => { if (emp) { setNomeEmpresa(emp.razao_social); setCnpjEmpresa(emp.cnpj); setRespLegalEmpresa(emp.resp_nome || ''); setEmpresaCompleta(emp) } })
-    const { data } = await supabase.from('ltcats').select('*').eq('empresa_id', empId).order('data_emissao', { ascending: false })
+    let { data } = await supabase.from('ltcats').select('*').eq('empresa_id', empId).order('data_emissao', { ascending: false })
+
+    // Mantém o LTCAT vigente sempre alinhado com o cadastro central de GHEs/riscos
+    // (que agora também recebe o que é digitado no PGR) — sem precisar clicar em "Atualizar".
+    if (data?.[0]?.id) {
+      const snapshot = await buscarGhesDoCadastro(empId)
+      if (snapshot && JSON.stringify(snapshot) !== JSON.stringify(data[0].ghes || [])) {
+        const { data: atualizado } = await supabase.from('ltcats').update({ ghes: snapshot }).eq('id', data[0].id).select().single()
+        if (atualizado) data = [atualizado, ...data.slice(1)]
+      }
+    }
+
     setLtcats(data || [])
     if (data?.length > 0) setLtcatSel(data[0])
     const { data: funcs } = await supabase.from('funcionarios').select('id,nome,funcao,setor,ghe_id').eq('empresa_id', empId).eq('ativo', true)
@@ -149,8 +160,8 @@ export default function LTCAT() {
 
   // GHEs deixaram de ser editados aqui — fonte única é o cadastro central (/ghes).
   // Estas funções só trazem um snapshot fresco de lá para dentro da LTCAT.
-  async function buscarGhesDoCadastro() {
-    const { data, error } = await supabase.from('ghes').select('*').eq('empresa_id', _empresaId).eq('ativo', true).order('criado_em')
+  async function buscarGhesDoCadastro(empresaIdOverride) {
+    const { data, error } = await supabase.from('ghes').select('*').eq('empresa_id', empresaIdOverride || _empresaId).eq('ativo', true).order('criado_em')
     if (error) { setErro('Erro ao buscar cadastro de GHEs: ' + error.message); return null }
     return (data || []).map(g => ({
       id: g.id, nome: g.nome, setor: g.setor, qtd_trabalhadores: g.qtd_trabalhadores,
