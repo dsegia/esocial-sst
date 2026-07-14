@@ -517,20 +517,28 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   // Dados empresa
   y = secaoHeader('DADOS DA EMPRESA', y)
-  doc.setFillColor(245, 247, 250); doc.rect(mg, y, W - mg * 2, 30, 'F')
+  doc.setFillColor(245, 247, 250); doc.rect(mg, y, W - mg * 2, 70, 'F')
   doc.setFontSize(8); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
   doc.text('RAZÃO SOCIAL:', mg + 2, y + 4)
   doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
   doc.text(empresa?.razao_social || '—', mg + 2, y + 8)
-  doc.setFontSize(8); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
-  doc.text(`CNPJ: ${empresa?.cnpj || '—'} | ${empresa?.municipio || '—'}/${empresa?.uf || '—'}`, mg + 2, y + 14)
-  doc.setFontSize(7); doc.setTextColor(100)
+
+  doc.setFontSize(7); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, mg + 2, y + 14)
+  doc.text(`Município: ${empresa?.municipio || '—'} | UF: ${empresa?.uf || '—'}`, mg + 2, y + 18)
+  doc.text(`Endereço: ${empresa?.endereco || '—'}`, mg + 2, y + 22)
+  doc.text(`Telefone: ${empresa?.telefone || '—'} | Email: ${empresa?.email || '—'}`, mg + 2, y + 26)
+  doc.text(`CNAE: ${empresa?.cnae || '—'} | Grau de Risco: ${empresa?.grt || '—'}`, mg + 2, y + 30)
+
+  doc.setFont('helvetica', 'bold')
+  doc.text('REPRESENTANTE LEGAL:', mg + 2, y + 36); doc.text('MÉDICO COORDENADOR:', mg + 100, y + 36)
+  doc.setFont('helvetica', 'normal')
+  doc.text(empresa?.resp_nome || '—', mg + 2, y + 40)
   const dg = dados?.dados_gerais || {}
-  doc.text('MÉDICO COORDENADOR', mg + 2, y + 20); doc.text('CRM', mg + 90, y + 20)
-  doc.setFontSize(9); doc.setTextColor(30)
-  doc.text(dg.medico_nome || '—', mg + 2, y + 24)
-  doc.text(dg.medico_crm ? `${dg.medico_crm}` : '—', mg + 90, y + 24)
-  y += 35
+  doc.text(dg.medico_nome || '—', mg + 100, y + 40)
+  doc.text(dg.medico_crm ? `CRM: ${dg.medico_crm}` : 'CRM: —', mg + 100, y + 44)
+
+  y += 55
 
   // Textos legais
   const textosCustom = dados?.textos_legais_custom || {}
