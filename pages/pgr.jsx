@@ -6,7 +6,7 @@ import Layout from '../components/Layout'
 import UploadLogo from '../components/UploadLogo'
 import { gerarPdfPgr } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
-import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, nivelRisco, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
+import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, ESTIMATIVA_OPCOES, nivelRisco, calcularIQCT, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { AGENTES_POR_TIPO } from '../lib/agentes-risco'
 import { redimensionarImagem } from '../lib/imagem-util'
@@ -32,7 +32,7 @@ function riscoVazio() {
   return {
     risco_id: null, risco_sync: null,
     perigo: '', fontes_circunstancias: '', tipo: 'fis', codigo_esocial: '', nome: '',
-    possiveis_danos: '', severidade: '', probabilidade: '',
+    possiveis_danos: '', severidade: '', probabilidade: '', estimativa: 'certa',
     valor: '', unidade: '', limite: '', equipamento: '', trajetoria: '', tipo_exposicao: '',
     medicao_quantitativa: false, metodologia: '',
   }
@@ -775,10 +775,19 @@ export default function PGR() {
                 <div style={s.cardTit}>Inventário de riscos por GHE ({pgrSel.inventario?.length || 0})</div>
                 {pgrSel.inventario?.length ? (
                   <div style={{ display:'flex', flexDirection:'column', gap:14, marginTop:10 }}>
-                    {pgrSel.inventario.map((g, gi) => (
+                    {pgrSel.inventario.map((g, gi) => {
+                      const iqct = calcularIQCT(g.riscos)
+                      return (
                       <div key={gi} style={{ border:'0.5px solid #e5e7eb', borderRadius:10, padding:14 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
-                          <div style={{ fontSize:14, fontWeight:700, color:'#111' }}>{g.nome || '—'}</div>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:'#111' }}>{g.nome || '—'}</div>
+                            {iqct && (
+                              <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor)" style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>
+                                IQCT {iqct.valor}/100
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize:11, color:'#6b7280' }}>
                             {g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados} · ` : ''}
                             {g.jornada_trabalho ? `Jornada: ${g.jornada_trabalho} · ` : ''}
@@ -838,6 +847,14 @@ export default function PGR() {
                             </table>
                           </div>
                         ) : <div style={{ fontSize:12, color:'#9ca3af', marginBottom:10 }}>Nenhum risco cadastrado neste GHE.</div>}
+                        {g.riscos?.some(r => r.estimativa && r.estimativa !== 'certa') && (
+                          <div style={{ fontSize:11, color:'#9ca3af', marginBottom:10 }}>
+                            Estimativa por risco:{' '}
+                            {g.riscos.map((r,ri) => r.estimativa && r.estimativa !== 'certa'
+                              ? <span key={ri} style={{ marginRight:8 }}>{r.nome || 'Risco'}: <b>{ESTIMATIVA_OPCOES.find(o => o.v === r.estimativa)?.l || r.estimativa}</b></span>
+                              : null)}
+                          </div>
+                        )}
                         {g.epis?.length > 0 && (
                           <div style={{ overflowX:'auto', marginBottom:10 }}>
                             <table style={s.table}>
@@ -874,7 +891,8 @@ export default function PGR() {
                           </div>
                         )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : <div style={{ fontSize:12, color:'#9ca3af', marginTop:8 }}>Nenhum GHE cadastrado.</div>}
               </div>
@@ -1071,10 +1089,19 @@ export default function PGR() {
                 <button style={{ ...s.btnAcao, fontSize:11 }} onClick={addGhe}>+ Adicionar GHE</button>
               </div>
             </div>
-            {(form.inventario || []).map((g, gi) => (
+            {(form.inventario || []).map((g, gi) => {
+              const iqct = calcularIQCT(g.riscos)
+              return (
               <div key={gi} style={{ ...s.blocoItem, background:'#fff', border:'1px solid #d1d5db' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                  <div style={{ fontSize:13, fontWeight:700 }}>GHE {gi + 1}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ fontSize:13, fontWeight:700 }}>GHE {gi + 1}</div>
+                    {iqct && (
+                      <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor)" style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>
+                        IQCT {iqct.valor}/100
+                      </span>
+                    )}
+                  </div>
                   <button onClick={() => removerGhe(gi)} style={s.btnRemover}>×</button>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:8 }}>
@@ -1163,6 +1190,11 @@ export default function PGR() {
                           </span>
                         ) : <span style={{ textAlign:'center', fontSize:11, color:'#9ca3af' }}>Nível de risco</span>}
                       </div>
+                      <div style={{ marginBottom:8 }}>
+                        <select style={s.inputSm} value={r.estimativa || 'certa'} onChange={e => setRiscoGhe(gi, ri, 'estimativa', e.target.value)} title="Grau de certeza da avaliação — orienta a prioridade de investigação no plano de ação">
+                          {ESTIMATIVA_OPCOES.map(o => <option key={o.v} value={o.v}>Estimativa: {o.l} ({o.num})</option>)}
+                        </select>
+                      </div>
                       <input style={{ ...s.inputSm, marginBottom:8 }} placeholder="Possíveis danos à saúde" value={r.possiveis_danos} onChange={e => setRiscoGhe(gi, ri, 'possiveis_danos', e.target.value)} />
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:8 }}>
                         <input style={s.inputSm} placeholder="Valor medido" value={r.valor} onChange={e => setRiscoGhe(gi, ri, 'valor', e.target.value)} />
@@ -1216,7 +1248,8 @@ export default function PGR() {
                 ))}
                 <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => addMedidaAdmGhe(gi)}>+ Medida administrativa</button>
               </div>
-            ))}
+              )
+            })}
             {!(form.inventario || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum GHE. Cadastre um LTCAT vigente ou adicione manualmente.</div>}
             <datalist id="lista-codigo-esocial">
               {ESOCIAL_TABELA24.map(a => <option key={a.codigo} value={a.codigo}>{a.nome}</option>)}

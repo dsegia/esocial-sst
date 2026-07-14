@@ -32,6 +32,15 @@ export const PRIORIZACAO_OPCOES = [
   { v: 'baixa', l: 'Baixa', cor: '#27500A', bg: '#EAF3DE' },
 ]
 
+// Grau de certeza da avaliação do risco — usado para orientar a prioridade de
+// investigação/controle no plano de ação (quanto mais incerta a estimativa,
+// maior a necessidade de aprofundar a avaliação técnica antes de agir).
+export const ESTIMATIVA_OPCOES = [
+  { v: 'certa', l: 'Certa', num: 0 },
+  { v: 'incerta', l: 'Incerta', num: 1 },
+  { v: 'altamente_incerta', l: 'Altamente incerta', num: 2 },
+]
+
 export interface NivelRisco {
   valor: number
   faixa: 'Baixo' | 'Médio' | 'Alto' | 'Muito Alto'
@@ -48,6 +57,32 @@ export function nivelRisco(severidade?: number | null, probabilidade?: number | 
   if (valor >= 25) return { valor, faixa: 'Médio', cor: '#633806', bg: '#FAEEDA' }
   return { valor, faixa: 'Baixo', cor: '#27500A', bg: '#EAF3DE' }
 }
+
+export interface IQCTResultado { valor: number; nBaixo: number; nMedio: number; nAlto: number; nMuitoAlto: number }
+
+// IQCT — Indicador de Qualidade das Condições de Trabalho, adaptado da metodologia
+// difundida pela Fundacentro: IQCT = (4·nBaixo + 3·nMédio + nAlto) / ((nBaixo+nMédio+nAlto)×4) × 100.
+// Riscos "Muito Alto" exigem ação imediata e ficam fora do índice (assim como riscos
+// sem severidade/probabilidade preenchidas). Resultado varia de 25 a 100 — quanto
+// maior, melhor a condição de trabalho do grupo avaliado.
+export function calcularIQCT(riscos?: { severidade?: number | string | null; probabilidade?: number | string | null }[] | null): IQCTResultado | null {
+  if (!riscos?.length) return null
+  let nBaixo = 0, nMedio = 0, nAlto = 0, nMuitoAlto = 0
+  for (const r of riscos) {
+    const nr = nivelRisco(Number(r.severidade) || null, Number(r.probabilidade) || null)
+    if (!nr) continue
+    if (nr.faixa === 'Baixo') nBaixo++
+    else if (nr.faixa === 'Médio') nMedio++
+    else if (nr.faixa === 'Alto') nAlto++
+    else if (nr.faixa === 'Muito Alto') nMuitoAlto++
+  }
+  const total = nBaixo + nMedio + nAlto
+  if (!total) return null
+  const valor = Math.round((4 * nBaixo + 3 * nMedio + nAlto) / (total * 4) * 100)
+  return { valor, nBaixo, nMedio, nAlto, nMuitoAlto }
+}
+
+export const IQCT_EXPLICACAO = 'IQCT — Indicador de Qualidade das Condições de Trabalho: calculado por GHE a partir da distribuição dos riscos avaliados nos níveis Baixo, Médio e Alto (riscos Muito Alto exigem ação imediata e ficam fora do índice). Varia de 25 a 100 — quanto maior, melhor a condição de trabalho do grupo.'
 
 export const QUADRO2_INTERPRETACAO = [
   {

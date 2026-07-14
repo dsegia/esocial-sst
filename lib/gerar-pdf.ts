@@ -1,7 +1,7 @@
 // lib/gerar-pdf.ts
 // Geração de PDF para ASO, LTCAT e PCMSO usando jsPDF
 
-import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, nivelRisco, DEFINICOES_PGR } from './pgr-conteudo'
+import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, ESTIMATIVA_OPCOES, nivelRisco, calcularIQCT, IQCT_EXPLICACAO, DEFINICOES_PGR } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
 import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
@@ -1184,6 +1184,8 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   paginas.ambientes = (doc as any).internal.getNumberOfPages()
   y = secao(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
   if (ambientes.length) {
+    y = paragrafo('Abaixo estão listados todos os ambientes analisados durante a elaboração deste documento, onde os colaboradores desta empresa exercem suas atividades.', y, 8)
+    y += 1
     for (const a of ambientes) {
       if (y > 260) { doc.addPage(); y = 20 }
       doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
@@ -1219,6 +1221,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
       doc.text(g.nome || 'GHE', mg, y)
       doc.setFont('helvetica', 'normal')
+      const iqct = calcularIQCT(g.riscos)
+      if (iqct) {
+        doc.setFontSize(8); doc.setTextColor(12, 68, 124)
+        doc.text(`IQCT ${iqct.valor}/100`, W - mg, y, { align: 'right' })
+      }
       y += 5
       const infoGhe = [
         g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados}` : '',
@@ -1262,20 +1269,22 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         y = tabela(
           [
             { titulo: 'PERIGO', largura: 26 },
-            { titulo: 'FONTES/CIRCUNST.', largura: 31 },
+            { titulo: 'FONTES/CIRCUNST.', largura: 26 },
             { titulo: 'TIPO', largura: 17 },
             { titulo: 'CÓD. ESOCIAL', largura: 16 },
             { titulo: 'RISCO', largura: 34 },
             { titulo: 'NÍVEL DE RISCO', largura: 24 },
-            { titulo: 'DANOS À SAÚDE', largura: 30 },
+            { titulo: 'DANOS À SAÚDE', largura: 25 },
             { titulo: 'MEDIÇÃO', largura: 16 },
             { titulo: 'LT/LEO', largura: 14 },
-            { titulo: 'EQUIPAMENTO', largura: 20 },
-            { titulo: 'TRAJETÓRIA', largura: 18 },
-            { titulo: 'EXPOSIÇÃO', largura: 21 },
+            { titulo: 'EQUIPAMENTO', largura: 16 },
+            { titulo: 'TRAJETÓRIA', largura: 15 },
+            { titulo: 'EXPOSIÇÃO', largura: 18 },
+            { titulo: 'ESTIMATIVA', largura: 20 },
           ],
           g.riscos.map((r: any) => {
             const nr = nivelRisco(r.severidade, r.probabilidade)
+            const est = ESTIMATIVA_OPCOES.find(o => o.v === r.estimativa)
             return [
               r.nome || '—',
               r.fontes_circunstancias || '—',
@@ -1289,6 +1298,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
               r.equipamento || '—',
               r.trajetoria || '—',
               r.tipo_exposicao || '—',
+              est ? `${est.l} (${est.num})` : '—',
             ]
           }),
           y,
@@ -1320,6 +1330,12 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       }
       doc.setDrawColor(200); doc.line(mg, y, W - mg, y); y += 6
     }
+    if (y > H - 20) { doc.addPage(); y = 20 }
+    doc.setFontSize(7); doc.setTextColor(140); doc.setFont('helvetica', 'italic')
+    const linhasIqct = doc.splitTextToSize(IQCT_EXPLICACAO, W - mg * 2)
+    for (const ln of linhasIqct) { doc.text(ln, mg, y); y += 3 }
+    doc.setFont('helvetica', 'normal')
+    y += 3
   } else {
     doc.setFontSize(9); doc.setTextColor(120)
     doc.text('Nenhum GHE cadastrado.', mg + 2, y); y += 6
