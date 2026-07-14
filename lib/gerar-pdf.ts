@@ -3,7 +3,7 @@
 
 import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, nivelRisco, DEFINICOES_PGR } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
-import { TEXTOS_LEGAIS_LTCAT, DEFINICOES_LTCAT } from './ltcat-conteudo'
+import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { SECOES_PCMSO } from './pcmso-conteudo-completo'
@@ -436,22 +436,6 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   doc.addPage()
   paginas.indice = (doc as any).internal.getNumberOfPages()
 
-  // ── DEFINIÇÕES (glossário técnico do LTCAT) ──────────
-  doc.addPage(); y = 20
-  paginas.definicoes = (doc as any).internal.getNumberOfPages()
-  y = secao('DEFINIÇÕES', y)
-  y = paragrafo('Para efeito deste documento, aplicam-se as definições a seguir, baseadas na Lei nº 8.213/1991, no Decreto nº 3.048/99 e em conceitos técnicos consagrados na prática de higiene ocupacional e de perícia previdenciária.', y, 8.5)
-  y += 1
-  for (const d of DEFINICOES_LTCAT) {
-    if (y > 265) { doc.addPage(); y = 20 }
-    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-    const linhasTermo = doc.splitTextToSize(d.termo, W - mg * 2)
-    doc.text(linhasTermo, mg, y); y += linhasTermo.length * 4.3 + 1
-    doc.setFont('helvetica', 'normal')
-    y = paragrafo(d.definicao, y, 8.5)
-    y += 1.5
-  }
-
   // ── Textos legais (Lei 8.213/91, Decreto 3.048/99, NR-15) ─
   doc.addPage(); y = 20
   paginas.introducao = (doc as any).internal.getNumberOfPages()
@@ -463,8 +447,6 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     for (const p of paragrafos) y = paragrafo(p, y)
     y += 2
   }
-  if (y > 240) { doc.addPage(); y = 20 }
-  linha(y); y += 6
 
   // ── QUADRO-RESUMO — ENQUADRAMENTO POR GHE ────────────
   doc.addPage(); y = 20
@@ -634,7 +616,6 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   yIndice += 4
   const itensIndice: Array<[string, number | undefined]> = [
     ['Identificação da Empresa', paginas.contracapa],
-    ['Definições', paginas.definicoes],
     ['Introdução, Objetivos e Base Legal', paginas.introducao],
     ['Quadro-Resumo — Enquadramento por GHE', paginas.resumo],
     ['Grupos Homogêneos de Exposição — Detalhamento', paginas.ghes],
