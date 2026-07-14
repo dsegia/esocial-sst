@@ -1442,13 +1442,16 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     doc.text('Nenhuma ação cadastrada.', mg + 2, y); y += 6
   }
 
-  // volta para retrato para o restante do documento
-  doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
+  // Não voltamos ao retrato aqui com um addPage() isolado: como nada seria
+  // desenhado nele antes do próximo addPage() (das imagens anexas ou do
+  // Anexo I, ambos incondicionais), isso deixava uma página em branco
+  // "órfã" no meio do documento. A troca de orientação é feita já na
+  // primeira seção seguinte que efetivamente desenha conteúdo.
 
   // ── Imagens anexas ────────────────────────────────────
   const imagensAnexas = dados?.imagens_anexas || []
   if (imagensAnexas.length) {
-    doc.addPage(); y = 20
+    doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
     y = secao(`IMAGENS ANEXAS (${imagensAnexas.length})`, y)
     y = inserirImagens(
       imagensAnexas.map((im: any) => im.dataUrl),
@@ -1458,7 +1461,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
 
   // ── Anexo I — Plano de Emergência ─────────────────────
-  doc.addPage(); y = 20
+  doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
   paginas.planoEmergencia = (doc as any).internal.getNumberOfPages()
   y = secao(TEXTO_PLANO_EMERGENCIA.titulo, y)
   for (const secaoEmerg of TEXTO_PLANO_EMERGENCIA.secoes) {
