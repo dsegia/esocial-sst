@@ -10,11 +10,11 @@ export const SEVERIDADE_OPCOES = [
 ]
 
 export const PROBABILIDADE_OPCOES = [
-  { v: 2, l: 'Raro' },
-  { v: 3, l: 'Pouco Provável' },
-  { v: 5, l: 'Ocasional' },
-  { v: 8, l: 'Provável' },
-  { v: 13, l: 'Frequente' },
+  { v: 2, l: 'Raro', desc: 'Ocorrência praticamente inexistente. Exposição pontual, controle excelente da fonte geradora ou ausência de circunstância relevante de exposição.' },
+  { v: 3, l: 'Pouco Provável', desc: 'Ocorrência pouco frequente. Controle da fonte geradora em conformidade legal, mantido de forma adequada.' },
+  { v: 5, l: 'Ocasional', desc: 'Ocorrência esporádica. Controle existente com pequenas deficiências de operação ou manutenção.' },
+  { v: 8, l: 'Provável', desc: 'Ocorrência frequente. Controle deficiente, incompleto ou com deficiências relevantes.' },
+  { v: 13, l: 'Frequente', desc: 'Ocorrência constante ou contínua. Medidas de controle inexistentes ou totalmente inadequadas.' },
 ]
 
 export const TRAJETORIA_OPCOES = [
@@ -83,6 +83,106 @@ export function calcularIQCT(riscos?: { severidade?: number | string | null; pro
 }
 
 export const IQCT_EXPLICACAO = 'IQCT — Indicador de Qualidade das Condições de Trabalho: calculado por GHE a partir da distribuição dos riscos avaliados nos níveis Baixo, Médio e Alto (riscos Muito Alto exigem ação imediata e ficam fora do índice). Varia de 25 a 100 — quanto maior, melhor a condição de trabalho do grupo.'
+
+// ── Critérios técnicos de referência para gradação de severidade e
+// probabilidade (AIHA / AS-NZS 4360 / European Commission, recomendadas pela
+// Fundacentro) — texto e tabelas completos, usados como base técnica para a
+// definição dos níveis de severidade e probabilidade adotados no Quadro 2 e no
+// Quadro 3 deste documento (item "Critérios adotados neste documento").
+export interface TabelaGraduacao {
+  titulo: string
+  subtitulo?: string
+  intro?: string
+  colunas: string[]
+  linhas: string[][]
+}
+
+export const CRITERIOS_GRADACAO_INTRO: string[] = [
+  'As tabelas de gradação de severidade e probabilidade utilizadas como critério técnico de referência para a elaboração deste inventário de riscos são as tabelas da AIHA — American Industrial Hygiene Association, AS/NZS 4360 e European Commission, recomendadas pela Fundacentro. Todas elas possuem gradações de 1 (um) a 5 (cinco), que orientam a classificação da severidade e da probabilidade de cada risco identificado.',
+  'As gradações de probabilidade são 5 (cinco): Rara (1); Pouco Provável (2); Possível (3); Provável (4); e Muito Provável (5). Nas avaliações qualitativas, de acordo com o controle e a exposição ao risco, determina-se de 1 a 5 o nível de probabilidade.',
+  'A tabela de gradação utilizada como referência é sempre sujeita ao agente nocivo avaliado. Em avaliações quantitativas, a probabilidade é classificada de acordo com a porcentagem do valor de exposição ao LEO — Limite de Exposição Ocupacional. Independentemente do agente nocivo, sempre haverá um limite de exposição, e a tabela a seguir define a probabilidade com base no limite determinado pelas normas vigentes.',
+]
+
+export const TABELA_PROBABILIDADE_QUANTITATIVA: TabelaGraduacao = {
+  titulo: 'GRADAÇÃO DE PROBABILIDADE — AVALIAÇÕES QUANTITATIVAS',
+  subtitulo: 'Estimativa de probabilidade baseada no LEO — Limite de Exposição Ocupacional (sem considerar EPI) | AIHA (2015)',
+  colunas: ['Nível', 'Categoria', 'Níveis de Exposição'],
+  linhas: [
+    ['1', 'Exposição a níveis muito baixos', 'Exposições < 10% do LEO'],
+    ['2', 'Exposição baixa', 'Exposições > 10% e < 50% do LEO'],
+    ['3', 'Exposição moderada', 'Exposições > 50% e < 100% do LEO'],
+    ['4', 'Exposição excessiva', 'Exposições > 100% e até 500% do LEO'],
+    ['5', 'Exposição muito excessiva', 'Exposições superiores a 5× o LEO'],
+  ],
+}
+
+export const TABELA_PROBABILIDADE_QUALITATIVA_QUIMICOS: TabelaGraduacao = {
+  titulo: 'GRADAÇÃO DE PROBABILIDADE — AVALIAÇÕES QUALITATIVAS DE AGENTES QUÍMICOS',
+  subtitulo: 'Estimativa de probabilidade baseada no sistema de controle da fonte geradora de risco',
+  intro: 'A tabela abaixo classifica o nível de probabilidade com base na estimativa de controle da fonte geradora do risco ocupacional. Caso o sistema de controle seja totalmente seguro e controlado, não há possibilidade de inalação ou contato com o agente/substância; à medida que o sistema de controle se torna menos eficiente, a probabilidade aumenta. Esta tabela de gradação é sugerida na avaliação de agentes químicos aos quais o trabalhador está exposto por inalação ou contato com o agente.',
+  colunas: ['Nível', 'Possibilidade de Inalação/Contato', 'Sistema de Controle'],
+  linhas: [
+    ['1', 'Sem possibilidade', 'Sistema totalmente seguro e controlado.'],
+    ['2', 'Baixa possibilidade', 'Sistema fechado, com pouca possibilidade de exposição durante a atividade.'],
+    ['3', 'Média possibilidade', 'Sistema semiaberto, com barreiras de controle/ventilação aprimorada.'],
+    ['4', 'Possibilidade considerável', 'Sistema aberto, com barreiras de controle/ventilação natural.'],
+    ['5', 'Alta possibilidade', 'Sistema aberto, sem controle/ventilação.'],
+  ],
+}
+
+export const TABELA_PROBABILIDADE_QUALITATIVA_GERAL: TabelaGraduacao = {
+  titulo: 'GRADAÇÃO DE PROBABILIDADE — AVALIAÇÕES QUALITATIVAS (MECÂNICOS / ERGONÔMICOS / BIOLÓGICOS / OUTROS)',
+  subtitulo: 'Estimativa de probabilidade baseada no controle existente e nas medidas de prevenção implementadas',
+  intro: 'Para as demais avaliações qualitativas, utiliza-se a tabela de gradação de probabilidade baseada nas medidas de controle existentes. Uma medida de prevenção que representa a melhor tecnologia disponível é considerada uma medida de controle excelente; quanto menos eficientes os métodos de controle, maior o nível de probabilidade. Esta tabela foi pensada para servir de referência a avaliações qualitativas diversas, pois torna possível não apenas categorizar, mas também orientar o aprimoramento das medidas de prevenção até que se reduza a probabilidade ao mínimo possível.',
+  colunas: ['Nível', 'Controle Existente', 'Medidas de Prevenção'],
+  linhas: [
+    ['1', 'Controle excelente', 'Representa a melhor tecnologia ou prática de controle disponível.'],
+    ['2', 'Controle em conformidade legal', 'Controle seguindo as normas legais, mantido adequadamente.'],
+    ['3', 'Controle com pequenas deficiências', 'Controle adequado, com pequenas deficiências na operação ou manutenção.'],
+    ['4', 'Controle deficiente', 'Controle incompleto ou com deficiências relevantes.'],
+    ['5', 'Controle inexistente', 'As medidas de controle são inexistentes ou totalmente inadequadas.'],
+  ],
+}
+
+export const NOTAS_PROBABILIDADE: Definicao[] = [
+  { termo: 'Requisitos estabelecidos em NR', definicao: 'Todos os requisitos estabelecidos em Norma Regulamentadora baseiam-se em limites de tolerância (o mesmo que LEO — Limite de Exposição Ocupacional). A tabela quantitativa foi pensada para ser utilizada em todas as avaliações quantitativas, definindo o nível de probabilidade com base no LEO.' },
+  { termo: 'Medidas de prevenção implementadas', definicao: 'Para avaliações qualitativas, utiliza-se a tabela baseada nas medidas de prevenção existentes. Na primeira tabela (quantitativa) não é considerado o EPI; já as tabelas qualitativas são baseadas inteiramente considerando o EPI e as demais medidas de controle existentes. Assim como a tabela do LEO, as tabelas qualitativas conseguem estimar o nível em qualquer situação: se há um fator de risco no ambiente, este deve ser controlado, e é com base no controle desse fator que se define o nível de probabilidade.' },
+  { termo: 'Exigências da atividade de trabalho', definicao: 'Para avaliações quantitativas, seguem-se as exigências conforme os requisitos estabelecidos em NR — em uma avaliação de ruído, por exemplo, a tabela permite categorizar o nível de probabilidade com base nas exigências da NR-15, já que é baseada no LEO. Para avaliações qualitativas, seguem-se as exigências baseadas em conformidade legal, conforme as medidas de controle existentes: controle em conformidade legal representa, por exemplo, probabilidade de nível 2.' },
+  { termo: 'Comparação do perfil de exposição ocupacional com os valores de referência da NR-9', definicao: 'A tabela baseada em LEO permite categorizar o nível de probabilidade a partir da comparação do perfil de exposição ocupacional, sendo o LEO o valor de referência, independentemente da norma aplicável.' },
+]
+
+export const TABELA_SEVERIDADE_REFERENCIA: TabelaGraduacao = {
+  titulo: 'GRADAÇÃO DE SEVERIDADE — AVALIAÇÕES QUANTITATIVAS/QUALITATIVAS',
+  subtitulo: 'Estimativas de severidade | AIHA (2015)',
+  intro: 'As gradações de severidade são 5 (cinco): Leve (1); Baixa (2); Moderada (3); Alta (4); e Extrema (5). A severidade é classificada de 1 a 5 de acordo com o nível de consequência da exposição. A tabela abaixo permite categorizar a severidade de qualquer agente nocivo, levando em consideração a lesão/doença e a quantidade de pessoas afetadas, cobrindo, em cinco categorias, desde lesões/doenças triviais até mortes/incapacidades em mais de dez pessoas.',
+  colunas: ['Nível', 'Definição'],
+  linhas: [
+    ['1', 'Lesão leve, sem necessidade de atenção médica, incômodos ou mal-estar.'],
+    ['2', 'Lesão ou doenças sérias reversíveis.'],
+    ['3', 'Lesão ou doenças críticas irreversíveis, que podem limitar a capacidade funcional.'],
+    ['4', 'Lesão ou doença incapacitante ou mortal.'],
+    ['5', 'Mortes ou incapacidades múltiplas (mais de dez pessoas).'],
+  ],
+}
+
+export const NOTAS_SEVERIDADE: Definicao[] = [
+  { termo: 'Magnitude da consequência', definicao: 'A classificação da lesão/doença como leve, séria reversível, crítica irreversível, incapacitante/mortal ou fatal múltipla refere-se à magnitude da consequência sobre a saúde do trabalhador.' },
+  { termo: 'Número de trabalhadores possivelmente afetados', definicao: 'No nível 5, a referência a "mais de dez pessoas" diz respeito à quantidade de trabalhadores possivelmente afetados por um mesmo evento; nos demais níveis, subentende-se número igual ou inferior a dez.' },
+  { termo: 'Consequências de acidentes ampliados', definicao: 'A gradação de severidade também leva em conta a possibilidade de um acidente ampliado — isto é, mesmo quando o dano típico esperado for uma lesão, considera-se também a possibilidade de uma doença associada de gravidade equivalente, classificada no mesmo nível.' },
+]
+
+export const TEXTO_MATRIZ_RISCO = {
+  intro: [
+    'A matriz de risco utilizada como referência técnica neste Programa de Gerenciamento de Riscos é uma matriz no formato 5×5, baseada nas estimativas de gradações de Severidade e Probabilidade da AIHA — American Industrial Hygiene Association, AS/NZS 4360 e European Commission, recomendadas pela Fundacentro. Esta matriz funciona tanto para avaliações qualitativas quanto quantitativas, pois as tabelas de gradação sugeridas possuem estimativas adequadas para ambas.',
+    'Os níveis de risco previstos nesta metodologia de referência são 5 (cinco): Trivial; Tolerável; Moderado; Substancial; e Intolerável — consolidados, para fins deste documento, nas 4 (quatro) faixas do Quadro 1 (Baixo, Médio, Alto e Muito Alto). Cada nível de risco possui um método de controle sugerido, baseado na estimativa (grau de certeza) da avaliação, e os riscos de níveis mais altos têm prioridade de ação.',
+  ],
+  exemplo: [
+    'Exemplo de aplicação: a avaliação de um agente nocivo resulta em exposição entre 10% e 50% do LEO — Limite de Exposição Ocupacional, classificando a probabilidade como nível 2 (pouco provável), de acordo com a tabela de gradação AIHA. A severidade de uma doença que possa surgir a partir do agente avaliado é classificada como "lesão ou doenças críticas irreversíveis que podem limitar a capacidade funcional", correspondendo à severidade de nível 3 (moderada). O nível do risco é o produto da probabilidade pela severidade — no caso, 2 × 3 = 6 (moderado), de acordo com a matriz.',
+    'Os valores numéricos são apenas uma referência de cálculo; o que importa é o nível/categoria de risco resultante. Caso os valores fossem invertidos (severidade 2 e probabilidade 3), o produto ainda seria 6, mas o nível de risco resultante seria Tolerável, e não Moderado — pois a severidade tem maior peso do que a probabilidade na definição do nível de risco final. Por esse motivo, o resultado numérico do produto não é, isoladamente, o critério de classificação: apenas a categoria de risco resultante da matriz é utilizada.',
+  ],
+  metodosControle: 'Métodos de controle e ação: os métodos de controle são classificados de acordo com o nível do risco e o grau de certeza da estimativa da avaliação. Os níveis de risco mais altos têm prioridade na ação de controle. A ação de controle é classificada de acordo com a estimativa de certeza da avaliação, que pode ser: Certa (0); Incerta (1); e Altamente incerta (2) — a mesma classificação utilizada, risco a risco, no inventário deste PGR (coluna "Estimativa"). As ações do plano de ação são planejadas com base no inventário, e essas classificações servem para definir a prioridade das ações: quanto maior o nível do risco e quanto mais incerta a estimativa, maior a prioridade de investigação e controle. A tabela utilizada foi recomendada pela Fundacentro.',
+  iqct: 'Indicador de Qualidade das Condições de Trabalho — IQCT: para cada Grupo Homogêneo de Exposição (GHE) é calculado um indicador de qualidade, o IQCT — Indicador da Qualidade das Condições de Trabalho, que varia de 25 (todos os riscos avaliados em nível alto) a 100 (todos os riscos avaliados em nível baixo). Apesar de existirem 4 (quatro) faixas de risco no Quadro 1 deste documento, o cálculo do IQCT considera apenas os riscos classificados como Baixo (B), Médio (M) e Alto (A); ficam fora do cálculo os riscos Muito Altos, que exigem atuação imediata independentemente do índice. O cálculo é feito pela fórmula IQCT = (4·nB + 3·nM + nA) / ((nB + nM + nA) × 4) × 100, em que nB, nM e nA são as quantidades de riscos do GHE classificadas, respectivamente, como Baixo, Médio e Alto. O resultado varia de 25 a 100 — quanto maior, melhor a condição de trabalho do grupo avaliado. O IQCT de cada GHE é apresentado junto ao respectivo inventário de riscos.',
+}
 
 export const QUADRO2_INTERPRETACAO = [
   {

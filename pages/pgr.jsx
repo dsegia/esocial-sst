@@ -782,11 +782,9 @@ export default function PGR() {
                         <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                             <div style={{ fontSize:14, fontWeight:700, color:'#111' }}>{g.nome || '—'}</div>
-                            {iqct && (
-                              <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor)" style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>
-                                IQCT {iqct.valor}/100
-                              </span>
-                            )}
+                            <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor). Calculado a partir dos riscos com severidade e probabilidade preenchidas." style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background: iqct ? '#E6F1FB' : '#f3f4f6', color: iqct ? '#0C447C' : '#9ca3af' }}>
+                              {iqct ? `IQCT ${iqct.valor}/100` : 'IQCT — dados insuficientes'}
+                            </span>
                           </div>
                           <div style={{ fontSize:11, color:'#6b7280' }}>
                             {g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados} · ` : ''}
@@ -1096,11 +1094,9 @@ export default function PGR() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                     <div style={{ fontSize:13, fontWeight:700 }}>GHE {gi + 1}</div>
-                    {iqct && (
-                      <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor)" style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>
-                        IQCT {iqct.valor}/100
-                      </span>
-                    )}
+                    <span title="IQCT — Indicador de Qualidade das Condições de Trabalho (25 a 100; quanto maior, melhor). Calculado a partir dos riscos com severidade e probabilidade preenchidas." style={{ padding:'2px 9px', borderRadius:99, fontSize:11, fontWeight:600, background: iqct ? '#E6F1FB' : '#f3f4f6', color: iqct ? '#0C447C' : '#9ca3af' }}>
+                      {iqct ? `IQCT ${iqct.valor}/100` : 'IQCT — dados insuficientes'}
+                    </span>
                   </div>
                   <button onClick={() => removerGhe(gi)} style={s.btnRemover}>×</button>
                 </div>

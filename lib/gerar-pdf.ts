@@ -1,7 +1,13 @@
 // lib/gerar-pdf.ts
 // Geração de PDF para ASO, LTCAT e PCMSO usando jsPDF
 
-import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, ESTIMATIVA_OPCOES, nivelRisco, calcularIQCT, IQCT_EXPLICACAO, DEFINICOES_PGR } from './pgr-conteudo'
+import {
+  TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE,
+  PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, ESTIMATIVA_OPCOES, nivelRisco, calcularIQCT, IQCT_EXPLICACAO,
+  DEFINICOES_PGR, CRITERIOS_GRADACAO_INTRO, TABELA_PROBABILIDADE_QUANTITATIVA,
+  TABELA_PROBABILIDADE_QUALITATIVA_QUIMICOS, TABELA_PROBABILIDADE_QUALITATIVA_GERAL, NOTAS_PROBABILIDADE,
+  TABELA_SEVERIDADE_REFERENCIA, NOTAS_SEVERIDADE, TEXTO_MATRIZ_RISCO, TabelaGraduacao,
+} from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
 import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
@@ -1038,6 +1044,26 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     const linhas = Math.ceil(imagens.length / porLinha)
     return yPos + linhas * (tam + (legendas ? 8 : 4)) + 2
   }
+  // Renderiza uma tabela de gradação de referência (título + subtítulo em itálico
+  // + parágrafo introdutório opcional + tabela de colunas/linhas), usada nos
+  // critérios técnicos de severidade/probabilidade (AIHA/Fundacentro).
+  function tabelaGraduacao(tab: TabelaGraduacao, larguras: number[], yPos: number): number {
+    let yy = subSecao(tab.titulo, yPos)
+    if (tab.subtitulo) {
+      doc.setFontSize(7.5); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
+      const linhasSub = doc.splitTextToSize(tab.subtitulo, W - mg * 2)
+      doc.text(linhasSub, mg, yy); yy += linhasSub.length * 3.6 + 1.5
+      doc.setFont('helvetica', 'normal')
+    }
+    if (tab.intro) yy = paragrafo(tab.intro, yy, 8)
+    yy += 1
+    yy = tabela(
+      tab.colunas.map((titulo, i) => ({ titulo, largura: larguras[i] })),
+      tab.linhas,
+      yy,
+    )
+    return yy + 3
+  }
 
   const dg = dados?.dados_gerais || {}
   const ambientes = dados?.ambientes || []
@@ -1180,7 +1206,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   linha(y); y += 6
 
   // ── Ambientes de trabalho ─────────────────────────────
-  if (y > 245) { doc.addPage(); y = 20 }
+  // Guarda com folga suficiente para caber o cabeçalho da seção + o parágrafo
+  // introdutório antes do limite (260) usado pelo loop de cada ambiente — do
+  // contrário o cabeçalho fica "preso" sozinho no fim da página anterior,
+  // com um vão em branco até o rodapé, e o primeiro ambiente pula pra próxima.
+  if (y > 215) { doc.addPage(); y = 20 }
   paginas.ambientes = (doc as any).internal.getNumberOfPages()
   y = secao(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
   if (ambientes.length) {
@@ -1222,9 +1252,13 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       doc.text(g.nome || 'GHE', mg, y)
       doc.setFont('helvetica', 'normal')
       const iqct = calcularIQCT(g.riscos)
+      doc.setFontSize(8)
       if (iqct) {
-        doc.setFontSize(8); doc.setTextColor(12, 68, 124)
+        doc.setTextColor(12, 68, 124)
         doc.text(`IQCT ${iqct.valor}/100`, W - mg, y, { align: 'right' })
+      } else {
+        doc.setTextColor(160)
+        doc.text('IQCT — dados insuficientes', W - mg, y, { align: 'right' })
       }
       y += 5
       const infoGhe = [
@@ -1515,18 +1549,78 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     y += 2
   }
   y += 2
-  y = subSecao('Quadro 2 — Critério de probabilidade', y)
-  for (const p of PROBABILIDADE_OPCOES) {
-    if (y > 278) { doc.addPage(); y = 20 }
-    doc.setFontSize(8); doc.setTextColor(50)
-    doc.text(`${p.v} — ${p.l}`, mg + 2, y); y += 4.5
+
+  // ── Critérios técnicos de referência (AIHA / AS-NZS 4360 / European
+  // Commission, recomendadas pela Fundacentro) — texto e tabelas completos ──
+  if (y > 230) { doc.addPage(); y = 20 }
+  y = subSecao('Critérios Técnicos de Referência — Gradação de Severidade e Probabilidade', y)
+  for (const p of CRITERIOS_GRADACAO_INTRO) y = paragrafo(p, y, 8.5)
+  y += 2
+
+  y = tabelaGraduacao(TABELA_PROBABILIDADE_QUANTITATIVA, [12, 60, 108], y)
+  y = tabelaGraduacao(TABELA_PROBABILIDADE_QUALITATIVA_QUIMICOS, [12, 50, 118], y)
+  y = tabelaGraduacao(TABELA_PROBABILIDADE_QUALITATIVA_GERAL, [12, 55, 113], y)
+
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = subSecao('Notas sobre a gradação de probabilidade', y)
+  for (const n of NOTAS_PROBABILIDADE) {
+    if (y > 255) { doc.addPage(); y = 20 }
+    doc.setFontSize(8.5); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    const linhasTermo = doc.splitTextToSize(n.termo, W - mg * 2)
+    doc.text(linhasTermo, mg, y); y += linhasTermo.length * 4 + 1
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(n.definicao, y, 8)
+    y += 1.5
   }
+  y += 2
+
+  y = tabelaGraduacao(TABELA_SEVERIDADE_REFERENCIA, [15, 165], y)
+
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = subSecao('Notas sobre a gradação de severidade', y)
+  for (const n of NOTAS_SEVERIDADE) {
+    if (y > 255) { doc.addPage(); y = 20 }
+    doc.setFontSize(8.5); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    const linhasTermo = doc.splitTextToSize(n.termo, W - mg * 2)
+    doc.text(linhasTermo, mg, y); y += linhasTermo.length * 4 + 1
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(n.definicao, y, 8)
+    y += 1.5
+  }
+  y += 2
+
+  if (y > 220) { doc.addPage(); y = 20 }
+  y = subSecao('Matriz de Risco — Metodologia de Referência', y)
+  for (const p of TEXTO_MATRIZ_RISCO.intro) y = paragrafo(p, y, 8.5)
+  y += 1
+  for (const p of TEXTO_MATRIZ_RISCO.exemplo) y = paragrafo(p, y, 8.5)
+  y += 1
+  y = paragrafo(TEXTO_MATRIZ_RISCO.metodosControle, y, 8.5)
+  y += 1
+  y = paragrafo(TEXTO_MATRIZ_RISCO.iqct, y, 8.5)
   y += 3
-  y = subSecao('Quadro 3 — Critério de severidade', y)
+
+  // ── Critérios efetivamente adotados neste documento (Quadros 2 e 3) ──
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = subSecao('Quadro 2 — Critério de probabilidade adotado neste documento', y)
+  for (const p of PROBABILIDADE_OPCOES) {
+    if (y > 260) { doc.addPage(); y = 20 }
+    doc.setFontSize(8.5); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(`${p.v} — ${p.l}`, mg + 2, y); y += 4
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(p.desc, y, 8)
+    y += 1
+  }
+  y += 2
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = subSecao('Quadro 3 — Critério de severidade adotado neste documento', y)
   for (const sv of QUADRO4_SEVERIDADE) {
-    if (y > 275) { doc.addPage(); y = 20 }
-    doc.setFontSize(8); doc.setTextColor(50)
-    doc.text(`${sv.v} — ${sv.l}: ${sv.efeito}`, mg + 2, y); y += 4.5
+    if (y > 260) { doc.addPage(); y = 20 }
+    doc.setFontSize(8.5); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(`${sv.v} — ${sv.l}`, mg + 2, y); y += 4
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(sv.efeito, y, 8)
+    y += 1
   }
 
   if (y > 250) { doc.addPage(); y = 20 }
