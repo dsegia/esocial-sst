@@ -3,7 +3,8 @@
 
 import { TEXTOS_LEGAIS_PGR, TEXTO_PLANO_EMERGENCIA, QUADRO2_INTERPRETACAO, QUADRO4_SEVERIDADE, PROBABILIDADE_OPCOES, SEVERIDADE_OPCOES, nivelRisco, DEFINICOES_PGR } from './pgr-conteudo'
 import { TEXTOS_LEGAIS_AET } from './aet-conteudo'
-import { TEXTOS_LEGAIS_LTCAT } from './ltcat-conteudo'
+import { TEXTOS_LEGAIS_LTCAT, DEFINICOES_LTCAT } from './ltcat-conteudo'
+import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { SECOES_PCMSO } from './pcmso-conteudo-completo'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
@@ -259,9 +260,16 @@ export async function gerarPdfAso(dados: any, empresa?: any): Promise<void> {
 export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210; const mg = 15
+  const W = 210; const H = 297; const mg = 15
   let y = 15
+  const paginas: any = { capa: 1 }
+  const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico' }
+  const categoriaMap: Record<string, string> = { quimico: 'Químico', fisico: 'Físico', biologico: 'Biológico', associacao: 'Associação' }
 
+  function hexRgb(hex: string): [number, number, number] {
+    const h = (hex || '#999999').replace('#', '')
+    return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)]
+  }
   function linha(yPos: number) {
     doc.setDrawColor(220, 220, 220)
     doc.line(mg, yPos, W - mg, yPos)
@@ -274,12 +282,25 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 10
   }
+  function subSecao(texto: string, yPos: number): number {
+    if (yPos > H - 22) { doc.addPage(); yPos = 20 }
+    doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg, yPos)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 6
+  }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
     doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
     doc.setFontSize(10); doc.setTextColor(30)
     const linhas = doc.splitTextToSize(valor || '—', largura - 2)
     doc.text(linhas, xPos, yPos + 4)
     return yPos + 4 + linhas.length * 5
+  }
+  function linhaDupla(labelA: string, valA: string, labelB: string, valB: string, yPos: number, larguraTotal: number): number {
+    const colW = larguraTotal / 2 - 3
+    const yA = campo(labelA, valA, mg, yPos, colW)
+    const yB = campo(labelB, valB, mg + larguraTotal / 2 + 3, yPos, colW)
+    return Math.max(yA, yB)
   }
   function paragrafo(texto: string, yPos: number, tamanho = 9): number {
     doc.setFontSize(tamanho); doc.setTextColor(50)
@@ -292,44 +313,148 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     }
     return yy + 2
   }
-
-  // Cabeçalho
-  doc.setFillColor(24, 95, 165)
-  doc.rect(0, 0, W, 20, 'F')
-  if (empresa?.logo_url) {
-    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  function tabela(
+    colunas: { titulo: string; largura: number }[],
+    linhas: string[][],
+    yPos: number,
+    estiloCelula?: (li: number, ci: number) => { bg?: [number, number, number]; texto?: [number, number, number] } | null,
+  ): number {
+    const larguraTotal = colunas.reduce((s, c) => s + c.largura, 0)
+    function cabecalho(yy: number) {
+      doc.setFontSize(6.5); doc.setFont('helvetica', 'bold')
+      const linhasCab = colunas.map(c => doc.splitTextToSize(c.titulo, c.largura - 3))
+      const maxLinhasCab = Math.max(...linhasCab.map((l: string[]) => l.length), 1)
+      const alturaCab = maxLinhasCab * 3 + 3
+      doc.setFillColor(24, 95, 165)
+      doc.rect(mg, yy, larguraTotal, alturaCab, 'F')
+      doc.setTextColor(255, 255, 255)
+      let xx = mg
+      for (let ci = 0; ci < colunas.length; ci++) { doc.text(linhasCab[ci], xx + 1.5, yy + 2.9); xx += colunas[ci].largura }
+      doc.setFont('helvetica', 'normal')
+      return yy + alturaCab
+    }
+    if (yPos > H - 32) { doc.addPage(); yPos = 20 }
+    let yy = cabecalho(yPos)
+    for (let li = 0; li < linhas.length; li++) {
+      const linhaAtual = linhas[li]
+      const celulas = linhaAtual.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
+      const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
+      const alturaLinha = maxLinhas * 3.6 + 3
+      if (yy + alturaLinha > H - 12) { doc.addPage(); yy = cabecalho(20) }
+      let x = mg
+      for (let ci = 0; ci < colunas.length; ci++) {
+        const estilo = estiloCelula?.(li, ci)
+        if (estilo?.bg) { doc.setFillColor(estilo.bg[0], estilo.bg[1], estilo.bg[2]); doc.rect(x, yy, colunas[ci].largura, alturaLinha - 1, 'F') }
+        doc.setFontSize(7.5)
+        const cortxt = estilo?.texto || [50, 50, 50]
+        doc.setTextColor(cortxt[0], cortxt[1], cortxt[2])
+        doc.setFont('helvetica', estilo?.bg ? 'bold' : 'normal')
+        doc.text(celulas[ci], x + 1.5, yy + 3.2)
+        x += colunas[ci].largura
+      }
+      doc.setFont('helvetica', 'normal')
+      doc.setDrawColor(230); doc.line(mg, yy + alturaLinha - 1, mg + larguraTotal, yy + alturaLinha - 1)
+      yy += alturaLinha
+    }
+    return yy + 3
   }
-  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('LAUDO TÉCNICO DAS CONDIÇÕES AMBIENTAIS DO TRABALHO', W / 2, 8, { align: 'center' })
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
-  doc.text('LTCAT — NR-15 / Decreto 3.048/99 Art. 68', W / 2, 14, { align: 'center' })
-  y = 26
 
-  // Empresa
-  y = secao('DADOS DA EMPRESA', y)
-  const yw = (W - mg * 2)
-  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
-  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10
-  campo('Endereço', empresa?.endereco, mg, y, yw / 2)
-  campo('Município/UF', `${empresa?.municipio || '—'}/${empresa?.uf || '—'}`, mg + yw / 2 + 5, y, yw / 2 - 5)
-  y += 10; linha(y); y += 6
-
-  // Dados gerais do laudo
-  y = secao('DADOS DO LAUDO', y)
   const dg = dados?.dados_gerais || {}
-  const col = (W - mg * 2 - 10) / 3
-  campo('Data de Emissão', dg.data_emissao ? new Date(dg.data_emissao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, col)
-  campo('Data de Vigência', dg.data_vigencia ? new Date(dg.data_vigencia + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
-  campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + (col + 5) * 2, y, col)
-  y += 10; linha(y); y += 6
-  const colResp = (W - mg * 2 - 10) / 3
-  campo('Responsável Técnico', dg.resp_nome, mg, y, colResp)
-  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + colResp + 5, y, colResp)
-  campo('CPF', dg.resp_cpf, mg + (colResp + 5) * 2, y, colResp)
-  y += 12; linha(y); y += 6
+  const ghes = dados?.ghes || []
+  const fmtData = (d: string) => d ? new Date(d + 'T00:00').toLocaleDateString('pt-BR') : '—'
 
-  // ── Textos legais (NR-15 / Decreto 3.048/99) ──────────
+  // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 30, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+  }
+  doc.setFontSize(17); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('LAUDO TÉCNICO DAS CONDIÇÕES AMBIENTAIS DO TRABALHO', W / 2, 12, { align: 'center' })
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  doc.text('LTCAT — Lei 8.213/91 Art. 58 / Decreto 3.048/99 Art. 68 / NR-15', W / 2, 18, { align: 'center' })
+  doc.setFontSize(9)
+  doc.text('Base para o PPP e para o evento S-2240 do eSocial', W / 2, 24, { align: 'center' })
+
+  y = 55
+  doc.setFont('helvetica', 'bold')
+  let nomeFontSize = 22
+  doc.setFontSize(nomeFontSize)
+  const nomeEmpresaTxt = empresa?.razao_social || 'EMPRESA'
+  while (doc.getTextWidth(nomeEmpresaTxt) > (W - 40) && nomeFontSize > 13) {
+    nomeFontSize -= 1
+    doc.setFontSize(nomeFontSize)
+  }
+  doc.setTextColor(24, 95, 165)
+  doc.text(nomeEmpresaTxt, W / 2, y, { align: 'center' }); y += 10
+  doc.setFontSize(10); doc.setTextColor(80); doc.setFont('helvetica', 'normal')
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, W / 2, y, { align: 'center' }); y += 22
+
+  doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+  doc.text('Dados do Documento', mg, y); y += 8
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
+  doc.text(`Data de Emissão: ${fmtData(dg.data_emissao)}`, mg, y); y += 5
+  doc.text(`Início da Vigência: ${fmtData(dg.data_vigencia)}`, mg, y); y += 5
+  doc.text(`Revisar até: ${fmtData(dg.prox_revisao)}`, mg, y); y += 5
+  doc.text(`Grupos Homogêneos de Exposição avaliados: ${ghes.length}`, mg, y); y += 15
+
+  doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+  doc.text('Responsáveis', mg, y); y += 8
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
+  doc.text(`Responsável Técnico: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), mg, y); y += 5
+  doc.text(`Representante Legal: ${empresa?.resp_nome || '—'}`, mg, y); y += 15
+
+  y += 20
+  doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
+  doc.text('Este documento é confidencial e de uso exclusivo da empresa acima identificada.', W / 2, y, { align: 'center' })
+
+  paginas.capa = 1
+
+  // ── PÁGINA 2: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
+  doc.addPage()
+  y = 20
+  y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  y = linhaDupla('Razão Social', empresa?.razao_social, 'Nome Fantasia', empresa?.nome_fantasia || '—', y, yw) + 3
+  y = linhaDupla('CNPJ', empresa?.cnpj, 'Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco != null ? empresa.grau_risco : '—'}`, y, yw) + 3
+  y = linhaDupla('Inscrição Estadual', empresa?.inscricao_estadual || '—', 'Inscrição Municipal', empresa?.inscricao_municipal || '—', y, yw) + 3
+  y = campo('CNAE', `${empresa?.cnae || '—'}${empresa?.cnae_descricao ? ' — ' + empresa.cnae_descricao : ''}`, mg, y, yw) + 3
+  y = campo('Endereço', `${empresa?.endereco || '—'}${empresa?.municipio ? ', ' + empresa.municipio : ''}${empresa?.uf ? '/' + empresa.uf : ''}${empresa?.cep ? ' — ' + empresa.cep : ''}`, mg, y, yw) + 3
+  y = linhaDupla('Telefone', empresa?.telefone || '—', 'E-mail', empresa?.email || '—', y, yw) + 3
+  y = linhaDupla('Nº de Empregados', empresa?.numero_empregados != null ? String(empresa.numero_empregados) : '—', 'Horário de Funcionamento', empresa?.horario_funcionamento || '—', y, yw) + 5
+
+  y = secao('RESPONSÁVEIS PELO LTCAT', y)
+  y = campo('Responsável Legal (Implementação)', `${empresa?.resp_nome || '—'}${empresa?.resp_cargo ? ` — ${empresa.resp_cargo}` : ''}`, mg, y, yw) + 3
+  y = campo('Responsável Técnico (Elaboração)', `${dg.resp_nome || '—'} — ${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}${dg.resp_cpf ? ` — CPF ${dg.resp_cpf}` : ''}`.trim(), mg, y, yw) + 3
+  if (empresa?.resp_telefone || empresa?.resp_email) {
+    y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 3
+  }
+
+  paginas.contracapa = 2
+
+  // ── PÁGINA 3: ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
+  doc.addPage()
+  paginas.indice = (doc as any).internal.getNumberOfPages()
+
+  // ── DEFINIÇÕES (glossário técnico do LTCAT) ──────────
+  doc.addPage(); y = 20
+  paginas.definicoes = (doc as any).internal.getNumberOfPages()
+  y = secao('DEFINIÇÕES', y)
+  y = paragrafo('Para efeito deste documento, aplicam-se as definições a seguir, baseadas na Lei nº 8.213/1991, no Decreto nº 3.048/99 e em conceitos técnicos consagrados na prática de higiene ocupacional e de perícia previdenciária.', y, 8.5)
+  y += 1
+  for (const d of DEFINICOES_LTCAT) {
+    if (y > 265) { doc.addPage(); y = 20 }
+    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    const linhasTermo = doc.splitTextToSize(d.termo, W - mg * 2)
+    doc.text(linhasTermo, mg, y); y += linhasTermo.length * 4.3 + 1
+    doc.setFont('helvetica', 'normal')
+    y = paragrafo(d.definicao, y, 8.5)
+    y += 1.5
+  }
+
+  // ── Textos legais (Lei 8.213/91, Decreto 3.048/99, NR-15) ─
+  doc.addPage(); y = 20
+  paginas.introducao = (doc as any).internal.getNumberOfPages()
   const textosCustomLtcat = dados?.textos_legais_custom || {}
   for (const secaoTexto of TEXTOS_LEGAIS_LTCAT) {
     if (y > 250) { doc.addPage(); y = 20 }
@@ -341,47 +466,150 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   if (y > 240) { doc.addPage(); y = 20 }
   linha(y); y += 6
 
-  // GHEs
-  const ghes = dados?.ghes || []
+  // ── QUADRO-RESUMO — ENQUADRAMENTO POR GHE ────────────
+  doc.addPage(); y = 20
+  paginas.resumo = (doc as any).internal.getNumberOfPages()
+  y = secao(`QUADRO-RESUMO — ENQUADRAMENTO POR GHE (${ghes.length})`, y)
+  if (ghes.length) {
+    y = tabela(
+      [
+        { titulo: 'GHE', largura: 42 },
+        { titulo: 'SETOR', largura: 34 },
+        { titulo: 'TRABALHADORES', largura: 22 },
+        { titulo: 'PRINCIPAIS AGENTES', largura: 52 },
+        { titulo: 'APOSENT. ESPECIAL', largura: 30 },
+      ],
+      ghes.map((g: any) => [
+        g.nome || '—',
+        g.setor || '—',
+        String(g.qtd_trabalhadores || '—'),
+        (g.agentes || []).map((a: any) => a.nome).filter(Boolean).join(', ') || 'Nenhum identificado',
+        g.aposentadoria_especial ? 'SIM' : 'NÃO',
+      ]),
+      y,
+      (li, ci) => {
+        if (ci !== 4) return null
+        return ghes[li]?.aposentadoria_especial
+          ? { bg: [252, 235, 235], texto: [121, 31, 31] }
+          : { bg: [234, 243, 222], texto: [39, 80, 10] }
+      },
+    )
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum GHE cadastrado.', mg + 2, y); y += 6
+  }
+
+  // ── GRUPOS HOMOGÊNEOS DE EXPOSIÇÃO — DETALHAMENTO ────
+  doc.addPage(); y = 20
+  paginas.ghes = (doc as any).internal.getNumberOfPages()
+  y = secao('GRUPOS HOMOGÊNEOS DE EXPOSIÇÃO — DETALHAMENTO', y)
+
   for (let gi = 0; gi < ghes.length; gi++) {
     const ghe = ghes[gi]
-    if (y > 255) { doc.addPage(); y = 20 }
-    y = secao(`GHE ${gi + 1}: ${ghe.nome || '—'}`, y)
+    if (y > 245) { doc.addPage(); y = 20 }
+    y = subSecao(`GHE ${gi + 1}: ${ghe.nome || '—'}`, y)
 
-    if (ghe.setor) {
-      campo('Setor', ghe.setor, mg, y, (W - mg * 2) / 2)
-    }
+    campo('Setor', ghe.setor, mg, y, (W - mg * 2) / 2)
     campo('Qtd. Trabalhadores', String(ghe.qtd_trabalhadores || '—'), mg + (W - mg * 2) / 2 + 5, y, (W - mg * 2) / 2 - 5)
-    campo('Aposentadoria Especial', ghe.aposentadoria_especial ? 'SIM' : 'NÃO', mg + (W - mg * 2) * 0.75 + 5, y, (W - mg * 2) / 4 - 5)
     y += 10
 
     if (ghe.funcoes?.length) {
-      doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS', mg, y); y += 4
+      doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
       doc.setFontSize(9); doc.setTextColor(30)
-      const funcText = ghe.funcoes.join(' • ')
-      const linhas = doc.splitTextToSize(funcText, W - mg * 2 - 2)
-      doc.text(linhas, mg, y); y += linhas.length * 4 + 3
+      const linhasFunc = doc.splitTextToSize(ghe.funcoes.join(' • '), W - mg * 2 - 2)
+      doc.text(linhasFunc, mg, y); y += linhasFunc.length * 4 + 3
     }
 
     if (ghe.agentes?.length) {
-      doc.setFontSize(7); doc.setTextColor(100); doc.text('AGENTES DE RISCO', mg, y); y += 4
-      for (const ag of ghe.agentes) {
-        if (y > 265) { doc.addPage(); y = 20 }
-        const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico' }
-        const tipo = tipoMap[ag.tipo] || ag.tipo || ''
-        doc.setFontSize(9); doc.setTextColor(30)
-        doc.text(`• [${tipo}] ${ag.nome}${ag.valor ? ` — ${ag.valor}` : ''}`, mg + 2, y)
-        y += 4.5
-      }
-      y += 2
+      y = tabela(
+        [
+          { titulo: 'TIPO', largura: 20 },
+          { titulo: 'AGENTE NOCIVO', largura: 52 },
+          { titulo: 'VALOR MEDIDO', largura: 26 },
+          { titulo: 'LIMITE DE TOLERÂNCIA', largura: 26 },
+          { titulo: 'SUPERA LT', largura: 18 },
+          { titulo: 'CÓD. ESOCIAL (T24)', largura: 20 },
+        ],
+        ghe.agentes.map((a: any) => [
+          tipoMap[a.tipo] || a.tipo || '—',
+          a.nome || '—',
+          a.valor ? `${a.valor}${a.unidade ? ' ' + a.unidade : ''}` : '—',
+          a.limite || '—',
+          a.supera_lt ? 'Sim' : 'Não',
+          a.codigo_t24 || '—',
+        ]),
+        y,
+        (li, ci) => {
+          if (ci !== 4) return null
+          return ghe.agentes[li]?.supera_lt
+            ? { bg: [252, 235, 235], texto: [121, 31, 31] }
+            : { bg: [234, 243, 222], texto: [39, 80, 10] }
+        },
+      )
     } else {
       doc.setFontSize(9); doc.setTextColor(39, 80, 10)
-      doc.text('Sem agentes de risco significativos', mg + 2, y); y += 6
+      doc.text('Sem agentes de risco significativos identificados neste GHE.', mg + 2, y); y += 6
     }
 
-    linha(y); y += 5
+    if (ghe.epc?.length) {
+      y = tabela(
+        [{ titulo: 'EQUIPAMENTO DE PROTEÇÃO COLETIVA (EPC)', largura: 130 }, { titulo: 'EFICÁCIA', largura: 50 }],
+        ghe.epc.map((e: any) => [e.nome || '—', e.eficaz === false ? 'Ineficaz' : 'Eficaz']),
+        y,
+      )
+    }
+    if (ghe.epi?.length) {
+      y = tabela(
+        [{ titulo: 'EQUIPAMENTO DE PROTEÇÃO INDIVIDUAL (EPI)', largura: 100 }, { titulo: 'C.A.', largura: 30 }, { titulo: 'EFICÁCIA', largura: 50 }],
+        ghe.epi.map((e: any) => [e.nome || '—', e.ca || '—', e.eficaz === false ? 'Ineficaz' : 'Eficaz']),
+        y,
+      )
+    }
+
+    // ── Parecer técnico conclusivo do GHE ──────────────
+    if (y > 260) { doc.addPage(); y = 20 }
+    doc.setFontSize(8); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+    doc.text('PARECER TÉCNICO E ENQUADRAMENTO PREVIDENCIÁRIO', mg, y); y += 5
+    doc.setFont('helvetica', 'normal')
+    const agentesSuperamLT = (ghe.agentes || []).filter((a: any) => a.supera_lt).map((a: any) => a.nome).filter(Boolean)
+    const nomesAgentes = agentesSuperamLT.length ? agentesSuperamLT.join(', ') : (ghe.agentes || []).map((a: any) => a.nome).filter(Boolean).join(', ')
+    const parecer = ghe.aposentadoria_especial
+      ? `Com base na avaliação técnica realizada, os trabalhadores deste GHE encontram-se expostos, de forma habitual e permanente, a agente(s) nocivo(s) constante(s) do Anexo IV do Decreto nº 3.048/99${nomesAgentes ? ` (${nomesAgentes})` : ''}, sem neutralização comprovada por EPI eficaz (observada a exceção legal do agente ruído, quando aplicável). Este GHE enseja o reconhecimento de tempo de trabalho especial para fins de aposentadoria especial, devendo o(s) código(s) do(s) agente(s) nocivo(s) constante(s) da Tabela 24 do eSocial ser informado(s) no evento S-2240 e no PPP dos trabalhadores vinculados.`
+      : `Não foi identificada, neste GHE, exposição habitual e permanente a agente nocivo constante do Anexo IV do Decreto nº 3.048/99 em intensidade ou concentração capaz de ensejar aposentadoria especial, ou a exposição identificada foi neutralizada por EPI comprovadamente eficaz. Código de enquadramento sugerido para o evento S-2240 do eSocial: Tabela 24 — código 01 (não ensejador de aposentadoria especial).`
+    y = paragrafo(parecer, y, 8.5)
+    y += 3; linha(y); y += 6
   }
 
+  if (ghes.length === 0) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum GHE cadastrado neste laudo.', mg + 2, y); y += 6
+  }
+
+  // ── ANEXO — RELAÇÃO DE AGENTES NOCIVOS DO ANEXO IV DO DECRETO 3.048/99 ─
+  doc.addPage(); y = 20
+  paginas.anexoIV = (doc as any).internal.getNumberOfPages()
+  y = secao('ANEXO — AGENTES NOCIVOS (DECRETO Nº 3.048/99, ANEXO IV)', y)
+  y = paragrafo('Relação de referência dos agentes nocivos químicos, físicos e biológicos considerados para fins de concessão de aposentadoria especial, com o respectivo tempo mínimo de exposição habitual e permanente. As atividades exemplificativas são meramente ilustrativas, salvo para agentes biológicos, cuja relação é taxativa (art. 68, § 1º, do Decreto nº 3.048/99).', y, 8)
+  y += 2
+  y = tabela(
+    [
+      { titulo: 'CÓD.', largura: 16 },
+      { titulo: 'AGENTE NOCIVO', largura: 54 },
+      { titulo: 'CATEGORIA', largura: 24 },
+      { titulo: 'TEMPO (ANOS)', largura: 20 },
+      { titulo: 'ATIVIDADES EXEMPLIFICATIVAS', largura: 66 },
+    ],
+    ANEXO_IV_AGENTES.map(a => [
+      a.codigo,
+      a.nome,
+      categoriaMap[a.categoria] || a.categoria,
+      String(a.tempoExposicaoAnos),
+      (a.atividadesExemplo || []).join('; ') || '—',
+    ]),
+    y,
+  )
+
+  // ── Assinaturas ───────────────────────────────────────
   if (y > 250) { doc.addPage(); y = 20 }
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
@@ -392,23 +620,49 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     },
     {
       tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DO LTCAT',
-      descricao: 'Laudo Técnico das Condições Ambientais de Trabalho, conforme NR-9.',
+      descricao: 'Laudo Técnico das Condições Ambientais de Trabalho, conforme art. 58 da Lei nº 8.213/1991 e art. 68 do Decreto nº 3.048/99.',
       nome: dg.resp_nome,
-      cargo: 'Técnico/Engenheiro de Segurança do Trabalho',
+      cargo: dg.resp_conselho === 'CRM' ? 'Médico do Trabalho' : 'Técnico/Engenheiro de Segurança do Trabalho',
       extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
     }
   )
 
-  // Rodapé
+  // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  doc.setPage(paginas.indice)
+  let yIndice = 20
+  yIndice = secao('ÍNDICE', yIndice)
+  yIndice += 4
+  const itensIndice: Array<[string, number | undefined]> = [
+    ['Identificação da Empresa', paginas.contracapa],
+    ['Definições', paginas.definicoes],
+    ['Introdução, Objetivos e Base Legal', paginas.introducao],
+    ['Quadro-Resumo — Enquadramento por GHE', paginas.resumo],
+    ['Grupos Homogêneos de Exposição — Detalhamento', paginas.ghes],
+    ['Anexo — Agentes Nocivos (Decreto 3.048/99, Anexo IV)', paginas.anexoIV],
+  ]
+  doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
+  let numItemIndice = 1
+  for (const [tituloItem, paginaItem] of itensIndice) {
+    if (paginaItem == null) continue
+    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+    doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
+    yIndice += 6
+    numItemIndice++
+  }
+  yIndice += 6; linha(yIndice); yIndice += 6
+  doc.setFontSize(8); doc.setTextColor(100)
+  doc.text(`Total de páginas: ${(doc as any).internal.getNumberOfPages()}`, mg, yIndice)
+
+  // ── Rodapé ────────────────────────────────────────────
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {
     doc.setPage(p)
     doc.setFontSize(7); doc.setTextColor(150)
-    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
-    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, H - 5)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, H - 5, { align: 'right' })
   }
 
-  const data = dados?.dados_gerais?.data_emissao || new Date().toISOString().split('T')[0]
+  const data = dg.data_emissao || new Date().toISOString().split('T')[0]
   doc.save(`LTCAT_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
 }
 
