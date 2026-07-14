@@ -178,24 +178,22 @@ export default function PCMSO() {
   }
 
   function abrirEdicaoSecao(idSecao) {
-    const secaoAtual = SECOES_PCMSO.find(s => s.id === idSecao)
-    const conteudoAtual = medico?.secoes_custom?.[idSecao] || secaoAtual?.conteudo || ''
-    setFormSecoes({ [idSecao]: conteudoAtual })
+    // Carrega TODAS as seções customizadas do banco
+    const todasAsSecoes = medico?.secoes_custom || {}
+    setFormSecoes(todasAsSecoes)
     setEditandoSecao(idSecao)
   }
 
   async function salvarSecoes() {
     const dados = {
       empresa_id: empresaId,
-      secoes_custom: formSecoes,
+      secoes_custom: formSecoes, // Salva TODAS as seções customizadas
       atualizado_em: new Date().toISOString(),
     }
     if (medico?.id) {
-      // Se já existe médico, atualiza
       const { error } = await supabase.from('pcmso_dados').update(dados).eq('id', medico.id)
       if (error) { alert('Erro ao salvar: ' + error.message); return }
     } else {
-      // Se não existe, cria novo registro
       const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
       if (error) { alert('Erro ao salvar: ' + error.message); return }
     }
@@ -204,9 +202,9 @@ export default function PCMSO() {
   }
 
   function obterConteudoSecao(idSecao) {
+    // Retorna o conteúdo customizado ou o padrão
     if (formSecoes?.[idSecao]) {
-      const conteudo = formSecoes[idSecao]
-      return typeof conteudo === 'string' ? conteudo : conteudo.join('\n\n')
+      return formSecoes[idSecao]
     }
     const secao = SECOES_PCMSO.find(s => s.id === idSecao)
     return secao ? secao.conteudo : ''
