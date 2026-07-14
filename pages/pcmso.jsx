@@ -178,7 +178,9 @@ export default function PCMSO() {
   }
 
   function abrirEdicaoSecao(idSecao) {
-    setFormSecoes(medico?.secoes_custom || {})
+    const secaoAtual = SECOES_PCMSO.find(s => s.id === idSecao)
+    const conteudoAtual = medico?.secoes_custom?.[idSecao] || secaoAtual?.conteudo || ''
+    setFormSecoes({ [idSecao]: conteudoAtual })
     setEditandoSecao(idSecao)
   }
 

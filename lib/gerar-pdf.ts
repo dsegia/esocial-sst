@@ -463,32 +463,51 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     let y = yPos
     doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
     doc.text(titulo, mg, y)
-    y += 6
+    y += 7
 
-    const colWidth = (W - mg * 2) / dados[0].length
+    const colWidths = [
+      dados[0].length === 2 ? (W - mg * 2) * 0.6 : (W - mg * 2) / dados[0].length,
+      dados[0].length === 2 ? (W - mg * 2) * 0.4 : (W - mg * 2) / dados[0].length,
+      ...Array(Math.max(0, dados[0].length - 2)).fill((W - mg * 2) / dados[0].length)
+    ]
 
     // Header
     doc.setFillColor(24, 95, 165)
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+    let xPos = mg
     for (let i = 0; i < dados[0].length; i++) {
-      doc.rect(mg + i * colWidth, y, colWidth, 6, 'F')
-      doc.text(dados[0][i], mg + i * colWidth + 1, y + 4, { maxWidth: colWidth - 2 })
+      doc.rect(xPos, y, colWidths[i], 8, 'F')
+      const lines = doc.splitTextToSize(dados[0][i], colWidths[i] - 2)
+      doc.text(lines, xPos + 1, y + 3)
+      xPos += colWidths[i]
     }
-    y += 7
+    y += 10
 
     // Dados
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50, 50, 50)
-    for (let r = 1; r < dados.length && y < 270; r++) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(40, 40, 40)
+    for (let r = 1; r < dados.length && y < 265; r++) {
+      let rowHeight = 6
+      const cellLines = dados[r].map((cell, i) => doc.splitTextToSize(cell, colWidths[i] - 2))
+      rowHeight = Math.max(6, Math.max(...cellLines.map(l => l.length)) * 4)
+
       if (r % 2 === 0) {
-        doc.setFillColor(245, 247, 250)
-        doc.rect(mg, y - 0.5, W - mg * 2, 5, 'F')
+        doc.setFillColor(245, 248, 251)
+        xPos = mg
+        for (let i = 0; i < dados[0].length; i++) {
+          doc.rect(xPos, y - 0.5, colWidths[i], rowHeight, 'F')
+          xPos += colWidths[i]
+        }
       }
-      doc.setDrawColor(200, 200, 200)
+
+      doc.setDrawColor(200, 210, 220)
+      xPos = mg
       for (let c = 0; c < dados[r].length; c++) {
-        doc.rect(mg + c * colWidth, y - 0.5, colWidth, 5)
-        doc.text(dados[r][c], mg + c * colWidth + 1, y + 2, { maxWidth: colWidth - 2 })
+        doc.rect(xPos, y - 0.5, colWidths[c], rowHeight)
+        const lines = cellLines[c]
+        doc.text(lines, xPos + 1, y + 2)
+        xPos += colWidths[c]
       }
-      y += 5.5
+      y += rowHeight + 0.5
     }
     return y + 4
   }
