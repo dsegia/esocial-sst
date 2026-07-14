@@ -16,6 +16,27 @@ import { SECOES_PCMSO } from './pcmso-conteudo-completo'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
+// Reserva uma aba em branco de forma síncrona, ainda dentro do gesto de clique
+// do usuário — chamar window.open() depois de qualquer await (import do jsPDF,
+// carregamento de imagens etc.) arrisca ser bloqueado como pop-up pelo
+// navegador. Use o retorno como `abaReservada` em abrirPdfEmNovaAba().
+function reservarAbaPdf(): Window | null {
+  if (typeof window === 'undefined') return null
+  try { return window.open('', '_blank') } catch { return null }
+}
+
+// Abre o PDF gerado numa aba do navegador (em vez de baixar direto), para o
+// usuário revisar o documento inteiro — paginação, espaçamentos, quebras —
+// antes de enviar ao cliente. Se a aba não pôde ser aberta (pop-up bloqueado),
+// cai para o download direto de sempre.
+function abrirPdfEmNovaAba(doc: any, nomeArquivo: string, abaReservada: Window | null) {
+  try { doc.setProperties({ title: nomeArquivo.replace(/\.pdf$/i, '') }) } catch { /* metadado opcional */ }
+  if (!abaReservada || abaReservada.closed) { doc.save(nomeArquivo); return }
+  const url = URL.createObjectURL(doc.output('blob'))
+  abaReservada.location.href = url
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+}
+
 // Bloco de assinaturas empilhado — primeiro o responsável pela implementação
 // (representante legal da empresa), depois o responsável técnico pela
 // elaboração — cada um com título, descrição da responsabilidade, espaço em
@@ -58,6 +79,7 @@ function desenharAssinaturas(
 }
 
 export async function gerarPdfAso(dados: any, empresa?: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
@@ -260,10 +282,11 @@ export async function gerarPdfAso(dados: any, empresa?: any): Promise<void> {
 
   const nome = dados?.funcionario?.nome?.replace(/\s+/g, '_') || 'funcionario'
   const data = dados?.aso?.data_exame || new Date().toISOString().split('T')[0]
-  doc.save(`ASO_${nome}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `ASO_${nome}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const H = 297; const mg = 15
@@ -711,10 +734,11 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_emissao || new Date().toISOString().split('T')[0]
-  doc.save(`LTCAT_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `LTCAT_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const H = 297; const mg = 12
@@ -929,10 +953,11 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
-  doc.save(`PCMSO_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `PCMSO_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   let W = 210, H = 297
@@ -1686,10 +1711,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
-  doc.save(`PGR_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `PGR_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -1838,10 +1864,11 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
-  doc.save(`AET_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `AET_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfApr(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -1987,10 +2014,11 @@ export async function gerarPdfApr(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_realizacao || new Date().toISOString().split('T')[0]
-  doc.save(`APR_${(dg.atividade || 'atividade').replace(/\s+/g, '_')}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `APR_${(dg.atividade || 'atividade').replace(/\s+/g, '_')}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -2166,10 +2194,11 @@ export async function gerarPdfLip(dados: any, empresa: any): Promise<void> {
   }
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
-  doc.save(`LIP_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `LIP_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -2303,11 +2332,12 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
 
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
   const nome = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
-  doc.save(`PPP_${nome}_${data}.pdf`)
+  abrirPdfEmNovaAba(doc, `PPP_${nome}_${data}.pdf`, _pdfTab)
 }
 
 // ── Treinamentos NR ─────────────────────────────────────────
 export async function gerarPdfTreinamento(treinamento: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -2377,11 +2407,12 @@ export async function gerarPdfTreinamento(treinamento: any, empresa: any): Promi
   doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
 
   const nomeArq = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
-  doc.save(`Treinamento_${treinamento.norma}_${nomeArq}.pdf`)
+  abrirPdfEmNovaAba(doc, `Treinamento_${treinamento.norma}_${nomeArq}.pdf`, _pdfTab)
 }
 
 // ── Ficha de controle de EPI (NR-6) ──────────────────────────
 export async function gerarPdfFichaEpi(funcionario: any, entregas: any[], empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -2485,11 +2516,12 @@ export async function gerarPdfFichaEpi(funcionario: any, entregas: any[], empres
   }
 
   const nomeArq = funcionario?.nome?.replace(/\s+/g, '_') || 'funcionario'
-  doc.save(`Ficha_EPI_${nomeArq}.pdf`)
+  abrirPdfEmNovaAba(doc, `Ficha_EPI_${nomeArq}.pdf`, _pdfTab)
 }
 
 // ── Ordem de Serviço (NR-1, 1.4.1) ───────────────────────────
 export async function gerarPdfOrdemServico(os: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const mg = 15
@@ -2629,5 +2661,5 @@ export async function gerarPdfOrdemServico(os: any, empresa: any): Promise<void>
   }
 
   const nomeArq = (os.funcao || 'funcao').replace(/\s+/g, '_')
-  doc.save(`Ordem_Servico_${nomeArq}.pdf`)
+  abrirPdfEmNovaAba(doc, `Ordem_Servico_${nomeArq}.pdf`, _pdfTab)
 }
