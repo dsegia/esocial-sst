@@ -868,35 +868,6 @@ export default function PCMSO() {
               />
               <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
                 Use quebras de linha naturais. Subseções com "→" no início serão formatadas automaticamente.
-                <br/>💡 <label style={{cursor:'pointer', color:'#185FA5', fontWeight:600}}>
-                  📷 Clique para adicionar imagem
-                  <input type="file" accept="image/*" style={{display:'none'}} onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (evt) => {
-                        const img = evt.target?.result as string
-                        const placeholder = `[IMAGEM: ${file.name}]`
-                        setFormSecoes({...formSecoes, [editandoSecao]: (formSecoes[editandoSecao] || '') + '\n' + placeholder})
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }} />
-                </label>
-              </div>
-              <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-                <button
-                  style={{...s.btnAcao, background:'#185FA5', color:'white', border:'none'}}
-                  onClick={() => {
-                    const fileName = prompt('Nome/descrição da imagem:')
-                    if (fileName) {
-                      const conteudoAtual = formSecoes[editandoSecao] || ''
-                      setFormSecoes({...formSecoes, [editandoSecao]: conteudoAtual + '\n\n[📷 IMAGEM: ' + fileName + ']\n'})
-                    }
-                  }}
-                >
-                  📷 Inserir Imagem
-                </button>
               </div>
               <div style={{ display:'flex', gap:8 }}>
                 <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
