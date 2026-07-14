@@ -20,11 +20,12 @@ const TXT_AGENTE  : Record<string,string> = { fis:'#0C447C', qui:'#633806', bio:
 
 const gheVazio = () => ({
   nome: '', setor: '', qtd_trabalhadores: 1, aposentadoria_especial: false,
+  periculosidade: false, insalubridade: false,
   riscos: [] as any[], epc: [] as any[], epi: [] as any[], funcoes: [] as string[],
 })
 const riscoVazio = () => ({
   id: crypto.randomUUID(), tipo:'fis', nome:'', valor:'', limite:'', unidade:'',
-  supera_lt:false, medicao_quantitativa:false, metodologia:'', codigo_esocial:'', fonte_geradora:'',
+  supera_lt:false, medicao_quantitativa:false, metodologia:'', codigo_esocial:'', fonte_geradora:'', danos_saude:'',
 })
 const epiVazio = () => ({ nome:'', ca:'', eficaz:true })
 const epcVazio = () => ({ nome:'', eficaz:true })
@@ -88,6 +89,7 @@ export default function Ghes() {
       supera_lt: !!r.supera_lt, medicao_quantitativa: !!r.medicao_quantitativa,
       metodologia: r.metodologia || '', codigo_esocial: r.codigo_t24 || r.codigo_esocial || '',
       fonte_geradora: r.equipamento || r.fonte_geradora || '',
+      danos_saude: r.danos_saude || r.possiveis_danos || '',
     }
   }
 
@@ -176,6 +178,8 @@ export default function Ghes() {
       setor: formGhe.setor || '',
       qtd_trabalhadores: formGhe.qtd_trabalhadores || 1,
       aposentadoria_especial: !!formGhe.aposentadoria_especial,
+      periculosidade: !!formGhe.periculosidade,
+      insalubridade: !!formGhe.insalubridade,
       funcoes: formGhe.funcoes || [],
       riscos: formGhe.riscos || [],
       epc: formGhe.epc || [],
@@ -402,8 +406,10 @@ export default function Ghes() {
                   {[
                     { l:'Setor', v: gheSel.setor||'—' },
                     { l:'Trabalhadores', v: gheSel.qtd_trabalhadores||'—' },
-                    { l:'Aposent. especial', v: gheSel.aposentadoria_especial?'Sim':'Não' },
                     { l:'Riscos', v: (gheSel.riscos||[]).length },
+                    { l:'Periculosidade', v: gheSel.periculosidade?'Sim':'Não' },
+                    { l:'Insalubridade', v: gheSel.insalubridade?'Sim':'Não' },
+                    { l:'Aposent. especial', v: gheSel.aposentadoria_especial?'Sim':'Não' },
                   ].map((it,i) => (
                     <div key={i} style={{ background:'#f9fafb', borderRadius:8, padding:'8px 10px' }}>
                       <div style={{ fontSize:10, color:'#9ca3af', textTransform:'uppercase' }}>{it.l}</div>
@@ -431,6 +437,7 @@ export default function Ghes() {
                             </div>
                           )}
                           {ag.metodologia && <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Metodologia: {ag.metodologia}</div>}
+                          {ag.danos_saude && <div style={{ fontSize:11, color:'#791F1F', marginTop:2 }}>Danos à saúde: {ag.danos_saude}</div>}
                           {ag.codigo_esocial && <div style={{ fontSize:10, color:'#9ca3af', marginTop:2, fontFamily:'monospace' }}>eSocial: {ag.codigo_esocial}</div>}
                         </div>
                       ))}
@@ -487,7 +494,7 @@ export default function Ghes() {
                 </div>
 
                 {/* Info básica do GHE */}
-                <div style={{ display:'grid', gridTemplateColumns:'2fr 2fr 1fr 1fr', gap:10, marginBottom:12 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'2fr 2fr 1fr', gap:10, marginBottom:10 }}>
                   <div>
                     <label style={s.label}>Nome do GHE</label>
                     <input style={s.input} value={formGhe.nome||''} onChange={e=>setFormGhe((p:any)=>({...p,nome:e.target.value}))} placeholder="Ex: GHE 01 — Produção"/>
@@ -499,6 +506,20 @@ export default function Ghes() {
                   <div>
                     <label style={s.label}>Qtd. trabalhadores</label>
                     <input style={s.input} type="number" min="1" value={formGhe.qtd_trabalhadores||1} onChange={e=>setFormGhe((p:any)=>({...p,qtd_trabalhadores:parseInt(e.target.value)||1}))}/>
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12 }}>
+                  <div>
+                    <label style={s.label}>Periculosidade</label>
+                    <select style={s.input} value={formGhe.periculosidade?'sim':'nao'} onChange={e=>setFormGhe((p:any)=>({...p,periculosidade:e.target.value==='sim'}))}>
+                      <option value="nao">Não</option><option value="sim">Sim</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={s.label}>Insalubridade</label>
+                    <select style={s.input} value={formGhe.insalubridade?'sim':'nao'} onChange={e=>setFormGhe((p:any)=>({...p,insalubridade:e.target.value==='sim'}))}>
+                      <option value="nao">Não</option><option value="sim">Sim</option>
+                    </select>
                   </div>
                   <div>
                     <label style={s.label}>Aposent. especial</label>
@@ -587,6 +608,7 @@ export default function Ghes() {
                         </label>
                         <input style={s.input} value={ag.codigo_esocial||''} onChange={e=>setRisco(ai,'codigo_esocial',e.target.value)} list="tabela24-codigos" placeholder="Código eSocial"/>
                       </div>
+                      <input style={{ ...s.input, marginTop:6 }} value={ag.danos_saude||''} onChange={e=>setRisco(ai,'danos_saude',e.target.value)} placeholder="Possíveis danos à saúde (ex: PAIR, dermatose, LER/DORT...)"/>
                     </div>
                   ))}
                   <datalist id="tabela24-codigos">

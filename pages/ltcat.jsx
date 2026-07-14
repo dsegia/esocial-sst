@@ -154,10 +154,14 @@ export default function LTCAT() {
     if (error) { setErro('Erro ao buscar cadastro de GHEs: ' + error.message); return null }
     return (data || []).map(g => ({
       id: g.id, nome: g.nome, setor: g.setor, qtd_trabalhadores: g.qtd_trabalhadores,
-      aposentadoria_especial: g.aposentadoria_especial, funcoes: g.funcoes || [],
+      aposentadoria_especial: g.aposentadoria_especial,
+      periculosidade: g.periculosidade, insalubridade: g.insalubridade,
+      funcoes: g.funcoes || [],
       agentes: (g.riscos || []).map(r => ({
         tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
         supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
+        medicao_quantitativa: r.medicao_quantitativa, metodologia: r.metodologia,
+        fonte_geradora: r.fonte_geradora, danos_saude: r.danos_saude,
       })),
       epc: g.epc || [], epi: g.epi || [],
     }))

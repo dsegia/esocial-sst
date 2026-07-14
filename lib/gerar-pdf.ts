@@ -482,9 +482,26 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   }
 
   // ── GRUPOS HOMOGÊNEOS DE EXPOSIÇÃO — DETALHAMENTO ────
+  function opcaoGfip(ghe: any): string {
+    if (!ghe.aposentadoria_especial) return '01 — Não ensejador de aposentadoria especial'
+    const tempos = (ghe.agentes || [])
+      .map((a: any) => ANEXO_IV_AGENTES.find(av => av.codigo === a.codigo_t24)?.tempoExposicaoAnos)
+      .filter((t: any) => t != null)
+    if (!tempos.length) return '02, 03 ou 04 — conforme o agente nocivo caracterizador (ver Anexo — Agentes Nocivos)'
+    const tempoMinimo = Math.min(...tempos)
+    const porTempo: Record<number, string> = {
+      15: '02 — Ensejador de aposentadoria especial aos 15 anos (alíquota suplementar 12%)',
+      20: '03 — Ensejador de aposentadoria especial aos 20 anos (alíquota suplementar 9%)',
+      25: '04 — Ensejador de aposentadoria especial aos 25 anos (alíquota suplementar 6%)',
+    }
+    return porTempo[tempoMinimo] || '02, 03 ou 04 — conforme o agente nocivo caracterizador (ver Anexo — Agentes Nocivos)'
+  }
+
   doc.addPage(); y = 20
   paginas.ghes = (doc as any).internal.getNumberOfPages()
-  y = secao('GRUPOS HOMOGÊNEOS DE EXPOSIÇÃO — DETALHAMENTO', y)
+  y = secao('DESCRIÇÃO DOS SETORES E CARGOS, RECONHECIMENTO DOS RISCOS AMBIENTAIS E CONCLUSÕES', y)
+  y = paragrafo('Para cada Grupo Homogêneo de Exposição (GHE) identificado, este laudo apresenta os setores e cargos vinculados, os agentes nocivos reconhecidos com sua respectiva metodologia de avaliação, os equipamentos de proteção adotados e a conclusão técnica quanto à periculosidade, à insalubridade e à aposentadoria especial.', y, 8.5)
+  y += 2
 
   for (let gi = 0; gi < ghes.length; gi++) {
     const ghe = ghes[gi]
@@ -494,6 +511,13 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     campo('Setor', ghe.setor, mg, y, (W - mg * 2) / 2)
     campo('Qtd. Trabalhadores', String(ghe.qtd_trabalhadores || '—'), mg + (W - mg * 2) / 2 + 5, y, (W - mg * 2) / 2 - 5)
     y += 10
+
+    const colConclusao = (W - mg * 2 - 15) / 4
+    campo('Opção GFIP / Tabela 24', opcaoGfip(ghe), mg, y, colConclusao)
+    campo('Periculosidade', ghe.periculosidade ? 'Sim' : 'Não', mg + colConclusao + 5, y, colConclusao)
+    campo('Insalubridade', ghe.insalubridade ? 'Sim' : 'Não', mg + (colConclusao + 5) * 2, y, colConclusao)
+    campo('Aposentadoria Especial', ghe.aposentadoria_especial ? 'Sim' : 'Não', mg + (colConclusao + 5) * 3, y, colConclusao)
+    y += 12
 
     if (ghe.funcoes?.length) {
       doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
@@ -505,29 +529,45 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     if (ghe.agentes?.length) {
       y = tabela(
         [
-          { titulo: 'TIPO', largura: 20 },
-          { titulo: 'AGENTE NOCIVO', largura: 52 },
-          { titulo: 'VALOR MEDIDO', largura: 26 },
-          { titulo: 'LIMITE DE TOLERÂNCIA', largura: 26 },
-          { titulo: 'SUPERA LT', largura: 18 },
-          { titulo: 'CÓD. ESOCIAL (T24)', largura: 20 },
+          { titulo: 'TIPO', largura: 18 },
+          { titulo: 'AGENTE NOCIVO', largura: 44 },
+          { titulo: 'METODOLOGIA', largura: 24 },
+          { titulo: 'VALOR MEDIDO', largura: 24 },
+          { titulo: 'LIMITE DE TOLERÂNCIA', largura: 24 },
+          { titulo: 'SUPERA LT', largura: 16 },
+          { titulo: 'CÓD. ESOCIAL (T24)', largura: 18 },
         ],
         ghe.agentes.map((a: any) => [
           tipoMap[a.tipo] || a.tipo || '—',
           a.nome || '—',
-          a.valor ? `${a.valor}${a.unidade ? ' ' + a.unidade : ''}` : '—',
+          a.medicao_quantitativa ? `Quantitativa${a.metodologia ? ` (${a.metodologia})` : ''}` : 'Qualitativa',
+          a.medicao_quantitativa && a.valor ? `${a.valor}${a.unidade ? ' ' + a.unidade : ''}` : '—',
           a.limite || '—',
           a.supera_lt ? 'Sim' : 'Não',
           a.codigo_t24 || '—',
         ]),
         y,
         (li, ci) => {
-          if (ci !== 4) return null
+          if (ci !== 5) return null
           return ghe.agentes[li]?.supera_lt
             ? { bg: [252, 235, 235], texto: [121, 31, 31] }
             : { bg: [234, 243, 222], texto: [39, 80, 10] }
         },
       )
+
+      const agentesComDanos = ghe.agentes.filter((a: any) => a.danos_saude)
+      if (agentesComDanos.length) {
+        doc.setFontSize(7); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
+        doc.text('DANOS À SAÚDE POR AGENTE', mg, y); y += 4
+        doc.setFont('helvetica', 'normal')
+        for (const a of agentesComDanos) {
+          if (y > 270) { doc.addPage(); y = 20 }
+          doc.setFontSize(8); doc.setTextColor(30)
+          const linhasDano = doc.splitTextToSize(`${a.nome}: ${a.danos_saude}`, W - mg * 2 - 4)
+          doc.text(linhasDano, mg + 2, y); y += linhasDano.length * 4 + 1
+        }
+        y += 2
+      }
     } else {
       doc.setFontSize(9); doc.setTextColor(39, 80, 10)
       doc.text('Sem agentes de risco significativos identificados neste GHE.', mg + 2, y); y += 6
@@ -639,7 +679,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     ['Identificação da Empresa', paginas.contracapa],
     ['Introdução, Objetivos e Base Legal', paginas.introducao],
     ['Quadro-Resumo — Enquadramento por GHE', paginas.resumo],
-    ['Grupos Homogêneos de Exposição — Detalhamento', paginas.ghes],
+    ['Descrição dos Setores e Cargos — Reconhecimento dos Riscos e Conclusões', paginas.ghes],
     ['Anexo — Agentes Nocivos (Decreto 3.048/99, Anexo IV)', paginas.anexoIV],
   ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
