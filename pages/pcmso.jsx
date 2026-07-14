@@ -96,6 +96,8 @@ export default function PCMSO() {
   const [secaoAberta, setSecaoAberta] = useState(null)
   const [editandoSecao, setEditandoSecao] = useState(null)
   const [formSecoes, setFormSecoes] = useState({})
+  const [secoesImagens, setSecoesImagens] = useState({})
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -181,6 +183,11 @@ export default function PCMSO() {
     // Carrega TODAS as seções customizadas do banco
     const todasAsSecoes = medico?.secoes_custom || {}
     setFormSecoes(todasAsSecoes)
+
+    // Carrega imagens das seções
+    const imagens = medico?.secoes_imagens || {}
+    setSecoesImagens(imagens)
+
     setEditandoSecao(idSecao)
   }
 
@@ -188,6 +195,7 @@ export default function PCMSO() {
     const dados = {
       empresa_id: empresaId,
       secoes_custom: formSecoes, // Salva TODAS as seções customizadas
+      secoes_imagens: secoesImagens, // Salva URLs das imagens
       atualizado_em: new Date().toISOString(),
     }
     if (medico?.id) {
@@ -237,6 +245,29 @@ export default function PCMSO() {
     }
 
     return texto
+  }
+
+  async function fazerUploadImagem(idSecao, arquivo) {
+    if (!arquivo) return
+    try {
+      setUploading(true)
+      const ext = arquivo.name.split('.').pop()
+      const nomeCaminho = `pcmso/${empresaId}/${idSecao}.${ext}`
+
+      const { error: delError } = await supabase.storage.from('documentos').remove([nomeCaminho])
+
+      const { data, error } = await supabase.storage.from('documentos').upload(nomeCaminho, arquivo, { upsert: true })
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage.from('documentos').getPublicUrl(nomeCaminho)
+      setSecoesImagens({ ...secoesImagens, [idSecao]: publicUrl })
+
+      alert('✅ Imagem enviada com sucesso!')
+    } catch (err) {
+      alert('Erro ao fazer upload: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   function ultimoAso(funcId) {
@@ -366,7 +397,7 @@ export default function PCMSO() {
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {} },
+              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {}, secoes_imagens: medico?.secoes_imagens || {} },
               { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
             )
           }}>📄 Exportar PDF</button>
@@ -837,6 +868,31 @@ export default function PCMSO() {
                         <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:12 }}>
                           ✎ Editando seção
                         </div>
+
+                        {/* Upload de imagem */}
+                        <div style={{ marginBottom:12, padding:12, background:'#f0f4f8', borderRadius:6, border:'1px solid #d1d5db' }}>
+                          <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>
+                            📸 Imagem da seção (PNG, JPG, até 5MB)
+                          </div>
+                          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => fazerUploadImagem(secao.id, e.target.files[0])}
+                              disabled={uploading}
+                              style={{ fontSize:11, flex:1 }}
+                            />
+                            {secoesImagens[secao.id] && (
+                              <div style={{ fontSize:10, color:'#1D9E75', fontWeight:600 }}>
+                                ✓ Imagem carregada
+                              </div>
+                            )}
+                          </div>
+                          {secoesImagens[secao.id] && (
+                            <img src={secoesImagens[secao.id]} style={{ marginTop:8, maxWidth:'100%', maxHeight:150, borderRadius:4 }} alt="Preview" />
+                          )}
+                        </div>
+
                         <textarea
                           style={{ ...s.input, minHeight:400, fontSize:12, lineHeight:1.6, fontFamily:'monospace', width:'100%' }}
                           value={obterConteudoSecao(editandoSecao)}
@@ -845,7 +901,6 @@ export default function PCMSO() {
                         />
                         <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
                           💡 Use quebras de linha naturais. Subseções com "→" no início. Tabelas em formato texto [TABELA: nome].
-                          <br/>⚠️ Este editor é apenas para texto — imagens não são suportadas aqui.
                         </div>
                         <div style={{ display:'flex', gap:8 }}>
                           <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>

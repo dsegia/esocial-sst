@@ -569,9 +569,21 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   // 16 Seções
   const secoesCust = dados?.secoes_custom || {}
+  const secoesImg = dados?.secoes_imagens || {}
   for (const secaoItem of SECOES_PCMSO) {
     if (y > 245) { doc.addPage(); y = 20 }
     y = secaoHeader(secaoItem.titulo, y)
+
+    // Renderiza imagem se houver
+    if (secoesImg[secaoItem.id]) {
+      try {
+        if (y > 200) { doc.addPage(); y = 20 }
+        doc.addImage(secoesImg[secaoItem.id], 'PNG', mg, y, 160, 100)
+        y += 110
+      } catch (e) {
+        // Ignora erros ao carregar imagem
+      }
+    }
 
     const conteudo = secoesCust[secaoItem.id] || secaoItem.conteudo
     y = paragrafo(conteudo, y, 9)
