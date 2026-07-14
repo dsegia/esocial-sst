@@ -803,76 +803,78 @@ export default function PCMSO() {
                 {/* Conteúdo expandível */}
                 {aberta && (
                   <div style={{ padding:'16px', background:'#fff', borderTop:'1px solid #e5e7eb' }}>
-                    {/* Texto principal */}
-                    <div style={{ fontSize:12, color:'#374151', lineHeight:1.6, marginBottom:12 }}>
-                      {secao.conteudo}
-                    </div>
-
-                    {/* Subseções */}
-                    {secao.subsecoes && secao.subsecoes.map((sub, si) => (
-                      <div key={si} style={{ marginBottom:14 }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:6 }}>→ {sub.titulo}</div>
-                        <div style={{ fontSize:11, color:'#374151', lineHeight:1.6, marginLeft:12, whiteSpace:'pre-wrap' }}>
-                          {sub.conteudo}
+                    {editandoSecao === secao.id ? (
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:12 }}>
+                          ✎ Editando seção
+                        </div>
+                        <textarea
+                          style={{ ...s.input, minHeight:400, fontSize:12, lineHeight:1.6, fontFamily:'monospace', width:'100%' }}
+                          value={obterConteudoSecao(editandoSecao)}
+                          onChange={e => setFormSecoes({...formSecoes, [editandoSecao]: e.target.value})}
+                          placeholder="Edite o conteúdo desta seção..."
+                        />
+                        <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
+                          Use quebras de linha naturais. Subseções com "→" no início serão formatadas automaticamente.
+                        </div>
+                        <div style={{ display:'flex', gap:8 }}>
+                          <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
+                          <button style={s.btnOutline} onClick={() => setEditandoSecao(null)}>Cancelar</button>
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      <div>
+                        {/* Texto principal */}
+                        <div style={{ fontSize:12, color:'#374151', lineHeight:1.6, marginBottom:12 }}>
+                          {secao.conteudo}
+                        </div>
 
-                    {/* Tabelas */}
-                    {secao.tabelas && secao.tabelas.map((tabela, ti) => (
-                      <div key={ti} style={{ marginTop:14 }}>
-                        <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>Tabela: {tabela.titulo}</div>
-                        <div style={{ overflowX:'auto' }}>
-                          <table style={{ width:'100%', fontSize:10, borderCollapse:'collapse' }}>
-                            <tbody>
-                              {tabela.linhas.map((linha, li) => (
-                                <tr key={li}>
-                                  {linha.map((celula, ci) => (
-                                    <td key={ci} style={{
-                                      padding:'8px',
-                                      border:'0.5px solid #e5e7eb',
-                                      background: li === 0 ? '#f3f4f6' : '#fff',
-                                      fontWeight: li === 0 ? 600 : 400,
-                                      color: li === 0 ? '#6b7280' : '#374151',
-                                      minWidth:80
-                                    }}>
-                                      {celula}
-                                    </td>
+                        {/* Subseções */}
+                        {secao.subsecoes && secao.subsecoes.map((sub, si) => (
+                          <div key={si} style={{ marginBottom:14 }}>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:6 }}>→ {sub.titulo}</div>
+                            <div style={{ fontSize:11, color:'#374151', lineHeight:1.6, marginLeft:12, whiteSpace:'pre-wrap' }}>
+                              {sub.conteudo}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Tabelas */}
+                        {secao.tabelas && secao.tabelas.map((tabela, ti) => (
+                          <div key={ti} style={{ marginTop:14 }}>
+                            <div style={{ fontSize:11, fontWeight:600, color:'#374151', marginBottom:8 }}>Tabela: {tabela.titulo}</div>
+                            <div style={{ overflowX:'auto' }}>
+                              <table style={{ width:'100%', fontSize:10, borderCollapse:'collapse' }}>
+                                <tbody>
+                                  {tabela.linhas.map((linha, li) => (
+                                    <tr key={li}>
+                                      {linha.map((celula, ci) => (
+                                        <td key={ci} style={{
+                                          padding:'8px',
+                                          border:'0.5px solid #e5e7eb',
+                                          background: li === 0 ? '#f3f4f6' : '#fff',
+                                          fontWeight: li === 0 ? 600 : 400,
+                                          color: li === 0 ? '#6b7280' : '#374151',
+                                          minWidth:80
+                                        }}>
+                                          {celula}
+                                        </td>
+                                      ))}
+                                    </tr>
                                   ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
             )
           })}
 
-          {/* ── Editor de Seção ── */}
-          {editandoSecao && (
-            <div style={{ ...s.card, marginTop:16, borderColor:'#185FA5', borderWidth:2 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:12 }}>
-                ✎ Editando: {SECOES_PCMSO.find(s => s.id === editandoSecao)?.titulo}
-              </div>
-              <textarea
-                style={{ ...s.input, minHeight:300, fontSize:12, lineHeight:1.6, fontFamily:'monospace' }}
-                value={obterConteudoSecao(editandoSecao)}
-                onChange={e => setFormSecoes({...formSecoes, [editandoSecao]: e.target.value})}
-                placeholder="Edite o conteúdo desta seção..."
-              />
-              <div style={{ fontSize:11, color:'#9ca3af', marginTop:8, marginBottom:12 }}>
-                Use quebras de linha naturais. Subseções com "→" no início serão formatadas automaticamente.
-              </div>
-              <div style={{ display:'flex', gap:8 }}>
-                <button style={s.btnPrimary} onClick={salvarSecoes}>Salvar</button>
-                <button style={s.btnOutline} onClick={() => setEditandoSecao(null)}>Cancelar</button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </Layout>
