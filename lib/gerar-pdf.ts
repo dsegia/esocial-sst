@@ -393,19 +393,27 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   const fmtData = (d: string) => d ? new Date(d + 'T00:00').toLocaleDateString('pt-BR') : '—'
 
   // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
-  doc.setFillColor(24, 95, 165)
-  doc.rect(0, 0, W, 30, 'F')
+  // Logo grande e centralizada no topo, nome do documento logo abaixo dela e,
+  // por fim, o nome da empresa em destaque.
+  y = 20
   if (empresa?.logo_url) {
-    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+    const logoLado = 40
+    try { doc.addImage(empresa.logo_url, 'JPEG', (W - logoLado) / 2, y, logoLado, logoLado) } catch { }
+    y += logoLado + 10
+  } else {
+    y += 6
   }
-  doc.setFontSize(17); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('LAUDO TÉCNICO DAS CONDIÇÕES AMBIENTAIS DO TRABALHO', W / 2, 12, { align: 'center' })
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-  doc.text('LTCAT — Lei 8.213/91 Art. 58 / Decreto 3.048/99 Art. 68 / NR-15', W / 2, 18, { align: 'center' })
-  doc.setFontSize(9)
-  doc.text('Base para o PPP e para o evento S-2240 do eSocial', W / 2, 24, { align: 'center' })
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(24, 95, 165)
+  doc.setFontSize(18)
+  const linhasTituloLtcat = doc.splitTextToSize('LAUDO TÉCNICO DAS CONDIÇÕES AMBIENTAIS DO TRABALHO', W - 50)
+  doc.text(linhasTituloLtcat, W / 2, y, { align: 'center' })
+  y += linhasTituloLtcat.length * 7.5 + 3
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(90)
+  doc.text('LTCAT — Lei 8.213/91 Art. 58 / Decreto 3.048/99 Art. 68 / NR-15', W / 2, y, { align: 'center' }); y += 5.5
+  doc.setFontSize(8.5); doc.setTextColor(120)
+  doc.text('Base para o PPP e para o evento S-2240 do eSocial', W / 2, y, { align: 'center' }); y += 14
+  doc.setDrawColor(220); doc.line(W / 2 - 30, y, W / 2 + 30, y); y += 14
 
-  y = 55
   doc.setFont('helvetica', 'bold')
   let nomeFontSize = 22
   doc.setFontSize(nomeFontSize)
@@ -747,19 +755,25 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   // Capa no mesmo padrão visual do PGR e do LTCAT: barra com logo + nome do
   // documento no topo, nome da empresa em destaque logo abaixo.
   function capa() {
-    doc.setFillColor(24, 95, 165)
-    doc.rect(0, 0, W, 30, 'F')
+    y = 20
     if (empresa?.logo_url) {
-      try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+      const logoLado = 40
+      try { doc.addImage(empresa.logo_url, 'JPEG', (W - logoLado) / 2, y, logoLado, logoLado) } catch { }
+      y += logoLado + 10
+    } else {
+      y += 6
     }
-    doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text('PROGRAMA DE CONTROLE MÉDICO DE SAÚDE OCUPACIONAL', W / 2, 12, { align: 'center' })
-    doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-    doc.text('PCMSO — NR-7 / Portaria MTE nº 3.214/78', W / 2, 18, { align: 'center' })
-    doc.setFontSize(9)
-    doc.text('Base para o evento S-2220 do eSocial', W / 2, 24, { align: 'center' })
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(24, 95, 165)
+    doc.setFontSize(19)
+    const linhasTituloPcmso = doc.splitTextToSize('PROGRAMA DE CONTROLE MÉDICO DE SAÚDE OCUPACIONAL', W - 50)
+    doc.text(linhasTituloPcmso, W / 2, y, { align: 'center' })
+    y += linhasTituloPcmso.length * 7.5 + 3
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(90)
+    doc.text('PCMSO — NR-7 / Portaria MTE nº 3.214/78', W / 2, y, { align: 'center' }); y += 5.5
+    doc.setFontSize(8.5); doc.setTextColor(120)
+    doc.text('Base para o evento S-2220 do eSocial', W / 2, y, { align: 'center' }); y += 14
+    doc.setDrawColor(220); doc.line(W / 2 - 30, y, W / 2 + 30, y); y += 14
 
-    y = 90
     doc.setFont('helvetica', 'bold')
     let nomeFontSize = 22
     doc.setFontSize(nomeFontSize)
@@ -1124,19 +1138,27 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
 
   // ── PÁGINA 1: CAPA PROFISSIONAL ──────────────────────
-  doc.setFillColor(24, 95, 165)
-  doc.rect(0, 0, W, 30, 'F')
+  // Logo grande e centralizada no topo, nome do documento logo abaixo dela e,
+  // por fim, o nome da empresa em destaque.
+  y = 20
   if (empresa?.logo_url) {
-    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 24, 24) } catch { }
+    const logoLado = 40
+    try { doc.addImage(empresa.logo_url, 'JPEG', (W - logoLado) / 2, y, logoLado, logoLado) } catch { }
+    y += logoLado + 10
+  } else {
+    y += 6
   }
-  doc.setFontSize(18); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-  doc.text('PROGRAMA DE GERENCIAMENTO DE RISCOS', W / 2, 12, { align: 'center' })
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
-  doc.text('PGR — NR-1 / Portaria SEPRT nº 6.730/2020', W / 2, 18, { align: 'center' })
-  doc.setFontSize(9)
-  doc.text('Conforme Portaria 1.419/2024 (Vigência: 26/05/2026)', W / 2, 24, { align: 'center' })
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(24, 95, 165)
+  doc.setFontSize(19)
+  const linhasTituloPgr = doc.splitTextToSize('PROGRAMA DE GERENCIAMENTO DE RISCOS', W - 50)
+  doc.text(linhasTituloPgr, W / 2, y, { align: 'center' })
+  y += linhasTituloPgr.length * 7.5 + 3
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(90)
+  doc.text('PGR — NR-1 / Portaria SEPRT nº 6.730/2020', W / 2, y, { align: 'center' }); y += 5.5
+  doc.setFontSize(8.5); doc.setTextColor(120)
+  doc.text('Conforme Portaria 1.419/2024 (Vigência: 26/05/2026)', W / 2, y, { align: 'center' }); y += 14
+  doc.setDrawColor(220); doc.line(W / 2 - 30, y, W / 2 + 30, y); y += 14
 
-  y = 55
   doc.setFont('helvetica', 'bold')
   let nomeFontSize = 22
   doc.setFontSize(nomeFontSize)
