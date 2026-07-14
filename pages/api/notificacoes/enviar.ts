@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseAdmin = createClient(
@@ -36,8 +37,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Secret deve ser enviado no header Authorization (nunca no body — evita logging)
   const authHeader = req.headers.authorization || ''
   const secret = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader
+  const expectedSecret = process.env.NOTIFICACOES_SECRET || ''
 
-  if (!process.env.NOTIFICACOES_SECRET || secret !== process.env.NOTIFICACOES_SECRET) {
+  const match = expectedSecret.length > 0 &&
+    secret.length === expectedSecret.length &&
+    crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expectedSecret))
+  if (!match) {
     return res.status(401).json({ erro: 'Não autorizado' })
   }
 
