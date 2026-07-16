@@ -13,7 +13,7 @@ import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { SECOES_PCMSO } from './pcmso-conteudo-completo'
-import { TIPOS_CONSULTA } from './pcmso-exames'
+import { TIPOS_CONSULTA, normalizeExames, acharAtividadePorFuncao } from './pcmso-exames'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
@@ -757,6 +757,8 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const H = 297; const mg = 12
   let y = 15
+  const paginas: any = {}
+  const paginasSecoes: Record<string, number> = {}
 
   // Capa no mesmo padrão visual do PGR e do LTCAT: barra com logo + nome do
   // documento no topo, nome da empresa em destaque logo abaixo.
@@ -806,8 +808,25 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   function secaoHeader(texto: string, yPos: number): number {
     doc.setFillColor(24, 95, 165)
     doc.rect(mg, yPos, W - mg * 2, 8, 'F')
-    doc.setFontSize(11); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg + 4, yPos + 5.5)
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    // Nomes de função e títulos de seções customizadas são texto livre e podem
+    // ser mais largos que a barra — reduz a fonte e, em último caso, trunca
+    // com reticências em vez de deixar o texto vazar pra fora da barra azul.
+    let tamanho = 11
+    doc.setFontSize(tamanho)
+    const larguraDisponivel = W - mg * 2 - 8
+    let textoAjustado = texto
+    while (doc.getTextWidth(textoAjustado) > larguraDisponivel && tamanho > 7) {
+      tamanho -= 0.5
+      doc.setFontSize(tamanho)
+    }
+    if (doc.getTextWidth(textoAjustado) > larguraDisponivel) {
+      while (textoAjustado.length > 4 && doc.getTextWidth(textoAjustado + '...') > larguraDisponivel) {
+        textoAjustado = textoAjustado.slice(0, -1)
+      }
+      textoAjustado += '...'
+    }
+    doc.text(textoAjustado, mg + 4, yPos + 5.5)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 12
   }
@@ -822,6 +841,17 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
       yy += 4.5
     }
     return yy + 3
+  }
+
+  // Rótulo pequeno em negrito seguido do valor (com quebra de linha automática),
+  // no mesmo padrão usado no PGR/LTCAT — usado na Clínica Designada e na Tabela
+  // Informativa, onde os valores (nomes, endereços, descrições) são texto livre.
+  function linhaLabelValor(label: string, valor: string, yPos: number): number {
+    if (yPos > 270) { doc.addPage(); yPos = 20 }
+    doc.setFontSize(7.5); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
+    doc.text(label.toUpperCase(), mg, yPos)
+    doc.setFont('helvetica', 'normal')
+    return paragrafo(valor || '—', yPos + 4, 9)
   }
 
   function tabela(dados: string[][], titulo: string, yPos: number): number {
@@ -885,33 +915,71 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     return y + 4
   }
 
+  const dg = dados?.dados_gerais || {}
+
   // Capa
   capa()
 
+  // ── ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
+  paginas.indice = (doc as any).internal.getNumberOfPages()
+  doc.addPage(); y = 20
+
   // Dados empresa
+  paginas.identificacao = (doc as any).internal.getNumberOfPages()
   y = secaoHeader('DADOS DA EMPRESA', y)
-  doc.setFillColor(245, 247, 250); doc.rect(mg, y, W - mg * 2, 70, 'F')
+  const boxTop = y
+  const larguraCampoEmpresa = W - mg * 2 - 4
+
+  doc.setFontSize(10)
+  const linhasRazao = doc.splitTextToSize(empresa?.razao_social || '—', larguraCampoEmpresa)
+  doc.setFontSize(7)
+  const linhasEndereco = doc.splitTextToSize(`Endereço: ${empresa?.endereco || '—'}`, larguraCampoEmpresa)
+  const linhasContato = doc.splitTextToSize(`Telefone: ${empresa?.telefone || '—'} | Email: ${empresa?.email || '—'}`, larguraCampoEmpresa)
+  doc.setFontSize(10)
+  const linhasRespLegal = doc.splitTextToSize(empresa?.resp_nome || '—', 90)
+  const linhasMedico = doc.splitTextToSize(dg.medico_nome || '—', 90)
+  const alturaNomesMedico = Math.max(linhasRespLegal.length, linhasMedico.length) * 4.5
+  const alturaBoxEmpresa = 8 + linhasRazao.length * 4.5 + 2 + 4 + 4 + linhasEndereco.length * 4 + linhasContato.length * 4 + 6 + 4 + alturaNomesMedico + 8
+
+  doc.setFillColor(245, 247, 250); doc.rect(mg, boxTop, W - mg * 2, alturaBoxEmpresa, 'F')
+
+  let yBox = boxTop + 4
   doc.setFontSize(8); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
-  doc.text('RAZÃO SOCIAL:', mg + 2, y + 4)
+  doc.text('RAZÃO SOCIAL:', mg + 2, yBox)
   doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
-  doc.text(empresa?.razao_social || '—', mg + 2, y + 8)
+  doc.text(linhasRazao, mg + 2, yBox + 4)
+  yBox += 4 + linhasRazao.length * 4.5 + 2
 
   doc.setFontSize(7); doc.setTextColor(100); doc.setFont('helvetica', 'bold')
-  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, mg + 2, y + 14)
-  doc.text(`Município: ${empresa?.municipio || '—'} | UF: ${empresa?.uf || '—'}`, mg + 2, y + 18)
-  doc.text(`Endereço: ${empresa?.endereco || '—'}`, mg + 2, y + 22)
-  doc.text(`Telefone: ${empresa?.telefone || '—'} | Email: ${empresa?.email || '—'}`, mg + 2, y + 26)
-  doc.text(`CNAE: ${empresa?.cnae || '—'} | Grau de Risco: ${empresa?.grau_risco || '—'}`, mg + 2, y + 30)
-
-  doc.setFont('helvetica', 'bold')
-  doc.text('REPRESENTANTE LEGAL:', mg + 2, y + 36); doc.text('MÉDICO COORDENADOR:', mg + 100, y + 36)
+  doc.text(`CNPJ: ${empresa?.cnpj || '—'}`, mg + 2, yBox); yBox += 4
+  doc.text(`Município: ${empresa?.municipio || '—'} | UF: ${empresa?.uf || '—'}`, mg + 2, yBox); yBox += 4
   doc.setFont('helvetica', 'normal')
-  doc.text(empresa?.resp_nome || '—', mg + 2, y + 40)
-  const dg = dados?.dados_gerais || {}
-  doc.text(dg.medico_nome || '—', mg + 100, y + 40)
-  doc.text(dg.medico_crm ? `CRM: ${dg.medico_crm}` : 'CRM: —', mg + 100, y + 44)
+  doc.text(linhasEndereco, mg + 2, yBox); yBox += linhasEndereco.length * 4
+  doc.text(linhasContato, mg + 2, yBox); yBox += linhasContato.length * 4
+  doc.setFont('helvetica', 'bold')
+  doc.text(`CNAE: ${empresa?.cnae || '—'} | Grau de Risco: ${empresa?.grau_risco || '—'}`, mg + 2, yBox); yBox += 6
 
-  y += 55
+  doc.text('REPRESENTANTE LEGAL:', mg + 2, yBox); doc.text('MÉDICO COORDENADOR:', mg + 100, yBox)
+  yBox += 4
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10)
+  doc.text(linhasRespLegal, mg + 2, yBox)
+  doc.text(linhasMedico, mg + 100, yBox)
+  doc.setFontSize(7)
+  doc.text(dg.medico_crm ? `CRM: ${dg.medico_crm}` : 'CRM: —', mg + 100, yBox + alturaNomesMedico)
+
+  y = boxTop + alturaBoxEmpresa + 8
+
+  // Clínica designada e médico examinador — só aparece se o usuário cadastrou
+  // esses dados (evita uma seção vazia quando ninguém preencheu ainda).
+  if (dg.clinica_nome || dg.medico_examinador_nome) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    y = secaoHeader('CLÍNICA DESIGNADA', y)
+    y = linhaLabelValor('Clínica', dg.clinica_nome, y)
+    y = linhaLabelValor('Endereço da Clínica', dg.clinica_endereco, y)
+    y = linhaLabelValor('CNPJ da Clínica', dg.clinica_cnpj, y)
+    y = linhaLabelValor('Médico(a) Examinador(a)', `${dg.medico_examinador_nome || '—'}${dg.medico_examinador_crm ? ' — CRM ' + dg.medico_examinador_crm : ''}`, y)
+    y += 3
+  }
 
   // Telefones emergenciais — logo no início, pra ficar acessível sem precisar
   // folhear o documento inteiro numa emergência real.
@@ -923,7 +991,21 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     y = tabela([['CONTATO', 'TELEFONE'], ...linhasTel], '', y)
   }
 
+  // Cronograma anual do PCMSO
+  const cronograma = dados?.cronograma || []
+  if (cronograma.length > 0) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    paginas.cronograma = (doc as any).internal.getNumberOfPages()
+    y = secaoHeader('CRONOGRAMA ANUAL DO PCMSO', y)
+    const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    const cronoPorMes = new Map<number, string>(cronograma.map((c: any) => [c.mes, c.atividades]))
+    const linhasCrono = NOMES_MESES.map((nome, i) => [nome, cronoPorMes.get(i + 1) || '—'])
+    y = tabela([['MÊS', 'ATIVIDADES PREVISTAS'], ...linhasCrono], '', y)
+  }
+
   // Textos legais
+  if (y > 250) { doc.addPage(); y = 20 }
+  paginas.textosLegais = (doc as any).internal.getNumberOfPages()
   const textosCustom = dados?.textos_legais_custom || {}
   for (const sec of TEXTOS_LEGAIS_PCMSO) {
     if (y > 250) { doc.addPage(); y = 20 }
@@ -935,52 +1017,72 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   if (y > 240) { doc.addPage(); y = 20 }
 
-  // Quadro-resumo de funções — GHE, funções/cargos vinculados e descrição das
-  // atividades, uma linha por função cadastrada no programa. A descrição vem do
-  // PGR (cadastro central de GHEs, sincronizado a partir do inventário) — só usa
-  // o texto digitado manualmente no PCMSO se o usuário tiver sobrescrito por lá.
+  // TABELA INFORMATIVA – EXAMES E PERIODICIDADE: uma seção por função cadastrada,
+  // com GHE / horário / descrição da atividade / riscos por categoria (lidos
+  // direto do cadastro central de GHEs, que preserva o tipo de cada risco —
+  // diferente de pcmso_programa.riscos, que só guarda o nome) seguidos da matriz
+  // de exames por periodicidade.
   const programas = dados?.programas || []
   const ghePorId = new Map<string, any>((dados?.ghes || []).map((g: any) => [g.id, g]))
+  const TIPO_RISCO_LABEL: Record<string, string> = { fis: 'Físicos', qui: 'Químicos', bio: 'Biológicos', aci: 'Acidentes', erg: 'Ergonômicos', psi: 'Psicossocial' }
+
   if (programas.length > 0) {
     if (y > 240) { doc.addPage(); y = 20 }
-    y = secaoHeader('QUADRO DE FUNÇÕES', y)
-    const linhasQuadro = programas.map((p: any) => {
-      const ghe = p.ghe_id ? ghePorId.get(p.ghe_id) : null
-      const atividadesDoPgr = ghe?.atividades_por_funcao?.[p.funcao]
-      return [
-        ghe?.nome || p.setor || '—',
-        (p.funcoes?.length ? p.funcoes.join(', ') : p.funcao) || '—',
-        p.descricao_atividades || atividadesDoPgr || '—'
-      ]
-    })
-    y = tabela([['GHE', 'FUNÇÕES / CARGOS', 'DESCRIÇÃO DAS ATIVIDADES'], ...linhasQuadro], '', y)
-    y += 4
+    paginas.tabelaInformativa = (doc as any).internal.getNumberOfPages()
+    y = secaoHeader('TABELA INFORMATIVA – EXAMES E PERIODICIDADE', y)
   }
 
-  // Programas por função
-  const TIPO_LABEL: Record<string, string> = Object.fromEntries(TIPOS_CONSULTA.map(t => [t.key, t.label]))
   for (const prog of programas) {
     if (y > 245) { doc.addPage(); y = 20 }
-    y = secaoHeader(`FUNÇÃO: ${prog.funcao || '—'}`, y)
+    const ghe = prog.ghe_id ? ghePorId.get(prog.ghe_id) : null
+    const funcoesDoPrograma: string[] = prog.funcoes?.length ? prog.funcoes : (prog.funcao ? [prog.funcao] : [])
 
-    // Um exame pode estar vinculado a vários tipos de consulta (admissional,
-    // periódico, etc.) — agrupa por nome pra não repetir a mesma linha uma vez
-    // por tipo, como acontecia antes.
-    const examesPorNome = new Map<string, Set<string>>()
-    for (const e of (prog.exames || [])) {
-      const nome = typeof e === 'string' ? e : (e.nome || '')
-      if (!nome) continue
-      if (!examesPorNome.has(nome)) examesPorNome.set(nome, new Set())
-      const tipos: string[] = typeof e === 'string' ? [] : (e.tipos || [])
-      const set = examesPorNome.get(nome)!
-      if (tipos.length) tipos.forEach((t: string) => set.add(TIPO_LABEL[t] || t))
-      else if (typeof e !== 'string' && e.periodicidade) set.add(e.periodicidade)
+    y = secaoHeader(`GHE: ${ghe?.nome || prog.setor || '—'} — FUNÇÃO: ${funcoesDoPrograma.join(', ') || '—'}`, y)
+
+    y = linhaLabelValor('Horário de Funcionamento', ghe?.horario_funcionamento, y)
+
+    // A descrição vem do PGR (cadastro central de GHEs, sincronizado a partir do
+    // inventário) para cada função do grupo — só usa o texto digitado manualmente
+    // no PCMSO se o usuário tiver sobrescrito por lá.
+    const atividadesEncontradas = [...new Set(
+      funcoesDoPrograma.map(fn => acharAtividadePorFuncao(ghe?.atividades_por_funcao, fn)).filter(Boolean)
+    )]
+    const descricaoAtividade = prog.descricao_atividades || atividadesEncontradas.join(' ') || '—'
+    y = linhaLabelValor('Descrição da Atividade', descricaoAtividade, y)
+
+    const riscosPorTipo: Record<string, string[]> = { fis: [], qui: [], bio: [], aci: [], erg: [], psi: [] }
+    for (const r of (ghe?.riscos || [])) {
+      if (riscosPorTipo[r.tipo]) riscosPorTipo[r.tipo].push(r.nome)
     }
-    const exames = [...examesPorNome.entries()].map(([nome, tipos]) => [nome, [...tipos].join(', ') || '—'])
-    if (exames.length > 0) {
-      const tabDados = [['EXAME', 'TIPOS DE CONSULTA'], ...exames]
-      y = tabela(tabDados, 'EXAMES PREVISTOS', y)
+    const textoRiscos = Object.entries(TIPO_RISCO_LABEL)
+      .map(([tipo, label]) => `${label}: ${riscosPorTipo[tipo].length ? riscosPorTipo[tipo].join(', ') : 'N/A'}`)
+      .join('   |   ')
+    y = linhaLabelValor('Riscos', textoRiscos, y)
+    y += 2
+
+    // Matriz de exames × periodicidade — os 5 tipos já usados em todo o sistema
+    // pra parametrizar exames esperados por função (lib/pcmso-exames.ts).
+    const examesNorm = normalizeExames(prog)
+    const examesPorNome = new Map<string, Record<string, boolean>>()
+    for (const t of TIPOS_CONSULTA) {
+      for (const ex of (examesNorm[t.key] || [])) {
+        const nome = ex.nome || ex
+        if (!nome) continue
+        if (!examesPorNome.has(nome)) examesPorNome.set(nome, {})
+        examesPorNome.get(nome)![t.key] = true
+      }
     }
+    if (examesPorNome.size > 0) {
+      const linhasExames = [...examesPorNome.entries()].map(([nome, tipos]) => [
+        nome,
+        ...TIPOS_CONSULTA.map(t => tipos[t.key] ? 'X' : ''),
+      ])
+      y = tabela([
+        ['EXAME', 'ADMISSIONAL', 'PERIÓDICO ANUAL', 'RETORNO AO TRABALHO', 'MUDANÇA DE FUNÇÃO', 'DEMISSIONAL'],
+        ...linhasExames,
+      ], '', y)
+    }
+    y += 4
   }
 
   if (y > 240) { doc.addPage(); y = 20 }
@@ -990,6 +1092,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const secoesImg = dados?.secoes_imagens || {}
   for (const secaoItem of SECOES_PCMSO) {
     if (y > 245) { doc.addPage(); y = 20 }
+    paginasSecoes[secaoItem.id] = (doc as any).internal.getNumberOfPages()
     y = secaoHeader(secaoItem.titulo, y)
 
     // Renderiza imagem se houver
@@ -1029,12 +1132,36 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   }
 
   if (y > 250) { doc.addPage(); y = 20 }
+  paginas.assinaturas = (doc as any).internal.getNumberOfPages()
   doc.setDrawColor(200, 200, 200); doc.line(mg, y, W - mg, y); y += 10
 
   y = desenharAssinaturas(doc, y, mg, W,
     { tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO', descricao: 'Cumprimento do PCMSO conforme NR-7', nome: empresa?.resp_nome },
     { tituloBloco: 'RESPONSÁVEL PELA COORDENAÇÃO', descricao: 'Médico Coordenador', nome: dg.medico_nome, cargo: 'Médico Coordenador', extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined }
   )
+
+  // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  doc.setPage(paginas.indice)
+  let yIndice = 20
+  yIndice = secaoHeader('ÍNDICE', yIndice)
+  yIndice += 4
+  const itensIndice: Array<[string, number | undefined]> = [
+    ['Identificação da Empresa, Responsáveis e Clínica Designada', paginas.identificacao],
+    ['Cronograma Anual do PCMSO', paginas.cronograma],
+    ['Diretrizes e Textos Legais do PCMSO', paginas.textosLegais],
+    ['Tabela Informativa – Exames e Periodicidade', paginas.tabelaInformativa],
+    ...SECOES_PCMSO.map((s): [string, number | undefined] => [s.titulo, paginasSecoes[s.id]]),
+    ['Assinaturas', paginas.assinaturas],
+  ]
+  doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
+  let numItemIndice = 1
+  for (const [tituloItem, paginaItem] of itensIndice) {
+    if (paginaItem == null) continue
+    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+    doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
+    yIndice += 6
+    numItemIndice++
+  }
 
   const totalPags = (doc as any).internal.getNumberOfPages()
   for (let p = 1; p <= totalPags; p++) {

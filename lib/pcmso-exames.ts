@@ -35,6 +35,18 @@ export function normalizeExames(prog: any): Record<string, any[]> {
 
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase()
 
+// Busca a descrição de atividade de uma função dentro do mapa `atividades_por_funcao`
+// do GHE (sincronizado a partir do PGR), normalizando espaço/maiúscula — o nome da
+// função digitado no PCMSO pode diferir trivialmente do usado no PGR.
+export function acharAtividadePorFuncao(mapa: Record<string, string> | undefined | null, nomeFuncao: string | undefined | null): string | undefined {
+  if (!mapa || !nomeFuncao) return undefined
+  const alvo = norm(nomeFuncao)
+  for (const [chave, valor] of Object.entries(mapa)) {
+    if (norm(chave) === alvo) return valor
+  }
+  return undefined
+}
+
 // Acha o programa PCMSO de um funcionário — cadastro manual grava `funcao` como o
 // próprio cargo; import de PDF grava `funcao` como nome do GHE e o cargo real fica
 // em `funcoes[]`. Checa os dois formatos, normalizando espaço/maiúscula pra não

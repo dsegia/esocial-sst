@@ -6,7 +6,7 @@ import Layout from '../components/Layout'
 import { gerarPdfPcmso } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
-import { TIPOS_CONSULTA, normalizeExames, programaDoFuncionario } from '../lib/pcmso-exames'
+import { TIPOS_CONSULTA, normalizeExames, programaDoFuncionario, acharAtividadePorFuncao } from '../lib/pcmso-exames'
 import { TEXTOS_LEGAIS_PCMSO } from '../lib/pcmso-conteudo'
 import { SECOES_PCMSO } from '../lib/pcmso-conteudo-completo'
 
@@ -90,7 +90,11 @@ export default function PCMSO() {
   // Médico coordenador
   const [medico, setMedico] = useState(null)
   const [editandoMedico, setEditandoMedico] = useState(false)
-  const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', telefones_emergencia:[] })
+  const [formMedico, setFormMedico] = useState({
+    medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', telefones_emergencia:[],
+    clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medico_examinador_nome:'', medico_examinador_crm:'',
+    cronograma: [],
+  })
   const [novoTelefone, setNovoTelefone] = useState({ nome:'', telefone:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
@@ -163,10 +167,35 @@ export default function PCMSO() {
 
   function abrirEdicaoMedico() {
     setFormMedico(medico
-      ? { ...medico, textos_legais_custom: medico.textos_legais_custom || {}, telefones_emergencia: medico.telefones_emergencia || [] }
-      : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{}, telefones_emergencia:[] })
+      ? {
+          ...medico,
+          textos_legais_custom: medico.textos_legais_custom || {},
+          telefones_emergencia: medico.telefones_emergencia || [],
+          clinica_nome: medico.clinica_nome || '', clinica_endereco: medico.clinica_endereco || '', clinica_cnpj: medico.clinica_cnpj || '',
+          medico_examinador_nome: medico.medico_examinador_nome || '', medico_examinador_crm: medico.medico_examinador_crm || '',
+          cronograma: medico.cronograma || [],
+        }
+      : {
+          medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{}, telefones_emergencia:[],
+          clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medico_examinador_nome:'', medico_examinador_crm:'', cronograma:[],
+        })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
+  }
+
+  const MESES_CRONOGRAMA = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+  function atividadeDoMes(mes) {
+    return formMedico.cronograma?.find(c => c.mes === mes)?.atividades || ''
+  }
+
+  function setAtividadeDoMes(mes, atividades) {
+    setFormMedico(p => {
+      const cronograma = (p.cronograma || []).filter(c => c.mes !== mes)
+      if (atividades.trim()) cronograma.push({ mes, atividades })
+      cronograma.sort((a, b) => a.mes - b.mes)
+      return { ...p, cronograma }
+    })
   }
 
   function addTelefoneEmergencia() {
@@ -206,6 +235,12 @@ export default function PCMSO() {
       prox_revisao: formMedico.prox_revisao || null,
       textos_legais_custom: formMedico.textos_legais_custom || {},
       telefones_emergencia: formMedico.telefones_emergencia || [],
+      clinica_nome: formMedico.clinica_nome || null,
+      clinica_endereco: formMedico.clinica_endereco || null,
+      clinica_cnpj: formMedico.clinica_cnpj || null,
+      medico_examinador_nome: formMedico.medico_examinador_nome || null,
+      medico_examinador_crm: formMedico.medico_examinador_crm || null,
+      cronograma: formMedico.cronograma || [],
       atualizado_em: new Date().toISOString(),
     }
     const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
@@ -365,7 +400,7 @@ export default function PCMSO() {
   // GHE) e sincronizada pra cá — evita pedir a mesma informação de novo.
   function atualizarAtividadesDoPgr() {
     const ghe = ghesCadastro.find(g => g.id === formFunc.ghe_id)
-    const atividades = ghe?.atividades_por_funcao?.[formFunc.funcao]
+    const atividades = acharAtividadePorFuncao(ghe?.atividades_por_funcao, formFunc.funcao)
     if (!ghe || !atividades) { setErro('Nenhuma descrição de atividades encontrada no PGR para esta função.'); return }
     setFormFunc(p => ({ ...p, descricao_atividades: atividades }))
     setSucesso(`Descrição das atividades atualizada a partir do PGR ("${ghe.nome}").`)
@@ -385,7 +420,7 @@ export default function PCMSO() {
       ghe_id: gheSugerido?.id || null,
       riscos: riscos.map(r => r.nome),
       exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true })),
-      descricao_atividades: progExistente?.descricao_atividades || gheSugerido?.atividades_por_funcao?.[func.funcao] || ''
+      descricao_atividades: progExistente?.descricao_atividades || acharAtividadePorFuncao(gheSugerido?.atividades_por_funcao, func.funcao) || ''
     })
     setAba('novo')
   }
@@ -459,7 +494,16 @@ export default function PCMSO() {
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, ghes: ghesCadastro, telefones_emergencia: medico?.telefones_emergencia || [], textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {}, secoes_imagens: medico?.secoes_imagens || {} },
+              {
+                dados_gerais: {
+                  medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao,
+                  clinica_nome: medico?.clinica_nome || '', clinica_endereco: medico?.clinica_endereco || '', clinica_cnpj: medico?.clinica_cnpj || '',
+                  medico_examinador_nome: medico?.medico_examinador_nome || '', medico_examinador_crm: medico?.medico_examinador_crm || '',
+                },
+                programas: programa, ghes: ghesCadastro, telefones_emergencia: medico?.telefones_emergencia || [],
+                cronograma: medico?.cronograma || [],
+                textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {}, secoes_imagens: medico?.secoes_imagens || {},
+              },
               { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
             )
           }}>📄 Exportar PDF</button>
@@ -501,6 +545,8 @@ export default function PCMSO() {
                   { l:'Nome', v: medico.medico_nome||'—' },
                   { l:'CPF', v: medico.medico_cpf||'—' },
                   { l:'CRM', v: medico.medico_crm||'—' },
+                  ...(medico.clinica_nome ? [{ l:'Clínica Designada', v: medico.clinica_nome }] : []),
+                  ...(medico.medico_examinador_nome ? [{ l:'Médico(a) Examinador(a)', v: medico.medico_examinador_nome }] : []),
                 ].map((it,i) => (
                   <div key={i}>
                     <div style={{ fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase' }}>{it.l}</div>
@@ -571,6 +617,33 @@ export default function PCMSO() {
               </div>
             </div>
 
+            {/* Clínica designada e médico examinador */}
+            <div style={{ marginBottom:14 }}>
+              <label style={s.label}>Clínica designada</label>
+              <div style={s.row2}>
+                <input style={s.input} value={formMedico.clinica_nome} onChange={e => setFormMedico({...formMedico, clinica_nome:e.target.value})} placeholder="Nome da clínica designada"/>
+                <input style={s.input} value={formMedico.clinica_cnpj} onChange={e => setFormMedico({...formMedico, clinica_cnpj:e.target.value})} placeholder="CNPJ da clínica"/>
+              </div>
+              <input style={{ ...s.input, marginTop:8 }} value={formMedico.clinica_endereco} onChange={e => setFormMedico({...formMedico, clinica_endereco:e.target.value})} placeholder="Endereço da clínica"/>
+              <div style={{ ...s.row2, marginTop:8 }}>
+                <input style={s.input} value={formMedico.medico_examinador_nome} onChange={e => setFormMedico({...formMedico, medico_examinador_nome:e.target.value})} placeholder="Nome do(a) médico(a) examinador(a)"/>
+                <input style={s.input} value={formMedico.medico_examinador_crm} onChange={e => setFormMedico({...formMedico, medico_examinador_crm:e.target.value})} placeholder="CRM do(a) examinador(a)"/>
+              </div>
+            </div>
+
+            {/* Cronograma anual */}
+            <div style={{ marginBottom:14 }}>
+              <label style={s.label}>Cronograma anual do PCMSO</label>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {MESES_CRONOGRAMA.map((nomeMes, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ width:90, fontSize:12, color:'#374151', flexShrink:0 }}>{nomeMes}</span>
+                    <input style={{ ...s.input, flex:1 }} value={atividadeDoMes(i+1)} onChange={e => setAtividadeDoMes(i+1, e.target.value)} placeholder="Atividades previstas neste mês (opcional)"/>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display:'flex', gap:8 }}>
               <button style={s.btnPrimary} onClick={salvarMedico} disabled={salvandoMedico}>{salvandoMedico ? 'Salvando...' : 'Salvar'}</button>
               <button style={s.btnOutline} onClick={() => setEditandoMedico(false)}>Cancelar</button>
@@ -627,7 +700,7 @@ export default function PCMSO() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || ghesCadastro.find(g=>g.id===prog.ghe_id)?.atividades_por_funcao?.[prog.funcao] || '' })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || acharAtividadePorFuncao(ghesCadastro.find(g=>g.id===prog.ghe_id)?.atividades_por_funcao, prog.funcao) || '' })
                         setAba('novo')
                       }}>Editar</button>
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
