@@ -1129,7 +1129,12 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         const cortxt = estilo?.texto || [50, 50, 50]
         doc.setTextColor(cortxt[0], cortxt[1], cortxt[2])
         doc.setFont('helvetica', estilo?.bg ? 'bold' : 'normal')
-        doc.text(celulas[ci], x + 1.5, yy + 3.2)
+        // Centraliza verticalmente células com menos linhas que a mais alta da
+        // linha (ex.: badge de "Nível de Risco" ao lado de texto longo em outra
+        // coluna), em vez de sempre alinhar pelo topo — evita texto "colado" no
+        // topo de uma caixa colorida mais alta que o próprio conteúdo.
+        const offsetVerticalCelula = 3.2 + (maxLinhas - celulas[ci].length) * 1.8
+        doc.text(celulas[ci], x + 1.5, yy + offsetVerticalCelula)
         x += colunas[ci].largura
       }
       doc.setFont('helvetica', 'normal')
@@ -1236,8 +1241,10 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
   doc.text('Responsáveis', mg, y); y += 8
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
-  doc.text(`Elaboração: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), mg, y); y += 5
-  doc.text(`Representante Legal: ${empresa?.resp_nome || '—'}`, mg, y); y += 15
+  const linhasElaboracao = doc.splitTextToSize(`Elaboração: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), W - mg * 2)
+  doc.text(linhasElaboracao, mg, y); y += linhasElaboracao.length * 4.5 + 0.5
+  const linhasRepresentante = doc.splitTextToSize(`Representante Legal: ${empresa?.resp_nome || '—'}`, W - mg * 2)
+  doc.text(linhasRepresentante, mg, y); y += linhasRepresentante.length * 4.5 + 10
 
   y += 20
   doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
@@ -1338,14 +1345,18 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     y += 1
     for (const a of ambientes) {
       if (y > 260) { doc.addPage(); y = 20 }
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+      const textoDataAmbiente = a.data_inicio ? `desde ${new Date(a.data_inicio + 'T00:00').toLocaleDateString('pt-BR')}` : ''
+      const larguraDataAmbiente = textoDataAmbiente ? doc.getTextWidth(textoDataAmbiente) + 6 : 0
       doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
-      doc.text(`${a.nome || '—'}${a.tipo === 'terceiro' ? ' (Terceiro)' : ' (Próprio)'}`, mg + 2, y)
+      const linhasNomeAmbiente = doc.splitTextToSize(`${a.nome || '—'}${a.tipo === 'terceiro' ? ' (Terceiro)' : ' (Próprio)'}`, W - mg * 2 - 4 - larguraDataAmbiente)
+      doc.text(linhasNomeAmbiente, mg + 2, y)
       doc.setFont('helvetica', 'normal')
-      if (a.data_inicio) {
+      if (textoDataAmbiente) {
         doc.setFontSize(8); doc.setTextColor(120)
-        doc.text(`desde ${new Date(a.data_inicio + 'T00:00').toLocaleDateString('pt-BR')}`, W - mg - 2, y, { align: 'right' })
+        doc.text(textoDataAmbiente, W - mg - 2, y, { align: 'right' })
       }
-      y += 4.5
+      y += linhasNomeAmbiente.length * 4.5
       if (a.descricao) y = paragrafo(a.descricao, y, 8)
       if (a.epcs?.length) {
         doc.setFontSize(8); doc.setTextColor(90)
@@ -1368,19 +1379,17 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   if (inventario.length) {
     for (const g of inventario) {
       if (y > H - 30) { doc.addPage(); y = 20 }
-      doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-      doc.text(g.nome || 'GHE', mg, y)
-      doc.setFont('helvetica', 'normal')
       const iqct = calcularIQCT(g.riscos)
-      doc.setFontSize(8)
-      if (iqct) {
-        doc.setTextColor(12, 68, 124)
-        doc.text(`IQCT ${iqct.valor}/100`, W - mg, y, { align: 'right' })
-      } else {
-        doc.setTextColor(160)
-        doc.text('IQCT — dados insuficientes', W - mg, y, { align: 'right' })
-      }
-      y += 5
+      const textoIqct = iqct ? `IQCT ${iqct.valor}/100` : 'IQCT — dados insuficientes'
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal')
+      const larguraIqct = doc.getTextWidth(textoIqct) + 6
+      doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+      const linhasNomeGhe = doc.splitTextToSize(g.nome || 'GHE', W - mg * 2 - larguraIqct)
+      doc.text(linhasNomeGhe, mg, y)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
+      if (iqct) doc.setTextColor(12, 68, 124); else doc.setTextColor(160)
+      doc.text(textoIqct, W - mg, y, { align: 'right' })
+      y += linhasNomeGhe.length * 5
       const infoGhe = [
         g.ambientes_relacionados ? `Ambientes: ${g.ambientes_relacionados}` : '',
         g.jornada_trabalho ? `Jornada: ${g.jornada_trabalho}` : '',
@@ -1396,12 +1405,14 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
         doc.text('Funções neste GHE:', mg + 2, y); y += 4
         for (const f of g.funcoes) {
           doc.setFontSize(7.5); doc.setTextColor(50); doc.setFont('helvetica', 'bold')
-          doc.text(`${f.nome || '—'}`, mg + 4, y)
+          const linhasNomeFuncao = doc.splitTextToSize(`${f.nome || '—'}`, W - mg * 2 - 4)
+          doc.text(linhasNomeFuncao, mg + 4, y)
+          const alturaNomeFuncao = linhasNomeFuncao.length * 3
           if (f.cbo || f.nivel) {
             doc.setFontSize(7); doc.setTextColor(100)
-            doc.text(`${f.cbo ? `CBO ${f.cbo}` : ''}${f.cbo && f.nivel ? ' | ' : ''}${f.nivel ? `Nível: ${f.nivel}` : ''}`, mg + 4, y + 3)
+            doc.text(`${f.cbo ? `CBO ${f.cbo}` : ''}${f.cbo && f.nivel ? ' | ' : ''}${f.nivel ? `Nível: ${f.nivel}` : ''}`, mg + 4, y + alturaNomeFuncao)
           }
-          y += 3 + (f.cbo || f.nivel ? 3 : 0)
+          y += alturaNomeFuncao + (f.cbo || f.nivel ? 3 : 0)
           if (f.atividades) {
             doc.setFontSize(7); doc.setTextColor(70); doc.setFont('helvetica', 'normal')
             const linhasAt = doc.splitTextToSize(f.atividades, 270)
@@ -1677,6 +1688,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // ── Critérios técnicos de referência (AIHA / AS-NZS 4360 / European
   // Commission, recomendadas pela Fundacentro) — texto e tabelas completos ──
   if (y > 230) { doc.addPage(); y = 20 }
+  paginas.criteriosTecnicos = (doc as any).internal.getNumberOfPages()
   y = subSecao('Critérios Técnicos de Referência — Gradação de Severidade e Probabilidade', y)
   for (const p of CRITERIOS_GRADACAO_INTRO) y = paragrafo(p, y, 8.5)
   y += 2
@@ -1714,6 +1726,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   y += 2
 
   if (y > 220) { doc.addPage(); y = 20 }
+  paginas.metodologiaMatriz = (doc as any).internal.getNumberOfPages()
   y = subSecao('Matriz de Risco — Metodologia de Referência', y)
   for (const p of TEXTO_MATRIZ_RISCO.intro) y = paragrafo(p, y, 8.5)
   y += 1
@@ -1780,6 +1793,8 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     ['Plano de Ação', paginas.planoAcao],
     ['Anexo I — Plano de Emergência', paginas.planoEmergencia],
     ['Anexo II — Matriz de Risco', paginas.matrizRisco],
+    ['Critérios Técnicos de Referência (Gradação de Severidade e Probabilidade)', paginas.criteriosTecnicos],
+    ['Matriz de Risco — Metodologia de Referência', paginas.metodologiaMatriz],
   ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
   let numItemIndice = 1

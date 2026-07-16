@@ -212,6 +212,7 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
         nome: grupo.nome || grupo.ambientes_relacionados || 'GHE sem nome',
         setor: grupo.ambientes_relacionados || grupo.nome || '',
         qtd_trabalhadores: parseInt(grupo.numero_empregados) || 1,
+        horario_funcionamento: grupo.jornada_trabalho || '',
         funcoes: funcoesNovas,
         atividades_por_funcao: atividadesMap,
         riscos: riscosMapeados,
@@ -237,13 +238,15 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
     const funcoesParaAdicionar = funcoesNovas.filter(f => !nomesFuncoesCadastro.has(f))
     const atividadesAtuais = ghe.atividades_por_funcao || {}
     const atividadesMudaram = Object.entries(atividadesMap).some(([nome, texto]) => atividadesAtuais[nome] !== texto)
-    if (!riscosNovos.length && !funcoesParaAdicionar.length && !atividadesMudaram) continue
+    const horarioMudou = !!grupo.jornada_trabalho?.trim() && grupo.jornada_trabalho !== ghe.horario_funcionamento
+    if (!riscosNovos.length && !funcoesParaAdicionar.length && !atividadesMudaram && !horarioMudou) continue
 
     const riscosMapeados = riscosNovos.map(riscoParaCadastro)
     const patch = {
       riscos: [...(ghe.riscos || []), ...riscosMapeados],
       funcoes: [...(ghe.funcoes || []), ...funcoesParaAdicionar],
       atividades_por_funcao: { ...atividadesAtuais, ...atividadesMap },
+      ...(horarioMudou ? { horario_funcionamento: grupo.jornada_trabalho } : {}),
       atualizado_em: new Date().toISOString(),
     }
     const { data: atualizado, error } = await supabase.from('ghes').update(patch).eq('id', grupo.ghe_id).select().single()
@@ -256,6 +259,7 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
     ghe.riscos = patch.riscos
     ghe.funcoes = patch.funcoes
     ghe.atividades_por_funcao = patch.atividades_por_funcao
+    if (horarioMudou) ghe.horario_funcionamento = patch.horario_funcionamento
   }
 
   return novoInventario
@@ -684,6 +688,9 @@ export default function PGR() {
   }
 
   function exportarPdf(pgr) {
+    const horariosDistintos = [...new Set(
+      (pgr.inventario || []).map(g => g.jornada_trabalho?.trim()).filter(Boolean)
+    )]
     gerarPdfPgr(
       {
         dados_gerais: {
@@ -702,7 +709,13 @@ export default function PGR() {
         textos_legais_custom: pgr.textos_legais_custom || {},
         imagens_anexas: pgr.imagens_anexas || [],
       },
-      { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, numero_empregados: totalFuncionarios }
+      {
+        ...(empresaCompleta || {}),
+        razao_social: nomeEmpresa,
+        cnpj: cnpjEmpresa,
+        numero_empregados: totalFuncionarios,
+        horario_funcionamento: horariosDistintos.join(' | ') || empresaCompleta?.horario_funcionamento || '',
+      }
     )
   }
 

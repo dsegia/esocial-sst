@@ -14,13 +14,13 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 )
 
-const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico' }
-const COR_AGENTE  : Record<string,string> = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB' }
-const TXT_AGENTE  : Record<string,string> = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F' }
+const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico', aci:'Acidentes', psi:'Psicossocial' }
+const COR_AGENTE  : Record<string,string> = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB', aci:'#FDEBD3', psi:'#EDE6FB' }
+const TXT_AGENTE  : Record<string,string> = { fis:'#0C447C', qui:'#633806', bio:'#27500A', erg:'#791F1F', aci:'#8A4B08', psi:'#4B2C82' }
 
 const gheVazio = () => ({
   nome: '', setor: '', qtd_trabalhadores: 1, aposentadoria_especial: false,
-  periculosidade: false, insalubridade: false,
+  periculosidade: false, insalubridade: false, horario_funcionamento: '',
   riscos: [] as any[], epc: [] as any[], epi: [] as any[], funcoes: [] as string[],
 })
 const riscoVazio = () => ({
@@ -180,6 +180,7 @@ export default function Ghes() {
       aposentadoria_especial: !!formGhe.aposentadoria_especial,
       periculosidade: !!formGhe.periculosidade,
       insalubridade: !!formGhe.insalubridade,
+      horario_funcionamento: formGhe.horario_funcionamento || '',
       funcoes: formGhe.funcoes || [],
       riscos: formGhe.riscos || [],
       epc: formGhe.epc || [],
@@ -406,6 +407,7 @@ export default function Ghes() {
                   {[
                     { l:'Setor', v: gheSel.setor||'—' },
                     { l:'Trabalhadores', v: gheSel.qtd_trabalhadores||'—' },
+                    { l:'Horário de Funcionamento', v: gheSel.horario_funcionamento||'—' },
                     { l:'Riscos', v: (gheSel.riscos||[]).length },
                     { l:'Periculosidade', v: gheSel.periculosidade?'Sim':'Não' },
                     { l:'Insalubridade', v: gheSel.insalubridade?'Sim':'Não' },
@@ -508,6 +510,10 @@ export default function Ghes() {
                     <input style={s.input} type="number" min="1" value={formGhe.qtd_trabalhadores||1} onChange={e=>setFormGhe((p:any)=>({...p,qtd_trabalhadores:parseInt(e.target.value)||1}))}/>
                   </div>
                 </div>
+                <div style={{ marginBottom:10 }}>
+                  <label style={s.label}>Horário de Funcionamento</label>
+                  <input style={s.input} value={formGhe.horario_funcionamento||''} onChange={e=>setFormGhe((p:any)=>({...p,horario_funcionamento:e.target.value}))} placeholder="Ex: Seg/Sex 08:00-12:00/14:00-18:00, Sáb 08:00-12:00"/>
+                </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12 }}>
                   <div>
                     <label style={s.label}>Periculosidade</label>
@@ -578,6 +584,7 @@ export default function Ghes() {
                         <select style={s.input} value={ag.tipo||'fis'} onChange={e=>setRisco(ai,'tipo',e.target.value)}>
                           <option value="fis">Físico</option><option value="qui">Químico</option>
                           <option value="bio">Biológico</option><option value="erg">Ergonômico</option>
+                          <option value="aci">Acidentes</option><option value="psi">Psicossocial</option>
                         </select>
                         <input style={s.input} value={ag.nome||''} onChange={e=>setRisco(ai,'nome',e.target.value)} onBlur={()=>aoSairDoNomeRisco(ai)} list={`agentes-${ag.tipo||'fis'}`} placeholder="Nome do risco (ex: Ruído)"/>
                         <button onClick={()=>removeRisco(ai)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, padding:0 }}>×</button>
