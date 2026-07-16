@@ -7,7 +7,7 @@ import { pdfFichaEPI } from '../lib/gerarPDF'
 import { gerarPdfLtcat } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
-import { TEXTOS_LEGAIS_LTCAT } from '../lib/ltcat-conteudo'
+import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from '../lib/ltcat-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -44,6 +44,8 @@ export default function LTCAT() {
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
   const [textoAberto, setTextoAberto] = useState(null)
+  const [revisandoMetodologia, setRevisandoMetodologia] = useState(false)
+  const [avisosMetodologia, setAvisosMetodologia] = useState(null)
 
   useEffect(() => { init() }, [])
 
@@ -87,6 +89,53 @@ export default function LTCAT() {
     setModoEdicao(true)
     setGheAtivo(0)
     setSucesso(''); setErro('')
+  }
+
+  async function revisarMetodologia(lt) {
+    const riscos = (lt.ghes || []).flatMap(g => (g.agentes || []).map(a => ({
+      tipo_risco: TIPO_AGENTE[a.tipo] || a.tipo,
+      nome_agente: a.nome,
+      valor_medido: a.valor,
+      limite_tolerancia: a.limite,
+      metodologia_padrao: METODOLOGIAS_RISCO[a.tipo]?.metodologia || '—',
+    })))
+    if (!riscos.length) { setAvisosMetodologia([]); return }
+
+    setRevisandoMetodologia(true)
+    setAvisosMetodologia(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/revisar-metodologia-ltcat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ riscos }),
+      })
+      const json = await resp.json()
+      if (!resp.ok) { setErro(json.erro || 'Não foi possível revisar a metodologia.'); setAvisosMetodologia(null) }
+      else setAvisosMetodologia((json.resultados || []).filter(r => !r.compativel))
+    } catch {
+      setErro('Não foi possível revisar a metodologia. Tente novamente.')
+      setAvisosMetodologia(null)
+    }
+    setRevisandoMetodologia(false)
+  }
+
+  function exportarPdfLtcat(lt) {
+    const horariosDistintos = [...new Set(
+      (lt.ghes || []).map(g => g.horario_funcionamento?.trim()).filter(Boolean)
+    )]
+    gerarPdfLtcat(
+      {
+        dados_gerais: { data_emissao: lt.data_emissao, data_vigencia: lt.data_vigencia, prox_revisao: lt.prox_revisao, resp_nome: lt.resp_nome, resp_conselho: lt.resp_conselho, resp_registro: lt.resp_registro, resp_cpf: lt.resp_cpf },
+        ghes: lt.ghes,
+        textos_legais_custom: lt.textos_legais_custom || {},
+      },
+      {
+        ...(empresaCompleta || { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }),
+        numero_empregados: todosFunc.length,
+        horario_funcionamento: horariosDistintos.join(' | ') || empresaCompleta?.horario_funcionamento || '',
+      }
+    )
   }
 
   function cancelarEdicao() {
@@ -256,7 +305,7 @@ export default function LTCAT() {
               const critico = dias !== null && dias >= 0 && dias <= 60
               const ativo = lt.id === (modoEdicao ? formLtcat?.id : ltcatSel?.id)
               return (
-                <div key={lt.id} onClick={() => { if(!modoEdicao){ setLtcatSel(lt); setGheAtivo(0) } }}
+                <div key={lt.id} onClick={() => { if(!modoEdicao){ setLtcatSel(lt); setGheAtivo(0); setAvisosMetodologia(null) } }}
                   style={{ ...s.ltcatItem, border: ativo?'1.5px solid #185FA5':'0.5px solid #e5e7eb', background: ativo?'#E6F1FB':'#fff', cursor: modoEdicao?'default':'pointer' }}>
                   <div style={{ display:'flex', justifyContent:'space-between' }}>
                     <div style={{ fontSize:12, fontWeight:600, color: ativo?'#0C447C':'#111' }}>
@@ -313,8 +362,13 @@ export default function LTCAT() {
                         onClick={() => atualizarGhesDoLtcat(ltcatSel.id)} title="Traz o cadastro de GHEs/riscos mais atual de /ghes para esta LTCAT">
                         ↻ Atualizar do cadastro
                       </button>
+                      <button style={{ ...s.btnOutline, color:'#633806', borderColor:'#F0D9A8', padding:'6px 14px', fontSize:12 }}
+                        onClick={() => revisarMetodologia(ltcatSel)} disabled={revisandoMetodologia}
+                        title="A IA revisa se a metodologia padrão de cada risco parece coerente com o agente informado — não altera o PDF">
+                        {revisandoMetodologia ? 'Revisando...' : '🔎 Revisar metodologia (IA)'}
+                      </button>
                       <button style={{ ...s.btnOutline, color:'#27500A', borderColor:'#C0DD97', padding:'6px 14px', fontSize:12 }}
-                        onClick={() => gerarPdfLtcat({ dados_gerais: { data_emissao: ltcatSel.data_emissao, data_vigencia: ltcatSel.data_vigencia, prox_revisao: ltcatSel.prox_revisao, resp_nome: ltcatSel.resp_nome, resp_conselho: ltcatSel.resp_conselho, resp_registro: ltcatSel.resp_registro, resp_cpf: ltcatSel.resp_cpf }, ghes: ltcatSel.ghes, textos_legais_custom: ltcatSel.textos_legais_custom || {} }, empresaCompleta || { razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa })}>
+                        onClick={() => exportarPdfLtcat(ltcatSel)}>
                         ↓ Exportar PDF
                       </button>
                       {ltcatSel.ativo && (
@@ -326,6 +380,25 @@ export default function LTCAT() {
                     </div>
                   </div>
                 </div>
+
+                {avisosMetodologia !== null && (
+                  avisosMetodologia.length === 0 ? (
+                    <div style={{ ...s.card, background:'#EAF3DE', border:'0.5px solid #C0DD97', color:'#27500A', fontSize:12, padding:'10px 14px' }}>
+                      ✓ A IA não encontrou incoerências entre os riscos informados e as metodologias padrão aplicadas.
+                    </div>
+                  ) : (
+                    <div style={{ ...s.card, background:'#FDF3E3', border:'0.5px solid #F0D9A8', padding:'12px 14px' }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'#633806', marginBottom:6 }}>
+                        ⚠ A IA sinalizou possíveis incoerências na metodologia — revise antes de exportar (o PDF continua com os textos padrão até você ajustar o risco):
+                      </div>
+                      {avisosMetodologia.map((a, i) => (
+                        <div key={i} style={{ fontSize:12, color:'#633806', marginTop:4 }}>
+                          • <strong>{a.nome_agente}</strong> ({a.tipo_risco}): {a.observacao}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
 
                 {/* GHEs visualização */}
                 {ltcatSel.ghes?.length > 0 && (

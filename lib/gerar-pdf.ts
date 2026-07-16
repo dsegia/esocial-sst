@@ -320,6 +320,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     return yPos + 6
   }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    if (yPos > H - 20) { doc.addPage(); yPos = 20 }
     doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
     doc.setFontSize(10); doc.setTextColor(30)
     const linhas = doc.splitTextToSize(valor || '—', largura - 2)
@@ -439,8 +440,10 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   doc.setFontSize(11); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
   doc.text('Responsáveis', mg, y); y += 8
   doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50)
-  doc.text(`Responsável Técnico: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), mg, y); y += 5
-  doc.text(`Representante Legal: ${empresa?.resp_nome || '—'}`, mg, y); y += 15
+  const linhasRespTecnico = doc.splitTextToSize(`Responsável Técnico: ${dg.resp_nome || '—'} (${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''})`.trim(), W - mg * 2)
+  doc.text(linhasRespTecnico, mg, y); y += linhasRespTecnico.length * 4.5 + 0.5
+  const linhasRepLegal = doc.splitTextToSize(`Representante Legal: ${empresa?.resp_nome || '—'}`, W - mg * 2)
+  doc.text(linhasRepLegal, mg, y); y += linhasRepLegal.length * 4.5 + 10
 
   y += 20
   doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica', 'italic')
@@ -448,7 +451,11 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 
   paginas.capa = 1
 
-  // ── PÁGINA 2: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
+  // ── PÁGINA 2: ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
+  doc.addPage()
+  paginas.indice = (doc as any).internal.getNumberOfPages()
+
+  // ── PÁGINA 3: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
   doc.addPage()
   y = 20
   y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
@@ -468,11 +475,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 3
   }
 
-  paginas.contracapa = 2
-
-  // ── PÁGINA 3: ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
-  doc.addPage()
-  paginas.indice = (doc as any).internal.getNumberOfPages()
+  paginas.contracapa = 3
 
   // ── Textos legais (Lei 8.213/91, Decreto 3.048/99, NR-15) ─
   doc.addPage(); y = 20
@@ -546,16 +549,16 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     if (y > 245) { doc.addPage(); y = 20 }
     y = subSecao(`GHE ${gi + 1}: ${ghe.nome || '—'}`, y)
 
-    campo('Setor', ghe.setor, mg, y, (W - mg * 2) / 2)
-    campo('Qtd. Trabalhadores', String(ghe.qtd_trabalhadores || '—'), mg + (W - mg * 2) / 2 + 5, y, (W - mg * 2) / 2 - 5)
-    y += 10
+    const ySetor = campo('Setor', ghe.setor, mg, y, (W - mg * 2) / 2)
+    const yQtd = campo('Qtd. Trabalhadores', String(ghe.qtd_trabalhadores || '—'), mg + (W - mg * 2) / 2 + 5, y, (W - mg * 2) / 2 - 5)
+    y = Math.max(ySetor, yQtd) + 2
 
     const colConclusao = (W - mg * 2 - 15) / 4
-    campo('Opção GFIP / Tabela 24', opcaoGfip(ghe), mg, y, colConclusao)
-    campo('Periculosidade', ghe.periculosidade ? 'Sim' : 'Não', mg + colConclusao + 5, y, colConclusao)
-    campo('Insalubridade', ghe.insalubridade ? 'Sim' : 'Não', mg + (colConclusao + 5) * 2, y, colConclusao)
-    campo('Aposentadoria Especial', ghe.aposentadoria_especial ? 'Sim' : 'Não', mg + (colConclusao + 5) * 3, y, colConclusao)
-    y += 12
+    const yGfip = campo('Opção GFIP / Tabela 24', opcaoGfip(ghe), mg, y, colConclusao)
+    const yPeric = campo('Periculosidade', ghe.periculosidade ? 'Sim' : 'Não', mg + colConclusao + 5, y, colConclusao)
+    const yInsal = campo('Insalubridade', ghe.insalubridade ? 'Sim' : 'Não', mg + (colConclusao + 5) * 2, y, colConclusao)
+    const yAposent = campo('Aposentadoria Especial', ghe.aposentadoria_especial ? 'Sim' : 'Não', mg + (colConclusao + 5) * 3, y, colConclusao)
+    y = Math.max(yGfip, yPeric, yInsal, yAposent) + 4
 
     if (ghe.funcoes?.length) {
       doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
@@ -692,6 +695,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 
   // ── Assinaturas ───────────────────────────────────────
   if (y > 250) { doc.addPage(); y = 20 }
+  paginas.assinaturas = (doc as any).internal.getNumberOfPages()
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
     {
@@ -714,11 +718,12 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   yIndice = secao('ÍNDICE', yIndice)
   yIndice += 4
   const itensIndice: Array<[string, number | undefined]> = [
-    ['Identificação da Empresa', paginas.contracapa],
+    ['Identificação da Empresa e Responsáveis pelo LTCAT', paginas.contracapa],
     ['Introdução, Objetivos e Base Legal', paginas.introducao],
     ['Quadro-Resumo — Enquadramento por GHE', paginas.resumo],
     ['Descrição dos Setores e Cargos — Reconhecimento dos Riscos e Conclusões', paginas.ghes],
     ['Anexo — Agentes Nocivos (Decreto 3.048/99, Anexo IV)', paginas.anexoIV],
+    ['Assinaturas', paginas.assinaturas],
   ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
   let numItemIndice = 1
