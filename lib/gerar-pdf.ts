@@ -13,6 +13,7 @@ import { TEXTOS_LEGAIS_LTCAT, METODOLOGIAS_RISCO } from './ltcat-conteudo'
 import { ANEXO_IV_AGENTES } from './ltcat-anexo-iv'
 import { TEXTOS_LEGAIS_PCMSO } from './pcmso-conteudo'
 import { SECOES_PCMSO } from './pcmso-conteudo-completo'
+import { TIPOS_CONSULTA } from './pcmso-exames'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
 
@@ -821,27 +822,34 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   function tabela(dados: string[][], titulo: string, yPos: number): number {
     if (yPos > 250) { doc.addPage(); yPos = 20 }
     let y = yPos
-    doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-    doc.text(titulo, mg, y)
-    y += 7
+    if (titulo) {
+      doc.setFontSize(9); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
+      doc.text(titulo, mg, y)
+      y += 7
+    }
 
-    const colWidths = [
-      dados[0].length === 2 ? (W - mg * 2) * 0.6 : (W - mg * 2) / dados[0].length,
-      dados[0].length === 2 ? (W - mg * 2) * 0.4 : (W - mg * 2) / dados[0].length,
-      ...Array(Math.max(0, dados[0].length - 2)).fill((W - mg * 2) / dados[0].length)
-    ]
+    const nCols = dados[0].length
+    const larguraTotal = W - mg * 2
+    const pesos = nCols === 2 ? [0.6, 0.4]
+      : nCols === 3 ? [0.22, 0.39, 0.39]
+      : Array(nCols).fill(1 / nCols)
+    const colWidths = pesos.map(p => p * larguraTotal)
 
-    // Header
-    doc.setFillColor(24, 95, 165)
+    // Header — divisórias brancas entre colunas pra não virar uma barra sólida,
+    // e altura dinâmica pra cabeçalhos longos (ex.: "MONITORAMENTO RECOMENDADO")
+    // não estourarem a caixa.
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+    const headerLines = dados[0].map((h, i) => doc.splitTextToSize(h, colWidths[i] - 2))
+    const headerHeight = Math.max(8, Math.max(...headerLines.map(l => l.length)) * 3.6 + 3)
     let xPos = mg
-    for (let i = 0; i < dados[0].length; i++) {
-      doc.rect(xPos, y, colWidths[i], 8, 'F')
-      const lines = doc.splitTextToSize(dados[0][i], colWidths[i] - 2)
-      doc.text(lines, xPos + 1, y + 3)
+    for (let i = 0; i < nCols; i++) {
+      doc.setFillColor(24, 95, 165)
+      doc.setDrawColor(255, 255, 255)
+      doc.rect(xPos, y, colWidths[i], headerHeight, 'FD')
+      doc.text(headerLines[i], xPos + 1, y + 3.6)
       xPos += colWidths[i]
     }
-    y += 10
+    y += headerHeight + 2
 
     // Dados
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(40, 40, 40)
@@ -853,7 +861,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
       if (r % 2 === 0) {
         doc.setFillColor(245, 248, 251)
         xPos = mg
-        for (let i = 0; i < dados[0].length; i++) {
+        for (let i = 0; i < nCols; i++) {
           doc.rect(xPos, y - 0.5, colWidths[i], rowHeight, 'F')
           xPos += colWidths[i]
         }
@@ -900,6 +908,16 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   y += 55
 
+  // Telefones emergenciais — logo no início, pra ficar acessível sem precisar
+  // folhear o documento inteiro numa emergência real.
+  const telefonesEmergencia = dados?.telefones_emergencia || []
+  if (telefonesEmergencia.length > 0) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    y = secaoHeader('TELEFONES EMERGENCIAIS', y)
+    const linhasTel = telefonesEmergencia.map((t: any) => [t.nome || '—', t.telefone || '—'])
+    y = tabela([['CONTATO', 'TELEFONE'], ...linhasTel], '', y)
+  }
+
   // Textos legais
   const textosCustom = dados?.textos_legais_custom || {}
   for (const sec of TEXTOS_LEGAIS_PCMSO) {
@@ -912,15 +930,44 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   if (y > 240) { doc.addPage(); y = 20 }
 
-  // Programas por função
+  // Quadro-resumo de funções — GHE, funções/cargos vinculados e descrição das
+  // atividades, uma linha por função cadastrada no programa.
   const programas = dados?.programas || []
+  const gheNomePorId = new Map((dados?.ghes || []).map((g: any) => [g.id, g.nome]))
+  if (programas.length > 0) {
+    if (y > 240) { doc.addPage(); y = 20 }
+    y = secaoHeader('QUADRO DE FUNÇÕES', y)
+    const linhasQuadro = programas.map((p: any) => [
+      (p.ghe_id && gheNomePorId.get(p.ghe_id)) || p.setor || '—',
+      (p.funcoes?.length ? p.funcoes.join(', ') : p.funcao) || '—',
+      p.descricao_atividades || '—'
+    ])
+    y = tabela([['GHE', 'FUNÇÕES / CARGOS', 'DESCRIÇÃO DAS ATIVIDADES'], ...linhasQuadro], '', y)
+    y += 4
+  }
+
+  // Programas por função
+  const TIPO_LABEL: Record<string, string> = Object.fromEntries(TIPOS_CONSULTA.map(t => [t.key, t.label]))
   for (const prog of programas) {
     if (y > 245) { doc.addPage(); y = 20 }
     y = secaoHeader(`FUNÇÃO: ${prog.funcao || '—'}`, y)
 
-    const exames = (prog.exames || []).map((e: any) => typeof e === 'string' ? [e, 'Anual'] : [e.nome || '', e.periodicidade || 'Anual'])
+    // Um exame pode estar vinculado a vários tipos de consulta (admissional,
+    // periódico, etc.) — agrupa por nome pra não repetir a mesma linha uma vez
+    // por tipo, como acontecia antes.
+    const examesPorNome = new Map<string, Set<string>>()
+    for (const e of (prog.exames || [])) {
+      const nome = typeof e === 'string' ? e : (e.nome || '')
+      if (!nome) continue
+      if (!examesPorNome.has(nome)) examesPorNome.set(nome, new Set())
+      const tipos: string[] = typeof e === 'string' ? [] : (e.tipos || [])
+      const set = examesPorNome.get(nome)!
+      if (tipos.length) tipos.forEach((t: string) => set.add(TIPO_LABEL[t] || t))
+      else if (typeof e !== 'string' && e.periodicidade) set.add(e.periodicidade)
+    }
+    const exames = [...examesPorNome.entries()].map(([nome, tipos]) => [nome, [...tipos].join(', ') || '—'])
     if (exames.length > 0) {
-      const tabDados = [['EXAME', 'PERIODICIDADE'], ...exames]
+      const tabDados = [['EXAME', 'TIPOS DE CONSULTA'], ...exames]
       y = tabela(tabDados, 'EXAMES PREVISTOS', y)
     }
   }

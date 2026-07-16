@@ -82,7 +82,7 @@ export default function PCMSO() {
   const [programa, setPrograma] = useState([])
   const [editandoFunc, setEditandoFunc] = useState(null)
   const [formFunc, setFormFunc] = useState({
-    funcao: '', setor: '', ghe_id: null, riscos: [], exames: []
+    funcao: '', setor: '', ghe_id: null, riscos: [], exames: [], descricao_atividades: ''
   })
   const [novoExame, setNovoExame] = useState({ nome:'', tipos:['periodico'], obrigatorio:true })
   const [salvandoProg, setSalvandoProg] = useState(false)
@@ -90,7 +90,8 @@ export default function PCMSO() {
   // Médico coordenador
   const [medico, setMedico] = useState(null)
   const [editandoMedico, setEditandoMedico] = useState(false)
-  const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'' })
+  const [formMedico, setFormMedico] = useState({ medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', telefones_emergencia:[] })
+  const [novoTelefone, setNovoTelefone] = useState({ nome:'', telefone:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
   const [secaoAberta, setSecaoAberta] = useState(null)
@@ -161,9 +162,21 @@ export default function PCMSO() {
   }
 
   function abrirEdicaoMedico() {
-    setFormMedico(medico ? { ...medico, textos_legais_custom: medico.textos_legais_custom || {} } : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{} })
+    setFormMedico(medico
+      ? { ...medico, textos_legais_custom: medico.textos_legais_custom || {}, telefones_emergencia: medico.telefones_emergencia || [] }
+      : { medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{}, telefones_emergencia:[] })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
+  }
+
+  function addTelefoneEmergencia() {
+    if (!novoTelefone.nome || !novoTelefone.telefone) return
+    setFormMedico(p => ({ ...p, telefones_emergencia: [...(p.telefones_emergencia||[]), { ...novoTelefone }] }))
+    setNovoTelefone({ nome:'', telefone:'' })
+  }
+
+  function removerTelefoneEmergencia(i) {
+    setFormMedico(p => ({ ...p, telefones_emergencia: p.telefones_emergencia.filter((_,idx) => idx!==i) }))
   }
 
   function setTextoCustom(titulo, paragrafos) {
@@ -192,6 +205,7 @@ export default function PCMSO() {
       data_elaboracao: formMedico.data_elaboracao || null,
       prox_revisao: formMedico.prox_revisao || null,
       textos_legais_custom: formMedico.textos_legais_custom || {},
+      telefones_emergencia: formMedico.telefones_emergencia || [],
       atualizado_em: new Date().toISOString(),
     }
     const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
@@ -360,7 +374,8 @@ export default function PCMSO() {
       setor: func.setor || '',
       ghe_id: gheSugerido?.id || null,
       riscos: riscos.map(r => r.nome),
-      exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true }))
+      exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true })),
+      descricao_atividades: progExistente?.descricao_atividades || ''
     })
     setAba('novo')
   }
@@ -387,6 +402,7 @@ export default function PCMSO() {
       ghe_id: formFunc.ghe_id || null,
       riscos: formFunc.riscos,
       exames: formFunc.exames,
+      descricao_atividades: formFunc.descricao_atividades || null,
       atualizado_em: new Date().toISOString(),
     }
 
@@ -433,14 +449,14 @@ export default function PCMSO() {
         <div style={{ display:'flex', gap:6 }}>
           <button style={s.btnOutline} onClick={() => {
             gerarPdfPcmso(
-              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {}, secoes_imagens: medico?.secoes_imagens || {} },
+              { dados_gerais: { medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao }, programas: programa, ghes: ghesCadastro, telefones_emergencia: medico?.telefones_emergencia || [], textos_legais_custom: medico?.textos_legais_custom || {}, secoes_custom: medico?.secoes_custom || {}, secoes_imagens: medico?.secoes_imagens || {} },
               { ...(empresaCompleta || {}), razao_social: nomeEmpresa, cnpj: cnpjEmpresa, resp_nome: respLegalEmpresa }
             )
           }}>📄 Exportar PDF</button>
           <button style={s.btnOutline} onClick={() => router.push('/importar')}>↑ Importar PDF</button>
           <button style={s.btnPrimary} onClick={() => {
             setEditandoFunc(null)
-            setFormFunc({ funcao:'', setor:'', ghe_id:null, riscos:[], exames:[] })
+            setFormFunc({ funcao:'', setor:'', ghe_id:null, riscos:[], exames:[], descricao_atividades:'' })
             setAba('novo')
           }}>+ Novo manual</button>
         </div>
@@ -520,6 +536,31 @@ export default function PCMSO() {
               </div>
             </div>
 
+            {/* Telefones emergenciais */}
+            <div style={{ marginBottom:14 }}>
+              <label style={s.label}>Telefones emergenciais</label>
+              {(formMedico.telefones_emergencia||[]).length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:8 }}>
+                  {formMedico.telefones_emergencia.map((t,i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, padding:'5px 10px', background:'#f9fafb', borderRadius:6 }}>
+                      <span style={{ flex:1, fontWeight:500, color:'#111' }}>{t.nome}</span>
+                      <span style={{ color:'#374151' }}>{t.telefone}</span>
+                      <button onClick={() => removerTelefoneEmergencia(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16, lineHeight:1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display:'flex', gap:8 }}>
+                <input style={{ ...s.input, flex:2 }} placeholder="Ex: SAMU, Hospital Conveniado"
+                  value={novoTelefone.nome} onChange={e => setNovoTelefone({...novoTelefone, nome:e.target.value})}
+                  onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addTelefoneEmergencia())} />
+                <input style={{ ...s.input, flex:1 }} placeholder="Ex: 192"
+                  value={novoTelefone.telefone} onChange={e => setNovoTelefone({...novoTelefone, telefone:e.target.value})}
+                  onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addTelefoneEmergencia())} />
+                <button style={s.btnOutline} onClick={addTelefoneEmergencia}>+ Adicionar</button>
+              </div>
+            </div>
+
             <div style={{ display:'flex', gap:8 }}>
               <button style={s.btnPrimary} onClick={salvarMedico} disabled={salvandoMedico}>{salvandoMedico ? 'Salvando...' : 'Salvar'}</button>
               <button style={s.btnOutline} onClick={() => setEditandoMedico(false)}>Cancelar</button>
@@ -552,7 +593,7 @@ export default function PCMSO() {
               <div style={{ fontSize:12, color:'#9ca3af', marginBottom:16 }}>
                 Defina os exames obrigatórios por função/setor
               </div>
-              <button style={s.btnPrimary} onClick={() => { setFormFunc({funcao:'',setor:'',ghe_id:null,riscos:[],exames:[]}); setAba('novo') }}>
+              <button style={s.btnPrimary} onClick={() => { setFormFunc({funcao:'',setor:'',ghe_id:null,riscos:[],exames:[],descricao_atividades:''}); setAba('novo') }}>
                 + Criar primeiro programa
               </button>
             </div>
@@ -576,7 +617,7 @@ export default function PCMSO() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))) })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || '' })
                         setAba('novo')
                       }}>Editar</button>
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
@@ -765,6 +806,13 @@ export default function PCMSO() {
             {!ghesCadastro.length && (
               <div style={{ fontSize:12, color:'#9ca3af', marginTop:6 }}>Nenhum GHE cadastrado ainda. Cadastre em <strong>/ghes</strong> para vincular automaticamente.</div>
             )}
+          </div>
+
+          {/* Descrição das atividades */}
+          <div style={{ marginBottom:14 }}>
+            <label style={s.label}>Descrição das atividades</label>
+            <textarea style={{ ...s.input, minHeight:70, resize:'vertical' }} placeholder="Descreva as principais atividades exercidas nesta função/cargo..."
+              value={formFunc.descricao_atividades} onChange={e => setFormFunc({...formFunc, descricao_atividades:e.target.value})} />
           </div>
 
           {/* Riscos vinculados */}
