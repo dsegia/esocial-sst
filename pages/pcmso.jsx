@@ -361,6 +361,16 @@ export default function PCMSO() {
     setSucesso(`Riscos atualizados a partir do GHE "${ghe.nome}".`)
   }
 
+  // A descrição das atividades é digitada uma vez no PGR (por função dentro do
+  // GHE) e sincronizada pra cá — evita pedir a mesma informação de novo.
+  function atualizarAtividadesDoPgr() {
+    const ghe = ghesCadastro.find(g => g.id === formFunc.ghe_id)
+    const atividades = ghe?.atividades_por_funcao?.[formFunc.funcao]
+    if (!ghe || !atividades) { setErro('Nenhuma descrição de atividades encontrada no PGR para esta função.'); return }
+    setFormFunc(p => ({ ...p, descricao_atividades: atividades }))
+    setSucesso(`Descrição das atividades atualizada a partir do PGR ("${ghe.nome}").`)
+  }
+
   // Abrir formulário de novo programa para função
   function abrirNovoPrograma(func) {
     const gheSugerido = gheSugeridoParaFuncionario(func)
@@ -375,7 +385,7 @@ export default function PCMSO() {
       ghe_id: gheSugerido?.id || null,
       riscos: riscos.map(r => r.nome),
       exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true })),
-      descricao_atividades: progExistente?.descricao_atividades || ''
+      descricao_atividades: progExistente?.descricao_atividades || gheSugerido?.atividades_por_funcao?.[func.funcao] || ''
     })
     setAba('novo')
   }
@@ -617,7 +627,7 @@ export default function PCMSO() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || '' })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || ghesCadastro.find(g=>g.id===prog.ghe_id)?.atividades_por_funcao?.[prog.funcao] || '' })
                         setAba('novo')
                       }}>Editar</button>
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
@@ -810,8 +820,11 @@ export default function PCMSO() {
 
           {/* Descrição das atividades */}
           <div style={{ marginBottom:14 }}>
-            <label style={s.label}>Descrição das atividades</label>
-            <textarea style={{ ...s.input, minHeight:70, resize:'vertical' }} placeholder="Descreva as principais atividades exercidas nesta função/cargo..."
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <label style={s.label}>Descrição das atividades</label>
+              <button style={{ ...s.btnOutline, padding:'3px 10px', fontSize:11 }} onClick={atualizarAtividadesDoPgr} disabled={!formFunc.ghe_id}>↻ Usar do PGR</button>
+            </div>
+            <textarea style={{ ...s.input, minHeight:70, resize:'vertical' }} placeholder="Preenchido automaticamente a partir do PGR quando a função está vinculada a um GHE — edite se precisar de um texto específico para o PCMSO."
               value={formFunc.descricao_atividades} onChange={e => setFormFunc({...formFunc, descricao_atividades:e.target.value})} />
           </div>
 

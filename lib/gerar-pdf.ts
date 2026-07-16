@@ -931,17 +931,23 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   if (y > 240) { doc.addPage(); y = 20 }
 
   // Quadro-resumo de funções — GHE, funções/cargos vinculados e descrição das
-  // atividades, uma linha por função cadastrada no programa.
+  // atividades, uma linha por função cadastrada no programa. A descrição vem do
+  // PGR (cadastro central de GHEs, sincronizado a partir do inventário) — só usa
+  // o texto digitado manualmente no PCMSO se o usuário tiver sobrescrito por lá.
   const programas = dados?.programas || []
-  const gheNomePorId = new Map((dados?.ghes || []).map((g: any) => [g.id, g.nome]))
+  const ghePorId = new Map<string, any>((dados?.ghes || []).map((g: any) => [g.id, g]))
   if (programas.length > 0) {
     if (y > 240) { doc.addPage(); y = 20 }
     y = secaoHeader('QUADRO DE FUNÇÕES', y)
-    const linhasQuadro = programas.map((p: any) => [
-      (p.ghe_id && gheNomePorId.get(p.ghe_id)) || p.setor || '—',
-      (p.funcoes?.length ? p.funcoes.join(', ') : p.funcao) || '—',
-      p.descricao_atividades || '—'
-    ])
+    const linhasQuadro = programas.map((p: any) => {
+      const ghe = p.ghe_id ? ghePorId.get(p.ghe_id) : null
+      const atividadesDoPgr = ghe?.atividades_por_funcao?.[p.funcao]
+      return [
+        ghe?.nome || p.setor || '—',
+        (p.funcoes?.length ? p.funcoes.join(', ') : p.funcao) || '—',
+        p.descricao_atividades || atividadesDoPgr || '—'
+      ]
+    })
     y = tabela([['GHE', 'FUNÇÕES / CARGOS', 'DESCRIÇÃO DAS ATIVIDADES'], ...linhasQuadro], '', y)
     y += 4
   }

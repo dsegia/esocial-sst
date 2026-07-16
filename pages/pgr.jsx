@@ -127,7 +127,7 @@ function sincronizarInventarioComCadastro(inventarioAtual, ghesCadastro) {
 
     const nomesFuncoesAtuais = new Set((grupo.funcoes || []).map(f => f.nome))
     for (const fn of (ghe.funcoes || [])) {
-      if (!nomesFuncoesAtuais.has(fn)) grupo.funcoes = [...(grupo.funcoes || []), { nome: fn, atividades: '' }]
+      if (!nomesFuncoesAtuais.has(fn)) grupo.funcoes = [...(grupo.funcoes || []), { nome: fn, atividades: ghe.atividades_por_funcao?.[fn] || '' }]
     }
 
     for (const riscoCadastro of (ghe.riscos || [])) {
@@ -197,6 +197,12 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
   for (const grupo of novoInventario) {
     const riscosNovos = (grupo.riscos || []).filter(r => !r.risco_id)
     const funcoesNovas = [...new Set((grupo.funcoes || []).map(f => f.nome).filter(Boolean))]
+    // Descrição das atividades é digitada aqui no PGR — o cadastro central (e por
+    // tabela LTCAT/PCMSO, que leem de lá) precisa receber o texto atual, não só o
+    // nome da função, senão cada módulo pediria a mesma descrição de novo.
+    const atividadesMap = Object.fromEntries(
+      (grupo.funcoes || []).filter(f => f.nome && f.atividades?.trim()).map(f => [f.nome, f.atividades])
+    )
 
     if (!grupo.ghe_id) {
       if (!grupo.nome?.trim() && !riscosNovos.length) continue
@@ -207,6 +213,7 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
         setor: grupo.ambientes_relacionados || grupo.nome || '',
         qtd_trabalhadores: parseInt(grupo.numero_empregados) || 1,
         funcoes: funcoesNovas,
+        atividades_por_funcao: atividadesMap,
         riscos: riscosMapeados,
         epi: (grupo.epis || []).map(e => ({ nome: e.nome || '', ca: '', eficaz: e.eficaz !== false })),
         epc: [],
@@ -228,12 +235,15 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
 
     const nomesFuncoesCadastro = new Set(ghe.funcoes || [])
     const funcoesParaAdicionar = funcoesNovas.filter(f => !nomesFuncoesCadastro.has(f))
-    if (!riscosNovos.length && !funcoesParaAdicionar.length) continue
+    const atividadesAtuais = ghe.atividades_por_funcao || {}
+    const atividadesMudaram = Object.entries(atividadesMap).some(([nome, texto]) => atividadesAtuais[nome] !== texto)
+    if (!riscosNovos.length && !funcoesParaAdicionar.length && !atividadesMudaram) continue
 
     const riscosMapeados = riscosNovos.map(riscoParaCadastro)
     const patch = {
       riscos: [...(ghe.riscos || []), ...riscosMapeados],
       funcoes: [...(ghe.funcoes || []), ...funcoesParaAdicionar],
+      atividades_por_funcao: { ...atividadesAtuais, ...atividadesMap },
       atualizado_em: new Date().toISOString(),
     }
     const { data: atualizado, error } = await supabase.from('ghes').update(patch).eq('id', grupo.ghe_id).select().single()
@@ -245,6 +255,7 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
     })
     ghe.riscos = patch.riscos
     ghe.funcoes = patch.funcoes
+    ghe.atividades_por_funcao = patch.atividades_por_funcao
   }
 
   return novoInventario
