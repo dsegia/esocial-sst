@@ -594,13 +594,26 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     y = Math.max(yGfip, yPeric, yInsal, yAposent) + 4
 
     if (ghe.funcoes?.length) {
-      doc.setFontSize(9)
-      const linhasFunc = doc.splitTextToSize(ghe.funcoes.join(' • '), W - mg * 2 - 2)
-      const alturaFuncoes = 4 + linhasFunc.length * 4 + 3
-      if (y + alturaFuncoes > H - 15) { doc.addPage(); y = 20 }
+      if (y > H - 30) { doc.addPage(); y = 20 }
       doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
-      doc.setFontSize(9); doc.setTextColor(30)
-      doc.text(linhasFunc, mg, y); y += linhasFunc.length * 4 + 3
+      for (const fn of ghe.funcoes) {
+        const descricao = acharAtividadePorFuncao(ghe.atividades_por_funcao, fn)
+        doc.setFontSize(8.5)
+        const linhasNome = doc.splitTextToSize(fn, W - mg * 2 - 4)
+        doc.setFontSize(7.5)
+        const linhasDesc = descricao ? doc.splitTextToSize(descricao, W - mg * 2 - 6) : []
+        const alturaBloco = linhasNome.length * 3.8 + linhasDesc.length * 3.3 + 3
+        if (y + alturaBloco > H - 15) { doc.addPage(); y = 20 }
+        doc.setFontSize(8.5); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+        doc.text(linhasNome, mg, y); y += linhasNome.length * 3.8
+        if (linhasDesc.length) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(70)
+          doc.text(linhasDesc, mg + 2, y); y += linhasDesc.length * 3.3
+        }
+        doc.setFont('helvetica', 'normal')
+        y += 2
+      }
+      y += 1
     }
 
     if (ghe.agentes?.length) {

@@ -218,6 +218,7 @@ export default function LTCAT() {
       periculosidade: g.periculosidade, insalubridade: g.insalubridade,
       horario_funcionamento: g.horario_funcionamento || '',
       funcoes: g.funcoes || [],
+      atividades_por_funcao: g.atividades_por_funcao || {},
       agentes: (g.riscos || []).map(r => ({
         tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
         supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
