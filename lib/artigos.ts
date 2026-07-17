@@ -93,6 +93,31 @@ export const ARTIGOS: Artigo[] = [
       'O sistema permite importar o LTCAT em PDF. A IA identifica os agentes nocivos, os EPIs listados e os cargos afetados, preenchendo automaticamente o S-2240 para cada trabalhador naquele cargo. O histórico de alterações fica registrado, facilitando auditorias.',
     ],
   },
+  {
+    slug: 'nr-35-atualizacao-2026-portaria-1259',
+    titulo: 'NR-35 atualizada: o que muda com a Portaria MTE nº 1.259/2026',
+    resumo: 'A NR-35 (trabalho em altura) recebeu nova atualização em julho de 2026, complementando as mudanças de Anexo III e talabarte que já valem desde janeiro. Veja o que revisar na sua empresa.',
+    autor: 'Dseg Consultoria',
+    data: '2026-07-17',
+    tags: ['NR-35', 'Trabalho em Altura', 'Legislação', 'Atualização 2026'],
+    leituraMinutos: 6,
+    conteudo: [
+      'A NR-35 estabelece os requisitos e as medidas de prevenção para trabalho em altura — toda atividade executada acima de 2,0 metros do nível inferior, onde haja risco de queda. Em 2026 a norma passou por mais uma rodada de ajustes, e quem administra PGR, APR e treinamentos de segurança precisa acompanhar de perto.',
+      '## O que já valia desde janeiro de 2026',
+      'A Portaria MTE nº 1.680/2025, com vigência a partir de 2 de janeiro de 2026, trouxe as mudanças mais estruturais dos últimos anos para a NR-35:',
+      '**Anexo III — Escadas de uso individual**: reintroduzido com regras detalhadas de certificação, marcação e inspeção periódica das escadas fixas verticais de uso individual.',
+      '**Hierarquia de acesso**: a escada fixa vertical de uso individual só pode ser usada quando houver comprovada inviabilidade técnica de outros meios — rampas, escadas de uso coletivo ou outros acessos mais seguros devem ser avaliados primeiro na análise de risco.',
+      '**Talabarte com absorvedor de energia**: o item 35.6.9.1.1 passou a exigir expressamente que, quando o elemento de ligação para retenção de quedas for um talabarte, ele tenha absorvedor de energia integrado — talabartes simples não atendem mais à norma para essa finalidade.',
+      '**Zona Livre de Queda (ZLQ)**: formalizada como o espaço mínimo que deve existir abaixo do ponto de ancoragem (talabarte) ou abaixo dos pés do trabalhador (trava-quedas), para evitar impacto com estruturas, obstáculos ou o solo em caso de queda.',
+      'Além disso, a reciclagem do treinamento de NR-35 continua obrigatória a cada 2 anos, com carga horária mínima de 8 horas — inclusive para trabalhadores experientes.',
+      '## O que a Portaria MTE nº 1.259/2026 adiciona',
+      'Publicada em 15 de julho de 2026, a Portaria MTE nº 1.259/2026 inclui o item 35.4.5 na NR-35, revisa a redação do Anexo III sobre escadas de uso individual e altera trechos da própria Portaria nº 1.680/2025. Por ser uma norma recém-publicada, o ideal é que engenheiros de segurança e SESMTs confirmem o texto integral no Diário Oficial da União antes de alterar procedimentos internos — atualizações desse porte costumam vir acompanhadas de prazos de adequação específicos por dispositivo.',
+      '## O que revisar na empresa',
+      'Independentemente do detalhamento final da Portaria 1.259/2026, três frentes já merecem atenção: (1) conferir se os talabartes em uso têm absorvedor de energia integrado, (2) revisar a análise de risco de atividades que ainda dependem de escada fixa vertical para justificar a inviabilidade de outros acessos, e (3) checar se as escadas de uso individual atendem aos requisitos de certificação e marcação do Anexo III.',
+      '## Como isso se conecta ao PGR e à APR',
+      'As mudanças na NR-35 não são um documento isolado — elas alimentam o inventário de risco do PGR e as APRs de atividades específicas em altura. Na plataforma eSocial SST, os riscos cadastrados no PGR e os EPIs vinculados a cada função ficam centralizados numa única fonte de dados, o que facilita atualizar o inventário de risco assim que uma NR muda, sem precisar revisar documento por documento manualmente.',
+    ],
+  },
 ]
 
 export function getArtigo(slug: string): Artigo | undefined {
