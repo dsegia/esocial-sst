@@ -75,6 +75,28 @@ export default async function handler(req, res) {
       }
     }
 
+    // S-2210 exige os campos do XSD oficial (evtCAT) — bloqueia antes de gerar XML inválido
+    if (tipo === 'S-2210') {
+      const faltando = []
+      if (!/^\d{9}$/.test((dados.cod_sit_geradora || '').replace(/\D/g, ''))) faltando.push('situação geradora (Tabela 15)')
+      if (!/^\d{9}$/.test((dados.cod_parte_atingida || '').replace(/\D/g, ''))) faltando.push('parte do corpo atingida (Tabela 13)')
+      if (!/^\d{9}$/.test((dados.cod_agente_causador || '').replace(/\D/g, ''))) faltando.push('agente causador (Tabela 14)')
+      if (!/^\d{9}$/.test((dados.cod_lesao || '').replace(/\D/g, ''))) faltando.push('natureza da lesão (Tabela 17)')
+      if (!(dados.local_acidente?.dscLograd || '').trim()) faltando.push('logradouro do local do acidente')
+      if (!(dados.local_acidente?.nrLograd || '').trim()) faltando.push('número do logradouro do local do acidente (use S/N se não houver)')
+      if (!(dados.atendimento?.hora || dados.hora_acidente || '').trim()) faltando.push('hora do atendimento médico')
+      if (!(dados.atendimento?.medico || '').trim()) faltando.push('nome do médico/dentista emitente')
+      if (!digitos(dados.atendimento?.crm)) faltando.push('número de inscrição no conselho de classe (CRM/CRO/RMS)')
+      if (dados.tipo_cat !== 'doenca' && !(dados.hora_acidente || '').trim()) faltando.push('hora do acidente')
+      if (dados.tipo_cat !== 'doenca' && !(dados.hrs_trab_antes_acid || '').trim()) faltando.push('horas trabalhadas antes do acidente')
+      if (!dados.ult_dia_trab) faltando.push('último dia trabalhado')
+      if (dados.houve_morte && !dados.dt_obito) faltando.push('data do óbito')
+      if ((dados.natureza_cat === 'reabertura' || dados.natureza_cat === 'obito') && !/^1\.\d\.\d{19}$/.test((dados.nr_rec_cat_origem || '').trim())) faltando.push('número do recibo da CAT anterior (formato 1.N.19 dígitos, ex: 1.2.1234567890123456789)')
+      if (faltando.length) {
+        return res.status(400).json({ erro: `Faltam campos obrigatórios do eSocial na CAT: ${faltando.join(', ')}. Edite o registro em /s2210 antes de transmitir.` })
+      }
+    }
+
     // S-2220 exige ao menos 1 exame — bloqueia antes de gerar XML inválido
     if (tipo === 'S-2220') {
       const exames = dados.exames || dados.aso?.exames || []
@@ -105,6 +127,9 @@ function escapeXml(s) {
 }
 function cnpj(v) { return (v || '').replace(/\D/g, '') }
 function cpf(v)  { return (v || '').replace(/\D/g, '') }
+function digitos(v) { return (v || '').replace(/\D/g, '') }
+function hhmm(v) { return (v || '').replace(/:/g, '') }
+function simNao(v) { return v ? 'S' : 'N' }
 function data(br) {
   if (!br) return ''
   if (br.includes('-')) return br.substring(0, 10)
@@ -444,17 +469,29 @@ function gerarS2240(ltcat, empresa, tpAmb, funcionario = {}) {
 }
 
 // ─── S-2210: CAT ─────────────────────────────────────
+// Estrutura conferida direto contra o XSD oficial evtCAT v_S_01_03_00
+// (github.com/nfephp-org/sped-esocial/schemes/v_S_01_03_00/evtCAT.xsd) em
+// 17/07/2026 — ordem dos elementos e obrigatoriedade seguem exatamente o
+// schema, não o Manual de Orientação (que às vezes descreve de forma solta).
+const CAT_NATUREZA = { inicial: '1', reabertura: '2', obito: '3' }
+const CAT_TP_ACID = { tipico: '1', doenca: '2', trajeto: '3' }
+const CAT_INICIATIVA = { empregador: '1', ordem_judicial: '2', orgao_fiscalizador: '3' }
+const CAT_LATERALIDADE = { na: '0', esquerda: '1', direita: '2', ambos: '3' }
+const CAT_CONSELHO = { crm: '1', cro: '2', rms: '3' }
+
 function gerarS2210(cat, empresa, tpAmb, funcionario = {}) {
   const cnpjEmp = cnpj(empresa.cnpj)
   const idEvt = id(cnpjEmp)
-  // Suporte a estrutura flat (row do DB) e aninhada (legado)
   const func = cat.funcionario || funcionario || {}
-  const TIPO_CAT = { tipico: '1', doenca: '2', trajeto: '3' }
   const atend = cat.atendimento || {}
-  // diagProvavel deve ser texto descritivo, não o código CID
-  const descDiag = cat.descricao || cat.natureza_lesao || cat.cid || ''
-  // dtObito deve ser a data real do óbito (se informada) ou a data do acidente
-  const dtObito = cat.dt_obito ? data(cat.dt_obito) : data(cat.dt_acidente)
+  const local = cat.local_acidente || {}
+  const tpAcid = CAT_TP_ACID[cat.tipo_cat] || '1'
+  const tpCat = CAT_NATUREZA[cat.natureza_cat] || '1'
+  const obito = !!cat.houve_morte
+  const afastado = simNao(!!cat.ind_afastamento)
+  // codCID exige 3-4 caracteres alfanuméricos — sem ponto (S60.0 -> S600)
+  const cidCod = (cat.cid || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  const reaberturaOuObito = cat.natureza_cat === 'reabertura' || cat.natureza_cat === 'obito'
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <eSocial xmlns="http://www.esocial.gov.br/schema/evt/evtCAT/v_S_01_03_00"
@@ -476,20 +513,57 @@ function gerarS2210(cat, empresa, tpAmb, funcionario = {}) {
     </ideVinculo>
     <cat>
       <dtAcid>${data(cat.dt_acidente)}</dtAcid>
-      ${cat.hora_acidente ? `<hrAcid>${cat.hora_acidente}</hrAcid>` : ''}
-      <tpAcid>${TIPO_CAT[cat.tipo_cat] || '1'}</tpAcid>
-      <dscLesao>${escapeXml(cat.natureza_lesao)}</dscLesao>
-      <dscCompLesao>${escapeXml(cat.descricao)}</dscCompLesao>
-      <diagProvavel>${escapeXml(descDiag)}</diagProvavel>
-      <codCID>${escapeXml(cat.cid)}</codCID>
-      ${cat.houve_morte ? `<infoObito><dtObito>${dtObito}</dtObito></infoObito>` : ''}
-      <atendimento>
+      <tpAcid>${tpAcid}</tpAcid>
+      ${cat.tipo_cat !== 'doenca' && cat.hora_acidente ? `<hrAcid>${hhmm(cat.hora_acidente)}</hrAcid>` : ''}
+      ${cat.tipo_cat !== 'doenca' && cat.hrs_trab_antes_acid ? `<hrsTrabAntesAcid>${hhmm(cat.hrs_trab_antes_acid)}</hrsTrabAntesAcid>` : ''}
+      <tpCat>${tpCat}</tpCat>
+      <indCatObito>${simNao(obito)}</indCatObito>
+      ${obito && cat.dt_obito ? `<dtObito>${data(cat.dt_obito)}</dtObito>` : ''}
+      <indComunPolicia>${simNao(!!cat.ind_comun_policia)}</indComunPolicia>
+      <codSitGeradora>${digitos(cat.cod_sit_geradora)}</codSitGeradora>
+      <iniciatCAT>${CAT_INICIATIVA[cat.iniciat_cat] || '1'}</iniciatCAT>
+      ${cat.ult_dia_trab ? `<ultDiaTrab>${data(cat.ult_dia_trab)}</ultDiaTrab>` : ''}
+      <houveAfast>${afastado}</houveAfast>
+      <localAcidente>
+        <tpLocal>${local.tpLocal || '1'}</tpLocal>
+        ${local.dscLocal ? `<dscLocal>${escapeXml(local.dscLocal)}</dscLocal>` : ''}
+        ${local.tpLograd ? `<tpLograd>${escapeXml(local.tpLograd)}</tpLograd>` : ''}
+        <dscLograd>${escapeXml(local.dscLograd)}</dscLograd>
+        <nrLograd>${escapeXml(local.nrLograd || 'SN')}</nrLograd>
+        ${local.complemento ? `<complemento>${escapeXml(local.complemento)}</complemento>` : ''}
+        ${local.bairro ? `<bairro>${escapeXml(local.bairro)}</bairro>` : ''}
+        ${local.cep ? `<cep>${digitos(local.cep)}</cep>` : ''}
+        ${local.codMunic ? `<codMunic>${digitos(local.codMunic)}</codMunic>` : ''}
+        ${local.uf ? `<uf>${escapeXml(local.uf)}</uf>` : ''}
+        ${local.pais ? `<pais>${escapeXml(local.pais)}</pais>` : ''}
+        ${local.codPostal ? `<codPostal>${escapeXml(local.codPostal)}</codPostal>` : ''}
+      </localAcidente>
+      <parteAtingida>
+        <codParteAting>${digitos(cat.cod_parte_atingida)}</codParteAting>
+        <lateralidade>${CAT_LATERALIDADE[cat.lateralidade] || '0'}</lateralidade>
+      </parteAtingida>
+      <agenteCausador>
+        <codAgntCausador>${digitos(cat.cod_agente_causador)}</codAgntCausador>
+      </agenteCausador>
+      <atestado>
         <dtAtendimento>${data(atend.data) || data(cat.dt_acidente)}</dtAtendimento>
-        ${atend.hora ? `<hrAtendimento>${atend.hora}</hrAtendimento>` : ''}
-        <nmMedico>${escapeXml(atend.medico)}</nmMedico>
-        <nrCRM>${(atend.crm || '').replace(/\D/g,'')}</nrCRM>
-        <ufCRM>${extrairUfCrm(atend.crm)}</ufCRM>
-      </atendimento>
+        <hrAtendimento>${hhmm(atend.hora || cat.hora_acidente)}</hrAtendimento>
+        <indInternacao>${simNao(!!cat.ind_internacao)}</indInternacao>
+        <durTrat>${cat.dias_afastamento || 0}</durTrat>
+        <indAfast>${obito ? 'N' : afastado}</indAfast>
+        <dscLesao>${digitos(cat.cod_lesao)}</dscLesao>
+        ${cat.descricao ? `<dscCompLesao>${escapeXml(cat.descricao)}</dscCompLesao>` : ''}
+        <codCID>${cidCod}</codCID>
+        <emitente>
+          <nmEmit>${escapeXml(atend.medico)}</nmEmit>
+          <ideOC>${CAT_CONSELHO[cat.conselho_medico] || '1'}</ideOC>
+          <nrOC>${digitos(atend.crm)}</nrOC>
+          ${cat.conselho_medico !== 'rms' ? `<ufOC>${extrairUfCrm(atend.crm)}</ufOC>` : ''}
+        </emitente>
+      </atestado>
+      ${reaberturaOuObito && cat.nr_rec_cat_origem ? `<catOrigem>
+        <nrRecCatOrig>${escapeXml((cat.nr_rec_cat_origem || '').trim())}</nrRecCatOrig>
+      </catOrigem>` : ''}
     </cat>
   </evtCAT>
 </eSocial>`

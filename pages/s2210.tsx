@@ -4,6 +4,17 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
+import {
+  ESOCIAL_TABELA13_PARTE_CORPO,
+  ESOCIAL_TABELA14_AGENTE_CAUSADOR,
+  ESOCIAL_TABELA15_SITUACAO_GERADORA,
+  ESOCIAL_TABELA17_NATUREZA_LESAO,
+  TP_CAT,
+  INICIAT_CAT,
+  TP_LOCAL_ACIDENTE,
+  LATERALIDADE,
+  IDE_OC,
+} from '../lib/esocial-tabela-cat'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +28,48 @@ const TIPOS_CAT = [
 ]
 
 const TIPO_LBL = { tipico: 'Acidente típico', trajeto: 'Acidente de trajeto', doenca: 'Doença ocupacional' }
+const NATUREZA_LBL = { inicial: 'Inicial', reabertura: 'Reabertura', obito: 'Comunicação de óbito' }
+
+const FORM_INICIAL = {
+  funcionario_id: '',
+  natureza_cat: 'inicial',
+  nr_rec_cat_origem: '',
+  dt_acidente: '',
+  hora_acidente: '',
+  hrs_trab_antes_acid: '',
+  cid: '',
+  cod_lesao: '',
+  descricao: '',
+  cod_parte_atingida: '',
+  lateralidade: 'na',
+  cod_agente_causador: '',
+  cod_sit_geradora: '',
+  houve_morte: false,
+  dt_obito: '',
+  ind_comun_policia: false,
+  iniciat_cat: 'empregador',
+  ult_dia_trab: '',
+  ind_afastamento: false,
+  dias_afastamento: '',
+  ind_internacao: false,
+  local_tpLocal: '1',
+  local_dscLocal: '',
+  local_dscLograd: '',
+  local_nrLograd: '',
+  local_complemento: '',
+  local_bairro: '',
+  local_cep: '',
+  local_codMunic: '',
+  local_uf: '',
+  local_pais: '',
+  local_codPostal: '',
+  med_unidade: '',
+  med_data: '',
+  med_hora: '',
+  med_medico: '',
+  med_crm: '',
+  conselho_medico: 'crm',
+}
 
 export default function S2210() {
   const router = useRouter()
@@ -30,23 +83,7 @@ export default function S2210() {
   const [tipoCat, setTipoCat] = useState('')
   const [cats, setCats] = useState<any[]>([])
   const [abaAtiva, setAbaAtiva] = useState<'lista'|'novo'>('lista')
-  const [form, setForm] = useState({
-    funcionario_id: '',
-    dt_acidente: '',
-    hora_acidente: '',
-    cid: '',
-    natureza_lesao: '',
-    parte_corpo: '',
-    agente_causador: '',
-    descricao: '',
-    houve_morte: false,
-    dias_afastamento: '',
-    med_unidade: '',
-    med_data: '',
-    med_hora: '',
-    med_medico: '',
-    med_crm: '',
-  })
+  const [form, setForm] = useState({ ...FORM_INICIAL })
 
   useEffect(() => { init() }, [])
 
@@ -66,7 +103,7 @@ export default function S2210() {
   async function carregarCats(eId: string) {
     const { data } = await supabase
       .from('cats')
-      .select('id, tipo_cat, dt_acidente, cid, natureza_lesao, houve_morte, criado_em, funcionarios(nome, matricula_esocial), transmissoes(status, recibo)')
+      .select('id, tipo_cat, natureza_cat, dt_acidente, cid, houve_morte, criado_em, funcionarios(nome, matricula_esocial), transmissoes(status, recibo)')
       .eq('empresa_id', eId)
       .order('dt_acidente', { ascending: false })
       .limit(50)
@@ -78,26 +115,69 @@ export default function S2210() {
     setFuncSel(funcionarios.find(x => x.id === id) || null)
   }
 
+  function upd(campo: string, valor: any) {
+    setForm(f => ({ ...f, [campo]: valor }))
+  }
+
   async function salvar(e: FormEvent) {
     e.preventDefault(); setErro(''); setSucesso(''); setSalvando(true)
     if (!tipoCat) { setErro('Selecione o tipo de CAT.'); setSalvando(false); return }
     if (!form.funcionario_id) { setErro('Selecione o funcionário.'); setSalvando(false); return }
     if (!form.dt_acidente) { setErro('Informe a data do acidente.'); setSalvando(false); return }
     if (!form.cid) { setErro('Informe o CID-10.'); setSalvando(false); return }
+    if (!/^\d{9}$/.test(form.cod_sit_geradora)) { setErro('Selecione a situação geradora (código de 9 dígitos, Tabela 15).'); setSalvando(false); return }
+    if (!/^\d{9}$/.test(form.cod_parte_atingida)) { setErro('Selecione a parte do corpo atingida (código de 9 dígitos, Tabela 13).'); setSalvando(false); return }
+    if (!/^\d{9}$/.test(form.cod_agente_causador)) { setErro('Selecione o agente causador (código de 9 dígitos, Tabela 14).'); setSalvando(false); return }
+    if (!/^\d{9}$/.test(form.cod_lesao)) { setErro('Selecione a natureza da lesão (código de 9 dígitos, Tabela 17).'); setSalvando(false); return }
+    if (!form.local_dscLograd.trim()) { setErro('Informe o logradouro do local do acidente.'); setSalvando(false); return }
+    if (!form.local_nrLograd.trim()) { setErro('Informe o número do logradouro (use S/N se não houver).'); setSalvando(false); return }
+    if (!form.med_hora) { setErro('Informe a hora do atendimento médico.'); setSalvando(false); return }
+    if (!form.med_medico.trim()) { setErro('Informe o nome do médico/dentista.'); setSalvando(false); return }
+    if (!form.med_crm.trim()) { setErro('Informe o número de inscrição no conselho de classe.'); setSalvando(false); return }
+    if (tipoCat !== 'doenca' && !form.hora_acidente) { setErro('Informe a hora do acidente (obrigatória para acidente típico/trajeto).'); setSalvando(false); return }
+    if (tipoCat !== 'doenca' && !form.hrs_trab_antes_acid) { setErro('Informe as horas trabalhadas antes do acidente (obrigatório para acidente típico/trajeto).'); setSalvando(false); return }
+    if (!form.ult_dia_trab) { setErro('Informe o último dia trabalhado.'); setSalvando(false); return }
+    if (form.houve_morte && !form.dt_obito) { setErro('Informe a data do óbito.'); setSalvando(false); return }
+    if (form.natureza_cat !== 'inicial' && !/^1\.\d\.\d{19}$/.test(form.nr_rec_cat_origem.trim())) { setErro('Número do recibo da CAT anterior inválido. Formato: 1.N.19 dígitos (ex: 1.2.1234567890123456789).'); setSalvando(false); return }
 
     const { data: cat, error: catErr } = await supabase.from('cats').insert({
       funcionario_id: form.funcionario_id,
       empresa_id: empresaId,
       tipo_cat: tipoCat,
+      natureza_cat: form.natureza_cat,
+      nr_rec_cat_origem: form.nr_rec_cat_origem || null,
       dt_acidente: form.dt_acidente,
       hora_acidente: form.hora_acidente || null,
+      hrs_trab_antes_acid: form.hrs_trab_antes_acid || null,
       cid: form.cid,
-      natureza_lesao: form.natureza_lesao,
-      parte_corpo: form.parte_corpo,
-      agente_causador: form.agente_causador,
+      cod_lesao: form.cod_lesao,
       descricao: form.descricao,
+      cod_parte_atingida: form.cod_parte_atingida,
+      lateralidade: form.lateralidade,
+      cod_agente_causador: form.cod_agente_causador,
+      cod_sit_geradora: form.cod_sit_geradora,
       houve_morte: form.houve_morte,
+      dt_obito: form.dt_obito || null,
+      ind_comun_policia: form.ind_comun_policia,
+      iniciat_cat: form.iniciat_cat,
+      ult_dia_trab: form.ult_dia_trab || null,
+      ind_afastamento: form.ind_afastamento,
       dias_afastamento: form.dias_afastamento ? parseInt(form.dias_afastamento) : null,
+      ind_internacao: form.ind_internacao,
+      local_acidente: {
+        tpLocal: form.local_tpLocal,
+        dscLocal: form.local_dscLocal,
+        dscLograd: form.local_dscLograd,
+        nrLograd: form.local_nrLograd,
+        complemento: form.local_complemento,
+        bairro: form.local_bairro,
+        cep: form.local_cep,
+        codMunic: form.local_codMunic,
+        uf: form.local_uf,
+        pais: form.local_pais,
+        codPostal: form.local_codPostal,
+      },
+      conselho_medico: form.conselho_medico,
       atendimento: { unidade: form.med_unidade, data: form.med_data, hora: form.med_hora, medico: form.med_medico, crm: form.med_crm },
       testemunhas: [],
     }).select().single()
@@ -116,7 +196,7 @@ export default function S2210() {
     })
 
     setSucesso('CAT salva! Transmissão S-2210 criada como pendente.')
-    setForm({ funcionario_id:'', dt_acidente:'', hora_acidente:'', cid:'', natureza_lesao:'', parte_corpo:'', agente_causador:'', descricao:'', houve_morte:false, dias_afastamento:'', med_unidade:'', med_data:'', med_hora:'', med_medico:'', med_crm:'' })
+    setForm({ ...FORM_INICIAL })
     setFuncSel(null); setTipoCat('')
     setSalvando(false)
     setAbaAtiva('lista')
@@ -126,6 +206,7 @@ export default function S2210() {
   const inp: CSSProperties = { width:'100%', padding:'8px 10px', fontSize:13, border:'1px solid #d1d5db', borderRadius:8, background:'#fff', color:'#111', boxSizing:'border-box', fontFamily:'inherit' }
   const lbl: CSSProperties = { display:'block', fontSize:12, fontWeight:500, color:'#374151', marginBottom:4 }
   const card: CSSProperties = { background:'#fff', border:'0.5px solid #e5e7eb', borderRadius:12, padding:'1.25rem', marginBottom:'1rem' }
+  const hint: CSSProperties = { fontSize:11, color:'#9ca3af', marginTop:3 }
 
   if (carregando) return <div style={{ display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', fontFamily:'sans-serif', fontSize:14, color:'#6b7280' }}>Carregando...</div>
 
@@ -177,7 +258,7 @@ export default function S2210() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
               <thead>
                 <tr style={{ background:'#f9fafb' }}>
-                  {['Funcionário','Tipo','Data acidente','CID','Óbito','Status','Ações'].map(h => (
+                  {['Funcionário','Tipo','Natureza','Data acidente','CID','Óbito','Status','Ações'].map(h => (
                     <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:11, fontWeight:600, color:'#6b7280', borderBottom:'0.5px solid #e5e7eb', textTransform:'uppercase', letterSpacing:'.04em', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -196,6 +277,9 @@ export default function S2210() {
                         <span style={{ padding:'2px 8px', borderRadius:99, fontSize:11, fontWeight:600, background:'#FCEBEB', color:'#791F1F' }}>
                           {TIPO_LBL[c.tipo_cat as keyof typeof TIPO_LBL] || c.tipo_cat}
                         </span>
+                      </td>
+                      <td style={{ padding:'10px 12px', fontSize:12, color:'#374151' }}>
+                        {NATUREZA_LBL[c.natureza_cat as keyof typeof NATUREZA_LBL] || 'Inicial'}
                       </td>
                       <td style={{ padding:'10px 12px', fontSize:12, color:'#374151' }}>
                         {c.dt_acidente ? new Date(c.dt_acidente+'T12:00:00').toLocaleDateString('pt-BR') : '—'}
@@ -232,7 +316,7 @@ export default function S2210() {
 
         <div style={card}>
           <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:14 }}>Tipo de CAT</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
             {TIPOS_CAT.map(t => (
               <div key={t.v} onClick={() => setTipoCat(t.v)}
                 style={{ padding:14, border: tipoCat===t.v ? '2px solid #E24B4A' : '1px solid #e5e7eb', borderRadius:10, cursor:'pointer', background: tipoCat===t.v ? '#FCEBEB' : '#fff', transition:'all .15s' }}>
@@ -240,6 +324,24 @@ export default function S2210() {
                 <div style={{ fontSize:11, color:'#6b7280', marginTop:4, lineHeight:1.4 }}>{t.desc}</div>
               </div>
             ))}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns: form.natureza_cat === 'inicial' ? '1fr 1fr' : '1fr 1fr 1fr', gap:10 }}>
+            <div><label style={lbl}>Natureza da CAT *</label>
+              <select style={inp} value={form.natureza_cat} onChange={e=>upd('natureza_cat', e.target.value)}>
+                {TP_CAT.map(o => <option key={o.v} value={o.v === '1' ? 'inicial' : o.v === '2' ? 'reabertura' : 'obito'}>{o.l}</option>)}
+              </select>
+            </div>
+            <div><label style={lbl}>Iniciativa da CAT *</label>
+              <select style={inp} value={form.iniciat_cat} onChange={e=>upd('iniciat_cat', e.target.value)}>
+                {INICIAT_CAT.map(o => <option key={o.v} value={o.v==='1'?'empregador':o.v==='2'?'ordem_judicial':'orgao_fiscalizador'}>{o.l}</option>)}
+              </select>
+            </div>
+            {form.natureza_cat !== 'inicial' && (
+              <div><label style={lbl}>Nº do recibo da CAT anterior *</label>
+                <input style={inp} value={form.nr_rec_cat_origem} onChange={e=>upd('nr_rec_cat_origem', e.target.value)} placeholder="1.2.1234567890123456789" />
+                <div style={hint}>Formato: 1.N.19 dígitos, como consta no recibo de entrega da CAT anterior</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -270,44 +372,71 @@ export default function S2210() {
             <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:14 }}>
               Dados do {TIPOS_CAT.find(t=>t.v===tipoCat)?.l}
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-              <div><label style={lbl}>Data do acidente *</label><input type="date" style={inp} value={form.dt_acidente} onChange={e=>setForm({...form,dt_acidente:e.target.value})} required /></div>
-              <div><label style={lbl}>Hora do acidente</label><input type="time" style={inp} value={form.hora_acidente} onChange={e=>setForm({...form,hora_acidente:e.target.value})} /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Data do acidente *</label><input type="date" style={inp} value={form.dt_acidente} onChange={e=>upd('dt_acidente', e.target.value)} required /></div>
+              {tipoCat !== 'doenca' && (
+                <div><label style={lbl}>Hora do acidente *</label><input type="time" style={inp} value={form.hora_acidente} onChange={e=>upd('hora_acidente', e.target.value)} /></div>
+              )}
+              {tipoCat !== 'doenca' && (
+                <div><label style={lbl}>Horas trabalhadas antes do acidente *</label><input type="time" style={inp} value={form.hrs_trab_antes_acid} onChange={e=>upd('hrs_trab_antes_acid', e.target.value)} /></div>
+              )}
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-              <div><label style={lbl}>CID-10 *</label><input style={inp} placeholder="Ex: S60.0" value={form.cid} onChange={e=>setForm({...form,cid:e.target.value})} required /></div>
-              <div><label style={lbl}>Natureza da lesão</label>
-                <select style={inp} value={form.natureza_lesao} onChange={e=>setForm({...form,natureza_lesao:e.target.value})}>
-                  <option value="">Selecione...</option>
-                  {['Corte / laceração','Contusão / esmagamento','Fratura','Queimadura','Luxação / entorse','Amputação','Intoxicação aguda','Outro'].map(o=><option key={o}>{o}</option>)}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>CID-10 *</label><input style={inp} placeholder="Ex: S60.0" value={form.cid} onChange={e=>upd('cid', e.target.value)} required /></div>
+              <div><label style={lbl}>Natureza da lesão * (Tabela 17)</label>
+                <input style={inp} list="tabela17-lesao" value={form.cod_lesao} onChange={e=>upd('cod_lesao', e.target.value)} placeholder="Código de 9 dígitos" />
+                <div style={hint}>{ESOCIAL_TABELA17_NATUREZA_LESAO.find(t=>t.codigo===form.cod_lesao)?.nome || 'Digite ou selecione o código'}</div>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Parte do corpo atingida * (Tabela 13)</label>
+                <input style={inp} list="tabela13-parte" value={form.cod_parte_atingida} onChange={e=>upd('cod_parte_atingida', e.target.value)} placeholder="Código de 9 dígitos" />
+                <div style={hint}>{ESOCIAL_TABELA13_PARTE_CORPO.find(t=>t.codigo===form.cod_parte_atingida)?.nome || 'Digite ou selecione o código'}</div>
+              </div>
+              <div><label style={lbl}>Lateralidade *</label>
+                <select style={inp} value={form.lateralidade} onChange={e=>upd('lateralidade', e.target.value)}>
+                  <option value="na">Não aplicável</option>
+                  <option value="esquerda">Esquerda</option>
+                  <option value="direita">Direita</option>
+                  <option value="ambos">Ambas</option>
                 </select>
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-              <div><label style={lbl}>Parte do corpo atingida</label>
-                <select style={inp} value={form.parte_corpo} onChange={e=>setForm({...form,parte_corpo:e.target.value})}>
-                  <option value="">Selecione...</option>
-                  {['Cabeça','Olho(s)','Pescoço','Tronco','Ombro','Braço','Antebraço','Mão / dedos','Coluna vertebral','Quadril','Perna','Pé / dedos do pé','Múltiplas partes'].map(o=><option key={o}>{o}</option>)}
-                </select>
+              <div><label style={lbl}>Agente causador * (Tabela 14)</label>
+                <input style={inp} list="tabela14-agente" value={form.cod_agente_causador} onChange={e=>upd('cod_agente_causador', e.target.value)} placeholder="Código de 9 dígitos" />
+                <div style={hint}>{ESOCIAL_TABELA14_AGENTE_CAUSADOR.find(t=>t.codigo===form.cod_agente_causador)?.nome || 'Digite ou selecione o código'}</div>
               </div>
-              <div><label style={lbl}>Agente causador</label>
-                <select style={inp} value={form.agente_causador} onChange={e=>setForm({...form,agente_causador:e.target.value})}>
-                  <option value="">Selecione...</option>
-                  {['Máquinas e equipamentos','Ferramentas manuais','Veículo','Queda de nível','Queda de objeto','Agente químico','Esforço físico','Eletricidade','Outro'].map(o=><option key={o}>{o}</option>)}
-                </select>
+              <div><label style={lbl}>Situação geradora * (Tabela 15)</label>
+                <input style={inp} list="tabela15-situacao" value={form.cod_sit_geradora} onChange={e=>upd('cod_sit_geradora', e.target.value)} placeholder="Código de 9 dígitos" />
+                <div style={hint}>{ESOCIAL_TABELA15_SITUACAO_GERADORA.find(t=>t.codigo===form.cod_sit_geradora)?.nome || 'Digite ou selecione o código'}</div>
               </div>
             </div>
             <div style={{ marginBottom:10 }}>
-              <label style={lbl}>Descrição detalhada do acidente</label>
-              <textarea style={{...inp, minHeight:80, resize:'vertical', lineHeight:1.5}} placeholder="Descreva como ocorreu o acidente..." value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})} />
+              <label style={lbl}>Descrição complementar da lesão</label>
+              <textarea style={{...inp, minHeight:80, resize:'vertical', lineHeight:1.5}} placeholder="Descreva como ocorreu o acidente..." value={form.descricao} onChange={e=>upd('descricao', e.target.value)} />
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:16, alignItems:'center' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16, alignItems:'center', marginBottom:10 }}>
               <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#374151', cursor:'pointer' }}>
-                <input type="checkbox" checked={form.houve_morte} onChange={e=>setForm({...form,houve_morte:e.target.checked})} />
+                <input type="checkbox" checked={form.houve_morte} onChange={e=>upd('houve_morte', e.target.checked)} />
                 Houve óbito
               </label>
-              <div><label style={lbl}>Dias de afastamento estimados</label>
-                <input type="number" style={{...inp, maxWidth:160}} min="0" placeholder="0" value={form.dias_afastamento} onChange={e=>setForm({...form,dias_afastamento:e.target.value})} />
+              <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#374151', cursor:'pointer' }}>
+                <input type="checkbox" checked={form.ind_comun_policia} onChange={e=>upd('ind_comun_policia', e.target.checked)} />
+                Comunicado à polícia
+              </label>
+              <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#374151', cursor:'pointer' }}>
+                <input type="checkbox" checked={form.ind_afastamento} onChange={e=>upd('ind_afastamento', e.target.checked)} />
+                Houve afastamento
+              </label>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+              {form.houve_morte && (
+                <div><label style={lbl}>Data do óbito *</label><input type="date" style={inp} value={form.dt_obito} onChange={e=>upd('dt_obito', e.target.value)} /></div>
+              )}
+              <div><label style={lbl}>Último dia trabalhado *</label><input type="date" style={inp} value={form.ult_dia_trab} onChange={e=>upd('ult_dia_trab', e.target.value)} /></div>
+              <div><label style={lbl}>Dias de afastamento / tratamento</label>
+                <input type="number" style={inp} min="0" placeholder="0" value={form.dias_afastamento} onChange={e=>upd('dias_afastamento', e.target.value)} />
               </div>
             </div>
           </div>
@@ -315,16 +444,62 @@ export default function S2210() {
 
         {tipoCat && (
           <div style={card}>
-            <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:14 }}>Atendimento médico</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:14 }}>Local do acidente</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Tipo de local *</label>
+                <select style={inp} value={form.local_tpLocal} onChange={e=>upd('local_tpLocal', e.target.value)}>
+                  {TP_LOCAL_ACIDENTE.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>Especificação do local</label>
+                <input style={inp} placeholder="Ex: pátio, rampa de acesso, posto de trabalho..." value={form.local_dscLocal} onChange={e=>upd('local_dscLocal', e.target.value)} />
+              </div>
+            </div>
+            {/* Logradouro/número são exigidos pelo XSD independente do tpLocal (mesmo no exterior) */}
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Logradouro *</label><input style={inp} value={form.local_dscLograd} onChange={e=>upd('local_dscLograd', e.target.value)} placeholder="Rua, avenida..." /></div>
+              <div><label style={lbl}>Número *</label><input style={inp} value={form.local_nrLograd} onChange={e=>upd('local_nrLograd', e.target.value)} placeholder="S/N se não houver" /></div>
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-              <div><label style={lbl}>Unidade de atendimento</label><input style={inp} placeholder="UPA, Hospital..." value={form.med_unidade} onChange={e=>setForm({...form,med_unidade:e.target.value})} /></div>
-              <div><label style={lbl}>Data do atendimento</label><input type="date" style={inp} value={form.med_data} onChange={e=>setForm({...form,med_data:e.target.value})} /></div>
+              <div><label style={lbl}>Complemento</label><input style={inp} value={form.local_complemento} onChange={e=>upd('local_complemento', e.target.value)} /></div>
+              <div><label style={lbl}>Bairro</label><input style={inp} value={form.local_bairro} onChange={e=>upd('local_bairro', e.target.value)} /></div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-              <div><label style={lbl}>Hora</label><input type="time" style={inp} value={form.med_hora} onChange={e=>setForm({...form,med_hora:e.target.value})} /></div>
-              <div><label style={lbl}>Médico assistente</label><input style={inp} placeholder="Nome" value={form.med_medico} onChange={e=>setForm({...form,med_medico:e.target.value})} /></div>
-              <div><label style={lbl}>CRM</label><input style={inp} placeholder="CRM 12345-SP" value={form.med_crm} onChange={e=>setForm({...form,med_crm:e.target.value})} /></div>
+            {form.local_tpLocal === '2' ? (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div><label style={lbl}>País (código Tabela 06) *</label><input style={inp} value={form.local_pais} onChange={e=>upd('local_pais', e.target.value)} placeholder="Ex: 249 (EUA)" /></div>
+                <div><label style={lbl}>Código postal *</label><input style={inp} value={form.local_codPostal} onChange={e=>upd('local_codPostal', e.target.value)} /></div>
+              </div>
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+                <div><label style={lbl}>CEP</label><input style={inp} value={form.local_cep} onChange={e=>upd('local_cep', e.target.value)} placeholder="00000-000" /></div>
+                <div><label style={lbl}>Município (código IBGE)</label><input style={inp} value={form.local_codMunic} onChange={e=>upd('local_codMunic', e.target.value)} placeholder="7 dígitos" /></div>
+                <div><label style={lbl}>UF</label><input style={inp} maxLength={2} value={form.local_uf} onChange={e=>upd('local_uf', e.target.value.toUpperCase())} placeholder="SP" /></div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tipoCat && (
+          <div style={card}>
+            <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:14 }}>Atendimento médico</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Unidade de atendimento</label><input style={inp} placeholder="UPA, Hospital..." value={form.med_unidade} onChange={e=>upd('med_unidade', e.target.value)} /></div>
+              <div><label style={lbl}>Data do atendimento</label><input type="date" style={inp} value={form.med_data} onChange={e=>upd('med_data', e.target.value)} /></div>
+              <div><label style={lbl}>Hora do atendimento *</label><input type="time" style={inp} value={form.med_hora} onChange={e=>upd('med_hora', e.target.value)} /></div>
             </div>
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={lbl}>Médico/dentista assistente *</label><input style={inp} placeholder="Nome" value={form.med_medico} onChange={e=>upd('med_medico', e.target.value)} /></div>
+              <div><label style={lbl}>Conselho de classe *</label>
+                <select style={inp} value={form.conselho_medico} onChange={e=>upd('conselho_medico', e.target.value)}>
+                  {IDE_OC.map(o => <option key={o.v} value={o.v==='1'?'crm':o.v==='2'?'cro':'rms'}>{o.l}</option>)}
+                </select>
+              </div>
+              <div><label style={lbl}>Nº de inscrição *</label><input style={inp} placeholder="Ex: 12345-SP" value={form.med_crm} onChange={e=>upd('med_crm', e.target.value)} /></div>
+            </div>
+            <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#374151', cursor:'pointer' }}>
+              <input type="checkbox" checked={form.ind_internacao} onChange={e=>upd('ind_internacao', e.target.checked)} />
+              Houve internação
+            </label>
           </div>
         )}
 
@@ -336,6 +511,19 @@ export default function S2210() {
             Cancelar
           </button>
         </div>
+
+        <datalist id="tabela13-parte">
+          {ESOCIAL_TABELA13_PARTE_CORPO.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
+        </datalist>
+        <datalist id="tabela14-agente">
+          {ESOCIAL_TABELA14_AGENTE_CAUSADOR.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
+        </datalist>
+        <datalist id="tabela15-situacao">
+          {ESOCIAL_TABELA15_SITUACAO_GERADORA.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
+        </datalist>
+        <datalist id="tabela17-lesao">
+          {ESOCIAL_TABELA17_NATUREZA_LESAO.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
+        </datalist>
       </form>
       )}
     </Layout>
