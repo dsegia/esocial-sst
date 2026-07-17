@@ -216,6 +216,7 @@ export default function LTCAT() {
       id: g.id, nome: g.nome, setor: g.setor, qtd_trabalhadores: g.qtd_trabalhadores,
       aposentadoria_especial: g.aposentadoria_especial,
       periculosidade: g.periculosidade, insalubridade: g.insalubridade,
+      horario_funcionamento: g.horario_funcionamento || '',
       funcoes: g.funcoes || [],
       agentes: (g.riscos || []).map(r => ({
         tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
@@ -332,8 +333,8 @@ export default function LTCAT() {
             {!modoEdicao && ltcatSel && (
               <>
                 <div style={s.card}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                    <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
+                    <div style={{ minWidth:260 }}>
                       <div style={{ fontSize:15, fontWeight:700, color:'#111', marginBottom:8 }}>
                         LTCAT — {fmtData(ltcatSel.data_emissao)}
                       </div>
@@ -354,7 +355,7 @@ export default function LTCAT() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end', flexShrink:0 }}>
                       <button style={{ ...s.btnPrimary, padding:'6px 14px', fontSize:12 }} onClick={() => abrirEdicao(ltcatSel)}>
                         ✏ Editar LTCAT
                       </button>

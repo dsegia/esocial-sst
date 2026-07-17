@@ -295,6 +295,17 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   const paginas: any = { capa: 1 }
   const tipoMap: Record<string, string> = { fis: 'Físico', qui: 'Químico', bio: 'Biológico', erg: 'Ergonômico' }
   const categoriaMap: Record<string, string> = { quimico: 'Químico', fisico: 'Físico', biologico: 'Biológico', associacao: 'Associação' }
+  // Índice construído incrementalmente conforme cada seção é desenhada — cada
+  // entrada já nasce com o número (contínuo do início ao fim do documento,
+  // igual ao cabeçalho realmente impresso no corpo) e a página certa.
+  let numSecao = 1
+  const itensIndiceLtcat: Array<[string, number]> = []
+  function abrirSecaoNumerada(titulo: string, yPos: number): number {
+    const novoY = secao(`${numSecao}. ${titulo}`, yPos)
+    itensIndiceLtcat.push([`${numSecao}. ${titulo}`, (doc as any).internal.getNumberOfPages()])
+    numSecao++
+    return novoY
+  }
 
   function hexRgb(hex: string): [number, number, number] {
     const h = (hex || '#999999').replace('#', '')
@@ -307,17 +318,34 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   function secao(texto: string, yPos: number): number {
     doc.setFillColor(24, 95, 165)
     doc.rect(mg, yPos, W - mg * 2, 6, 'F')
-    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    // Títulos numerados podem ser longos — reduz a fonte e, em último caso,
+    // trunca com reticências em vez de deixar o texto vazar da barra.
+    let tamanho = 9
+    doc.setFontSize(tamanho)
+    const larguraDisponivel = W - mg * 2 - 6
+    let textoAjustado = texto
+    while (doc.getTextWidth(textoAjustado) > larguraDisponivel && tamanho > 6.5) {
+      tamanho -= 0.5
+      doc.setFontSize(tamanho)
+    }
+    if (doc.getTextWidth(textoAjustado) > larguraDisponivel) {
+      while (textoAjustado.length > 4 && doc.getTextWidth(textoAjustado + '...') > larguraDisponivel) {
+        textoAjustado = textoAjustado.slice(0, -1)
+      }
+      textoAjustado += '...'
+    }
+    doc.text(textoAjustado, mg + 3, yPos + 4.2)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 10
   }
   function subSecao(texto: string, yPos: number): number {
     if (yPos > H - 22) { doc.addPage(); yPos = 20 }
     doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg, yPos)
+    const linhasSub = doc.splitTextToSize(texto, W - mg * 2)
+    doc.text(linhasSub, mg, yPos)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
-    return yPos + 6
+    return yPos + linhasSub.length * 5 + 1
   }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
     if (yPos > H - 20) { doc.addPage(); yPos = 20 }
@@ -458,7 +486,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   // ── PÁGINA 3: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
   doc.addPage()
   y = 20
-  y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
+  y = abrirSecaoNumerada('IDENTIFICAÇÃO DA EMPRESA', y)
   const yw = (W - mg * 2)
   y = linhaDupla('Razão Social', empresa?.razao_social, 'Nome Fantasia', empresa?.nome_fantasia || '—', y, yw) + 3
   y = linhaDupla('CNPJ', empresa?.cnpj, 'Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco != null ? empresa.grau_risco : '—'}`, y, yw) + 3
@@ -475,15 +503,13 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 3
   }
 
-  paginas.contracapa = 3
-
-  // ── Textos legais (Lei 8.213/91, Decreto 3.048/99, NR-15) ─
+  // ── Textos legais (Lei 8.213/91, Decreto 3.048/99, NR-15) — cada um vira uma
+  // entrada numerada própria no índice, continuando a mesma numeração.
   doc.addPage(); y = 20
-  paginas.introducao = (doc as any).internal.getNumberOfPages()
   const textosCustomLtcat = dados?.textos_legais_custom || {}
   for (const secaoTexto of TEXTOS_LEGAIS_LTCAT) {
     if (y > 250) { doc.addPage(); y = 20 }
-    y = secao(secaoTexto.titulo, y)
+    y = abrirSecaoNumerada(secaoTexto.titulo, y)
     const paragrafos = textosCustomLtcat[secaoTexto.titulo] || secaoTexto.paragrafos
     for (const p of paragrafos) y = paragrafo(p, y)
     y += 2
@@ -491,8 +517,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 
   // ── QUADRO-RESUMO — ENQUADRAMENTO POR GHE ────────────
   doc.addPage(); y = 20
-  paginas.resumo = (doc as any).internal.getNumberOfPages()
-  y = secao(`QUADRO-RESUMO — ENQUADRAMENTO POR GHE (${ghes.length})`, y)
+  y = abrirSecaoNumerada(`QUADRO-RESUMO — ENQUADRAMENTO POR GHE (${ghes.length})`, y)
   if (ghes.length) {
     y = tabela(
       [
@@ -539,8 +564,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   }
 
   doc.addPage(); y = 20
-  paginas.ghes = (doc as any).internal.getNumberOfPages()
-  y = secao('DESCRIÇÃO DOS SETORES E CARGOS, RECONHECIMENTO DOS RISCOS AMBIENTAIS E CONCLUSÕES', y)
+  y = abrirSecaoNumerada('DESCRIÇÃO DOS SETORES E CARGOS, RECONHECIMENTO DOS RISCOS AMBIENTAIS E CONCLUSÕES', y)
   y = paragrafo('Para cada Grupo Homogêneo de Exposição (GHE) identificado, este laudo apresenta os setores e cargos vinculados, os agentes nocivos reconhecidos com sua respectiva metodologia de avaliação, os equipamentos de proteção adotados e a conclusão técnica quanto à periculosidade, à insalubridade e à aposentadoria especial.', y, 8.5)
   y += 2
 
@@ -671,8 +695,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 
   // ── ANEXO — RELAÇÃO DE AGENTES NOCIVOS DO ANEXO IV DO DECRETO 3.048/99 ─
   doc.addPage(); y = 20
-  paginas.anexoIV = (doc as any).internal.getNumberOfPages()
-  y = secao('ANEXO — AGENTES NOCIVOS (DECRETO Nº 3.048/99, ANEXO IV)', y)
+  y = abrirSecaoNumerada('ANEXO — AGENTES NOCIVOS (DECRETO Nº 3.048/99, ANEXO IV)', y)
   y = paragrafo('Relação de referência dos agentes nocivos químicos, físicos e biológicos considerados para fins de concessão de aposentadoria especial, com o respectivo tempo mínimo de exposição habitual e permanente. As atividades exemplificativas são meramente ilustrativas, salvo para agentes biológicos, cuja relação é taxativa (art. 68, § 1º, do Decreto nº 3.048/99).', y, 8)
   y += 2
   y = tabela(
@@ -695,7 +718,8 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
 
   // ── Assinaturas ───────────────────────────────────────
   if (y > 250) { doc.addPage(); y = 20 }
-  paginas.assinaturas = (doc as any).internal.getNumberOfPages()
+  itensIndiceLtcat.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
+  numSecao++
   y += 6; linha(y); y += 10
   y = desenharAssinaturas(doc, y, mg, W,
     {
@@ -713,26 +737,18 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
   )
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  // itensIndiceLtcat já foi construído incrementalmente (abrirSecaoNumerada),
+  // com o número de cada seção contínuo do início ao fim do documento e a
+  // página certa (capturada no momento em que o cabeçalho foi desenhado).
   doc.setPage(paginas.indice)
   let yIndice = 20
   yIndice = secao('ÍNDICE', yIndice)
   yIndice += 4
-  const itensIndice: Array<[string, number | undefined]> = [
-    ['Identificação da Empresa e Responsáveis pelo LTCAT', paginas.contracapa],
-    ['Introdução, Objetivos e Base Legal', paginas.introducao],
-    ['Quadro-Resumo — Enquadramento por GHE', paginas.resumo],
-    ['Descrição dos Setores e Cargos — Reconhecimento dos Riscos e Conclusões', paginas.ghes],
-    ['Anexo — Agentes Nocivos (Decreto 3.048/99, Anexo IV)', paginas.anexoIV],
-    ['Assinaturas', paginas.assinaturas],
-  ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
-  let numItemIndice = 1
-  for (const [tituloItem, paginaItem] of itensIndice) {
-    if (paginaItem == null) continue
-    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+  for (const [tituloItem, paginaItem] of itensIndiceLtcat) {
+    doc.text(tituloItem, mg, yIndice)
     doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
     yIndice += 6
-    numItemIndice++
   }
   yIndice += 6; linha(yIndice); yIndice += 6
   doc.setFontSize(8); doc.setTextColor(100)

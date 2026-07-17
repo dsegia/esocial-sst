@@ -34,7 +34,7 @@ export const METODOLOGIAS_RISCO: Record<'fis' | 'qui' | 'bio' | 'erg', Metodolog
 
 export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
   {
-    titulo: '1. INTRODUÇÃO',
+    titulo: 'INTRODUÇÃO',
     paragrafos: [
       'O Laudo Técnico das Condições Ambientais do Trabalho – LTCAT é o documento técnico que descreve as condições ambientais de trabalho existentes no estabelecimento, com a finalidade de identificar e caracterizar a exposição do trabalhador a agentes nocivos à saúde, servindo de base para a emissão do Perfil Profissiográfico Previdenciário – PPP e para fins de reconhecimento do direito à aposentadoria especial perante o Instituto Nacional do Seguro Social – INSS.',
       'A obrigatoriedade do LTCAT decorre do art. 58 da Lei nº 8.213, de 24 de julho de 1991 (Lei de Benefícios da Previdência Social), com a redação dada pela Lei nº 9.528, de 10 de dezembro de 1997, regulamentado pelo art. 68 do Decreto nº 3.048, de 6 de maio de 1999 (Regulamento da Previdência Social), que estabelece que a comprovação da efetiva exposição do segurado aos agentes nocivos será feita mediante formulário emitido pela empresa ou seu preposto, com base em laudo técnico de condições ambientais do trabalho expedido por médico do trabalho ou engenheiro de segurança do trabalho.',
@@ -43,7 +43,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '2. CONDIÇÕES PRELIMINARES DO LEVANTAMENTO AMBIENTAL',
+    titulo: 'CONDIÇÕES PRELIMINARES DO LEVANTAMENTO AMBIENTAL',
     paragrafos: [
       'O levantamento dos dados ambientais que fundamenta este laudo foi realizado em todos os setores, ambientes e atividades desenvolvidos pela empresa, considerando: (i) a efetiva exposição dos trabalhadores a agentes nocivos químicos, físicos, biológicos ou à associação desses agentes, capazes de causar dano à saúde ou à integridade física; e (ii) as condições especiais que prejudicam a saúde ou a integridade física, conforme definido no Anexo IV do Decreto nº 3.048/99, quando a exposição ocorre em concentração, intensidade ou tempo que ultrapasse os limites de tolerância ou que, dependendo do agente, torne a simples possibilidade de exposição uma condição especial prejudicial à saúde, nos termos do § 4º do art. 68 do mesmo Decreto.',
       'Para efeito deste levantamento, adota-se o conceito de nocividade como a situação, combinada ou não, de substâncias, energias e demais fatores de risco reconhecidos, presentes no ambiente de trabalho, capazes de causar dano à saúde ou à integridade física do trabalhador; e o conceito de permanência como a exposição ao agente nocivo que ocorre de forma habitual, não ocasional nem intermitente, sendo indissociável da produção do bem ou da prestação do serviço.',
@@ -52,7 +52,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '3. OBJETIVOS',
+    titulo: 'OBJETIVOS',
     paragrafos: [
       'O LTCAT tem por finalidade cumprir as exigências da legislação previdenciária — art. 58 da Lei nº 8.213, de 1991, na redação dada pela Lei nº 9.528, de 10 de dezembro de 1997 —, dar sustentabilidade técnica às condições ambientais de trabalho existentes na empresa e subsidiar o enquadramento das atividades quanto ao recolhimento das alíquotas suplementares do Seguro de Acidentes do Trabalho (SAT/RAT), instituídas pela Lei nº 9.732, de 11 de dezembro de 1998.',
       'Nos termos do art. 58 da Lei nº 8.213/1991: "§ 1º A comprovação da efetiva exposição do segurado aos agentes nocivos será feita mediante formulário, na forma estabelecida pelo Instituto Nacional do Seguro Social – INSS, emitido pela empresa ou seu preposto, com base em laudo técnico de condições ambientais do trabalho expedido por médico do trabalho ou engenheiro de segurança do trabalho nos termos da legislação trabalhista. § 2º Do laudo técnico referido no parágrafo anterior deverão constar informação sobre a existência de tecnologia de proteção coletiva ou individual que diminua a intensidade do agente agressivo a limites de tolerância e recomendação sobre a sua adoção pelo estabelecimento respectivo."',
@@ -63,7 +63,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '4. RESPONSABILIDADE TÉCNICA',
+    titulo: 'RESPONSABILIDADE TÉCNICA',
     paragrafos: [
       'O LTCAT deve ser expedido por médico do trabalho ou por engenheiro de segurança do trabalho, nos termos do art. 58 da Lei nº 8.213/1991 e do art. 68 do Decreto nº 3.048/99. Trata-se de exigência legal de habilitação profissional específica: o técnico de segurança do trabalho, ainda que possua registro no Conselho Regional de Engenharia e Agronomia – CREA, não está legalmente habilitado a assinar o laudo como responsável técnico.',
       'Quando o LTCAT é elaborado por engenheiro de segurança do trabalho, é exigível a Anotação de Responsabilidade Técnica – ART junto ao CREA, por se tratar de serviço de engenharia. Quando elaborado por médico do trabalho, a responsabilidade técnica é regida pelo Conselho Regional de Medicina – CRM, não se exigindo ART.',
@@ -71,7 +71,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '5. BASE LEGAL E NORMATIVA',
+    titulo: 'BASE LEGAL E NORMATIVA',
     paragrafos: [
       'A exigência de laudo técnico para fins de caracterização de condições especiais de trabalho remonta à Lei nº 5.431, de 3 de maio de 1968, que introduziu o § 5º no art. 209 da CLT, e foi posteriormente disciplinada pelo art. 195 da CLT, na redação dada pela Lei nº 6.514, de 22 de dezembro de 1977, segundo o qual a caracterização e a classificação da insalubridade e da periculosidade far-se-ão através de perícia a cargo de médico do trabalho ou engenheiro do trabalho, registrados no Ministério do Trabalho.',
       'Este laudo foi elaborado com fundamento nas seguintes normas: Lei nº 8.213, de 24 de julho de 1991, art. 58, com a redação dada pela Lei nº 9.528, de 10 de dezembro de 1997; Decreto nº 3.048, de 6 de maio de 1999 (Regulamento da Previdência Social), arts. 57 a 68, com as alterações promovidas pelo Decreto nº 4.032, de 26 de novembro de 2001, pelo Decreto nº 8.123, de 16 de outubro de 2013, e pelo Decreto nº 10.410, de 30 de junho de 2020, este último quanto ao Anexo IV; Norma Regulamentadora nº 15 (NR-15) — Atividades e Operações Insalubres, e seus Anexos; Norma Regulamentadora nº 9 (NR-9) — Avaliação e Controle das Exposições Ocupacionais a Agentes Físicos, Químicos e Biológicos, em vigor desde 3 de janeiro de 2022, integrada à lógica do Gerenciamento de Riscos Ocupacionais – GRO da NR-1; e a Instrução Normativa PRES/INSS nº 128, de 28 de março de 2022, que disciplina os procedimentos relativos à aposentadoria especial, ao LTCAT e ao PPP, com as alterações promovidas pelas Instruções Normativas nº 141, nº 155/2023 e nº 170/2024.',
@@ -79,7 +79,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '6. METODOLOGIA DE AVALIAÇÃO',
+    titulo: 'METODOLOGIA DE AVALIAÇÃO',
     paragrafos: [
       'A avaliação dos agentes ambientais foi realizada por meio de avaliação qualitativa e, quando aplicável, avaliação quantitativa. A avaliação qualitativa consiste na descrição técnica das circunstâncias de exposição ocupacional a um agente ou associação de agentes nocivos presentes no ambiente de trabalho, das fontes geradoras, dos meios de contato ou absorção e da frequência e duração do contato, nos termos do art. 68, § 2º, do Decreto nº 3.048/99. A avaliação quantitativa consiste na mensuração da intensidade ou concentração do agente nocivo, por meio de instrumentos calibrados, comparando-se o resultado aos limites de tolerância estabelecidos na NR-15.',
       'Para a avaliação quantitativa, foram adotadas, no que couber, as Normas de Higiene Ocupacional da Fundacentro como referência metodológica: NHO-01 (Avaliação da Exposição Ocupacional ao Ruído), NHO-06 (Avaliação da Exposição Ocupacional ao Calor), NHO-08 (Coleta de Material Particulado Sólido Suspenso no Ar, aplicável a poeiras minerais, inclusive sílica), NHO-03 (análise gravimétrica de aerodispersóides sólidos), NHO-04 (coleta e análise de fibras, aplicável a asbesto/amianto), NHO-05 (Avaliação da Exposição Ocupacional aos Raios X), NHO-09 e NHO-10 (vibração de corpo inteiro e de mãos e braços) e NHO-11 (Avaliação dos Níveis de Iluminamento em Ambientes Internos de Trabalho), conforme o agente identificado.',
@@ -88,7 +88,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '7. AGENTES NOCIVOS AVALIADOS',
+    titulo: 'AGENTES NOCIVOS AVALIADOS',
     paragrafos: [
       'Foram avaliados os agentes nocivos previstos na NR-15 e no Anexo IV do Decreto nº 3.048/99, classificados em: agentes físicos — ruído contínuo ou intermitente e ruído de impacto, calor, radiações ionizantes, condições hiperbáricas, vibração, frio e umidade; agentes químicos — poeiras, fumos, névoas, neblinas, gases ou vapores capazes de penetrar no organismo pela via respiratória, cutânea ou por ingestão, incluindo benzeno, asbestos, sílica livre, chumbo e demais substâncias listadas no Anexo IV; e agentes biológicos — microrganismos como vírus, bactérias, fungos e parasitas, em atividades ou operações em contato permanente com pacientes, material infectocontagiante ou animais.',
       'Nos termos do art. 68, § 1º, do Decreto nº 3.048/99, na redação dada pelo Decreto nº 8.123/2013, as atividades exemplificativas listadas no Anexo IV são meramente exemplificativas — salvo para agentes biológicos, em que a lista é taxativa —, de modo que a análise da nocividade e da permanência deve considerar as condições reais de exposição verificadas no ambiente de trabalho, e não apenas a nomenclatura do cargo ou da atividade.',
@@ -96,7 +96,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '8. CARACTERIZAÇÃO DA EXPOSIÇÃO OCUPACIONAL',
+    titulo: 'CARACTERIZAÇÃO DA EXPOSIÇÃO OCUPACIONAL',
     paragrafos: [
       'Para fins de reconhecimento de tempo de trabalho especial, a exposição a agentes nocivos deve ser caracterizada como habitual e permanente, não ocasional nem intermitente, nos termos do art. 65 do Decreto nº 3.048/99. Considera-se permanente a exposição que é indissociável da produção do bem ou da prestação do serviço — não se exigindo, porém, que o contato com o agente nocivo se dê durante toda a jornada de trabalho.',
       'A exposição classificada como intermitente ou eventual não é, em regra, apta a fundamentar o reconhecimento de atividade especial para fins previdenciários, ainda que deva ser registrada no inventário de riscos para fins de gestão de segurança e saúde no trabalho, nos termos da NR-1 e da NR-9.',
@@ -104,7 +104,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '9. LIMITES DE TOLERÂNCIA — RUÍDO E CALOR (NHO E NR-15)',
+    titulo: 'LIMITES DE TOLERÂNCIA — RUÍDO E CALOR (NHO E NR-15)',
     paragrafos: [
       'Os limites de tolerância dos agentes físicos, químicos e biológicos avaliados neste laudo têm por base as Normas de Higiene Ocupacional – NHO da Fundacentro e os respectivos Anexos da NR-15, sendo facultada a utilização da metodologia NHO desde a publicação do Decreto nº 4.882, de 18 de novembro de 2003.',
       'Ruído contínuo ou intermitente (Anexo 1 da NR-15 e NHO-01): a Legislação Previdenciária determina o uso da metodologia da NHO-01 da Fundacentro para caracterizar o direito à aposentadoria especial, sendo o Nível de Exposição Normalizado (NEN) apurado com índice de dobra q=3, específico para fins previdenciários. Os limites de tolerância a serem considerados, contudo, permanecem os da tabela do Anexo 1 da NR-15, reconhecendo-se o limite de tolerância somente a partir de 85 dB(A) para jornada de 8 horas. O ruído de impacto, avaliado em decibel Linear ou C, não é considerado para fins de aposentadoria especial, tendo relevância apenas na esfera trabalhista (insalubridade).',
@@ -113,7 +113,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '10. ENQUADRAMENTO PARA FINS DE APOSENTADORIA ESPECIAL',
+    titulo: 'ENQUADRAMENTO PARA FINS DE APOSENTADORIA ESPECIAL',
     paragrafos: [
       'A relação dos agentes nocivos considerados para fins de concessão de aposentadoria especial é a constante do Anexo IV do Decreto nº 3.048/99, na redação dada pelo Decreto nº 10.410/2020, reproduzida de forma sintética no Anexo deste laudo. Os prazos de carência especial variam, conforme o agente e a atividade, entre 15, 20 e 25 anos de exposição habitual e permanente.',
       'Os agentes nocivos não arrolados no Anexo IV do Decreto nº 3.048/99 não são considerados para fins de concessão da aposentadoria especial, ainda que devam permanecer geridos no âmbito do PGR/NR-1 para fins de saúde e segurança do trabalho.',
@@ -121,7 +121,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '11. CÓDIGOS GFIP/SEFIP/DCTFWEB E ESOCIAL — TABELA 24 E ALÍQUOTAS SUPLEMENTARES (SAT/RAT)',
+    titulo: 'CÓDIGOS GFIP/SEFIP/DCTFWEB E ESOCIAL — TABELA 24 E ALÍQUOTAS SUPLEMENTARES (SAT/RAT)',
     paragrafos: [
       'Para classificação da ocorrência de exposição a agentes nocivos, é utilizada a tabela de classificação de Agentes Nocivos do Anexo IV do Regulamento da Previdência Social (Decreto nº 3.048/99). Historicamente, para trabalhadores com um único vínculo empregatício, a GFIP adotava os códigos: 00 (nunca houve exposição a agente nocivo), 01 (houve exposição, posteriormente neutralizada), 02, 03 e 04 (exposição ensejadora de aposentadoria especial aos 15, 20 e 25 anos, respectivamente), aos quais correspondiam as alíquotas suplementares do SAT/RAT de 12%, 9% e 6% sobre a remuneração dos trabalhadores expostos, instituídas pela Lei nº 9.732, de 11 de dezembro de 1998. Para trabalhadores com mais de um vínculo empregatício, a GFIP adotava os códigos 05 a 08, com a mesma lógica de enquadramento.',
       'No ambiente do eSocial, a Tabela 24 (Código de Agentes Nocivos, Ergonômicos e de Risco) relaciona cada agente do Anexo IV do Decreto nº 3.048/99 ao respectivo código informado no evento S-2240, sendo os códigos genéricos de enquadramento: 01 (não ensejador de aposentadoria especial), 02 (ensejador de aposentadoria especial aos 15 anos — alíquota suplementar de 12%), 03 (ensejador de aposentadoria especial aos 20 anos — alíquota suplementar de 9%) e 04 (ensejador de aposentadoria especial aos 25 anos — alíquota suplementar de 6%).',
@@ -130,7 +130,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '12. RELAÇÃO DO LTCAT COM O PPP E O ESOCIAL (S-2240)',
+    titulo: 'RELAÇÃO DO LTCAT COM O PPP E O ESOCIAL (S-2240)',
     paragrafos: [
       'O LTCAT tem papel central no preenchimento das informações do PPP e dos eventos de Saúde e Segurança do Trabalho do eSocial. As informações deste laudo alimentam diretamente o evento periódico S-2240 (Condições Ambientais do Trabalho — Agentes Nocivos), que registra, para cada trabalhador, o código do agente nocivo (Tabela 24), a técnica de avaliação utilizada, a intensidade ou concentração, os EPC e EPI utilizados e sua eficácia.',
       'Para atividades exercidas até 31 de dezembro de 2022, o PPP pode ser emitido no modelo físico, conforme a Instrução Normativa INSS nº 141/2022. Para atividades exercidas a partir de 1º de janeiro de 2023, o PPP deve ser emitido eletronicamente pelo aplicativo Meu INSS, com base exclusivamente nos eventos de SST do eSocial já transmitidos — não sendo mais possível o preenchimento manual do formulário físico para este período.',
@@ -138,7 +138,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '13. EQUIPAMENTOS DE PROTEÇÃO E A DESCARACTERIZAÇÃO DA EXPOSIÇÃO A AGENTES NOCIVOS',
+    titulo: 'EQUIPAMENTOS DE PROTEÇÃO E A DESCARACTERIZAÇÃO DA EXPOSIÇÃO A AGENTES NOCIVOS',
     paragrafos: [
       'Como regra geral, a adoção de Equipamento de Proteção Individual – EPI comprovadamente eficaz, que efetivamente neutralize a nocividade do agente ao qual o trabalhador está exposto, pode descaracterizar a exposição para fins de aposentadoria especial, nos termos da tese fixada pelo Supremo Tribunal Federal no julgamento do Tema 555 de Repercussão Geral (RE nº 664.335/SC): o direito à aposentadoria especial pressupõe a efetiva exposição do trabalhador a agente nocivo à sua saúde, de modo que, se o EPI for realmente capaz de neutralizar a nocividade, não haverá respaldo constitucional à aposentadoria especial.',
       'Há, contudo, uma exceção jurisprudencial relevante quanto ao agente físico ruído: segundo a segunda tese fixada no mesmo Tema 555, a declaração do empregador, no âmbito do PPP, de que o EPI é eficaz não descaracteriza o tempo de serviço especial para aposentadoria quando o agente é o ruído acima dos limites de tolerância. O fundamento é a ausência de comprovação científica e jurídica de EPI capaz de neutralizar integralmente os efeitos nocivos do ruído sobre a audição, ainda que reduza a intensidade percebida.',
@@ -146,7 +146,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '14. RECOMENDAÇÕES TÉCNICAS GERAIS',
+    titulo: 'RECOMENDAÇÕES TÉCNICAS GERAIS',
     paragrafos: [
       'Priorizar a eliminação dos riscos na fonte. Não sendo possível eliminá-los, neutralizá-los ou minimizá-los primeiramente por meio de Equipamentos de Proteção Coletiva – EPC e, apenas em segundo plano, por meio de Equipamentos de Proteção Individual – EPI apropriados ao fator de risco identificado, observando a ordem de prioridade das medidas de prevenção estabelecida pela NR-1.',
       'Realizar treinamentos de capacitação específicos para cada atividade, em razão dos riscos a que os trabalhadores estão expostos, além dos cursos de capacitação exigidos pelas Normas Regulamentadoras aplicáveis (NR-6, NR-9, NR-15, entre outras conforme o caso).',
@@ -157,7 +157,7 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '15. VALIDADE, REVISÃO E DISPONIBILIZAÇÃO DO LAUDO',
+    titulo: 'VALIDADE, REVISÃO E DISPONIBILIZAÇÃO DO LAUDO',
     paragrafos: [
       'A legislação previdenciária não fixa prazo de validade determinado para o LTCAT. Contudo, a empresa tem o dever legal de mantê-lo atualizado, devendo revisá-lo sempre que houver mudança nos processos, ambientes, tecnologias ou organização do trabalho capaz de alterar a natureza, a intensidade ou a caracterização da exposição a agentes nocivos.',
       'Recomenda-se, como boa prática técnica, a revisão periódica deste laudo em prazo não superior a 2 (dois) anos, em alinhamento com o ciclo de revisão do inventário de riscos previsto na NR-1 para o PGR.',
@@ -165,14 +165,14 @@ export const TEXTOS_LEGAIS_LTCAT: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '16. CONCLUSÃO',
+    titulo: 'CONCLUSÃO',
     paragrafos: [
       'Este Laudo Técnico das Condições Ambientais do Trabalho foi elaborado com fundamento no art. 58 da Lei nº 8.213/1991, no art. 68 do Decreto nº 3.048/99 e na NR-15, com o objetivo de identificar, descrever e avaliar tecnicamente os agentes nocivos presentes nos ambientes de trabalho da empresa, subsidiando a correta emissão do PPP e a informação do evento S-2240 do eSocial.',
       'As conclusões técnicas por Grupo Homogêneo de Exposição — incluindo o enquadramento, ou não, para fins de aposentadoria especial e o respectivo código da Tabela 24 do eSocial — constam de seção específica deste documento, refletindo as condições de trabalho verificadas na data das avaliações realizadas. Este laudo deve ser revisado sempre que ocorrerem alterações relevantes nos processos, ambientes ou medidas de proteção.',
     ],
   },
   {
-    titulo: '17. REFERÊNCIAS BIBLIOGRÁFICAS',
+    titulo: 'REFERÊNCIAS BIBLIOGRÁFICAS',
     paragrafos: [
       'BRASIL. Consolidação das Leis do Trabalho, arts. 189 a 197. Disponível em: planalto.gov.br/ccivil_03/leis/l6514.htm.',
       'BRASIL. Lei nº 8.213, de 24 de julho de 1991 — Lei de Benefícios da Previdência Social, art. 58, com a redação dada pela Lei nº 9.528, de 10 de dezembro de 1997. Disponível em: planalto.gov.br.',
