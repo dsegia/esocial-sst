@@ -1,14 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const EVT_COR: Record<string, string[]> = { 'S-2210':['#FCEBEB','#791F1F'], 'S-2220':['#E6F1FB','#0C447C'], 'S-2240':['#FAEEDA','#633806'] }
 const ST_COR: Record<string, string[]>  = { enviado:['#EAF3DE','#27500A'], pendente:['#FAEEDA','#633806'], rejeitado:['#FCEBEB','#791F1F'], cancelado:['#f3f4f6','#6b7280'] }

@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { calcularSesmt } from '../lib/nr4-sesmt'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export default function Sesmt() {
   const router = useRouter()

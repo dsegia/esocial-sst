@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaId, setEmpresaId } from '../lib/empresa'
 import { formatarCNPJ } from '../lib/format'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 type Empresa = {
   id: string

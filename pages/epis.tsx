@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { gerarPdfFichaEpi } from '../lib/gerar-pdf'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const formVazio = () => ({
   funcionario_id: '', epi_nome: '', ca: '', data_entrega: new Date().toISOString().split('T')[0],

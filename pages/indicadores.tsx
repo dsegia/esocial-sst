@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 function hojeMenosDias(dias: number) {
   const d = new Date(); d.setDate(d.getDate() - dias)

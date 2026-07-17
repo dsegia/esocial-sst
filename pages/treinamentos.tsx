@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { NR_TREINAMENTOS, NORMAS_DISPONIVEIS, sugestoesPorNorma, calcularVencimento } from '../lib/nr-treinamentos'
 import { gerarPdfTreinamento } from '../lib/gerar-pdf'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const formVazio = () => ({
   funcionario_id: '', norma: NORMAS_DISPONIVEIS[0], nome: '', carga_horaria: '' as any,

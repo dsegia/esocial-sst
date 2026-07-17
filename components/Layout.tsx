@@ -1,12 +1,7 @@
 import { useRouter } from 'next/router'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { useEffect, useState, type ReactNode } from 'react'
 import { getEmpresaId, isMultiEmpresa, limparEmpresa } from '../lib/empresa'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const MENU_COMPLETO = [
   { href:'/dashboard',       label:'Dashboard',               icon:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' },

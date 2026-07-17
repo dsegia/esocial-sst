@@ -1,15 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { buscarCBO, melhorCBO, type CBO } from '../lib/cbo'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const formVazio = () => ({ nome:'', cpf:'', data_nasc:'', data_adm:'', matricula_esocial:'', funcao:'', cod_cbo:'', setor:'', vinculo:'CLT', turno:'Diurno' })
 

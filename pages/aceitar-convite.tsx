@@ -5,12 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { supabase } from '../lib/supabase'
 
 const PLANO_INFO: Record<string, { label: string; cor: string; bg: string }> = {
   trial:     { label: 'Trial 14 dias', cor: '#6b7280', bg: '#f3f4f6' },

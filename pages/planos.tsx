@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { FAIXAS_VIDAS, faixaAtual, formatarFaixaLabel } from '../lib/vidas-planos'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export default function Planos() {
   const router = useRouter()

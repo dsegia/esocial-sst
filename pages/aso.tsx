@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { gerarPdfAso } from '../lib/gerar-pdf'
 import { examesEsperados, programaDoFuncionario } from '../lib/pcmso-exames'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const TIPO_LABEL: Record<string,string> = {
   admissional:'Admissional', periodico:'Periódico', retorno:'Retorno ao trabalho',

@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
 import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { sugerirParaRisco } from '../lib/pgr-sugestoes'
 import { sugerirAnexoIV } from '../lib/ltcat-anexo-iv'
 import { AGENTES_POR_TIPO } from '../lib/agentes-risco'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
-)
 
 const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico', aci:'Acidentes', psi:'Psicossocial' }
 const COR_AGENTE  : Record<string,string> = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB', aci:'#FDEBD3', psi:'#EDE6FB' }

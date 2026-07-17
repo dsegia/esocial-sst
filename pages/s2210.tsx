@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import {
@@ -15,11 +15,6 @@ import {
   LATERALIDADE,
   IDE_OC,
 } from '../lib/esocial-tabela-cat'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 const TIPOS_CAT = [
   { v: 'tipico', l: 'Acidente típico', desc: 'Ocorreu durante o exercício da atividade profissional' },
