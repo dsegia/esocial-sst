@@ -49,12 +49,22 @@ function desenharAssinaturas(
   respImplementacao: { tituloBloco: string; descricao: string; nome?: string },
   respElaboracao: { tituloBloco: string; descricao: string; nome?: string; cargo: string; extra?: string }
 ): number {
-  if (y > 140) { doc.addPage(); y = 20 }
+  const H = 297
   const centerX = W / 2
   const larguraLinha = 80
 
+  // Os dois blocos (implementação + elaboração) precisam ficar juntos na
+  // mesma página — calcula a altura total ANTES de desenhar e decide uma
+  // única quebra de página no início, em vez de cada bloco checar por conta
+  // própria (o que podia separar os dois em páginas diferentes).
+  function alturaBloco(descricao: string, temExtra: boolean): number {
+    const linhasDesc = doc.splitTextToSize(descricao, W - mg * 2 - 30)
+    return 6 + linhasDesc.length * 4 + 18 + 5 + 4.5 + 4 + (temExtra ? 4 : 0) + 12
+  }
+  const alturaTotal = alturaBloco(respImplementacao.descricao, false) + alturaBloco(respElaboracao.descricao, !!respElaboracao.extra)
+  if (y + alturaTotal > H - 15) { doc.addPage(); y = 20 }
+
   function bloco(tituloBloco: string, descricao: string, nome: string | undefined, cargoOuLabel: string, extra?: string) {
-    if (y > 210) { doc.addPage(); y = 20 }
     doc.setFontSize(11); doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold')
     doc.text(tituloBloco, centerX, y, { align: 'center' }); y += 6
     doc.setFontSize(8); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'normal')
@@ -1264,9 +1274,10 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   function subSecao(texto: string, yPos: number): number {
     if (yPos > H - 22) { doc.addPage(); yPos = 20 }
     doc.setFontSize(10); doc.setTextColor(24, 95, 165); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg, yPos)
+    const linhasSub = doc.splitTextToSize(texto, W - mg * 2)
+    doc.text(linhasSub, mg, yPos)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
-    return yPos + 6
+    return yPos + linhasSub.length * 5 + 1
   }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
     if (yPos > H - 20) { doc.addPage(); yPos = 20 }
