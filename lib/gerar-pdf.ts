@@ -906,30 +906,43 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
     // Header — divisórias brancas entre colunas pra não virar uma barra sólida,
     // e altura dinâmica pra cabeçalhos longos (ex.: "MONITORAMENTO RECOMENDADO")
-    // não estourarem a caixa.
-    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
-    const headerLines = dados[0].map((h, i) => doc.splitTextToSize(h, colWidths[i] - 2))
-    const headerHeight = Math.max(8, Math.max(...headerLines.map(l => l.length)) * 3.6 + 3)
-    let xPos = mg
-    for (let i = 0; i < nCols; i++) {
-      doc.setFillColor(24, 95, 165)
-      doc.setDrawColor(255, 255, 255)
-      doc.rect(xPos, y, colWidths[i], headerHeight, 'FD')
-      doc.text(headerLines[i], xPos + 1, y + 3.6)
-      xPos += colWidths[i]
+    // não estourarem a caixa. Extraído em função porque o cabeçalho é redesenhado
+    // no topo de cada página nova, quando a tabela não cabe inteira numa só.
+    function desenharHeaderTabela(yPos: number): number {
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
+      const headerLines = dados[0].map((h, i) => doc.splitTextToSize(h, colWidths[i] - 2))
+      const headerHeight = Math.max(8, Math.max(...headerLines.map(l => l.length)) * 3.6 + 3)
+      let xp = mg
+      for (let i = 0; i < nCols; i++) {
+        doc.setFillColor(24, 95, 165)
+        doc.setDrawColor(255, 255, 255)
+        doc.rect(xp, yPos, colWidths[i], headerHeight, 'FD')
+        doc.text(headerLines[i], xp + 1, yPos + 3.6)
+        xp += colWidths[i]
+      }
+      return yPos + headerHeight + 2
     }
-    y += headerHeight + 2
 
-    // Dados
+    y = desenharHeaderTabela(y)
+
+    // Dados — quando a tabela não cabe até o rodapé, continua na página
+    // seguinte com o cabeçalho repetido, em vez de truncar as linhas
+    // restantes em silêncio (o que cortava tabelas longas, como as de
+    // classificação de riscos e limites de tolerância do PCMSO).
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(40, 40, 40)
-    for (let r = 1; r < dados.length && y < 265; r++) {
-      let rowHeight = 6
+    for (let r = 1; r < dados.length; r++) {
       const cellLines = dados[r].map((cell, i) => doc.splitTextToSize(cell, colWidths[i] - 2))
-      rowHeight = Math.max(6, Math.max(...cellLines.map(l => l.length)) * 4)
+      const rowHeight = Math.max(6, Math.max(...cellLines.map(l => l.length)) * 4)
+
+      if (y + rowHeight > 275) {
+        doc.addPage(); y = 20
+        y = desenharHeaderTabela(y)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(40, 40, 40)
+      }
 
       if (r % 2 === 0) {
         doc.setFillColor(245, 248, 251)
-        xPos = mg
+        let xPos = mg
         for (let i = 0; i < nCols; i++) {
           doc.rect(xPos, y - 0.5, colWidths[i], rowHeight, 'F')
           xPos += colWidths[i]
@@ -937,7 +950,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
       }
 
       doc.setDrawColor(200, 210, 220)
-      xPos = mg
+      let xPos = mg
       for (let c = 0; c < dados[r].length; c++) {
         doc.rect(xPos, y - 0.5, colWidths[c], rowHeight)
         const lines = cellLines[c]
@@ -1135,7 +1148,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     if (!temCustomizacao && secaoItem.subsecoes) {
       for (const sub of secaoItem.subsecoes) {
         if (y > 250) { doc.addPage(); y = 20 }
-        y = secaoHeader('→ ' + sub.titulo, y)
+        y = secaoHeader('> ' + sub.titulo, y)
         y = paragrafo(sub.conteudo, y, 9)
       }
     }

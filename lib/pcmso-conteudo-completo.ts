@@ -242,7 +242,7 @@ AMBIENTE: Cabina audiométrica conforme ISO 8253-1`
       {
         titulo: 'Interpretação de Resultados',
         conteudo: `LIMITES ACEITÁVEIS:
-• Limiares ≤ 25 dB(NA) em todas as frequências = NORMAL
+• Limiares <= 25 dB(NA) em todas as frequências = NORMAL
 
 SUGESTIVO DE PAIR:
 • Audiograma com limiares > 25 dB(NA) em 3000, 4000 e/ou 6000 Hz
@@ -257,8 +257,8 @@ DIAGNÓSTICO:
 • Capacitação profissional
 
 EVOLUÇÃO SEQUENCIAL:
-• Diferença ≥ 10 dB(NA) em frequências 3000, 4000, 6000 Hz = AGRAVAMENTO
-• Piora ≥ 15 dB(NA) em frequência isolada = AGRAVAMENTO`
+• Diferença >= 10 dB(NA) em frequências 3000, 4000, 6000 Hz = AGRAVAMENTO
+• Piora >= 15 dB(NA) em frequência isolada = AGRAVAMENTO`
       }
     ],
     tabelas: [
