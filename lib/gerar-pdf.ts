@@ -396,6 +396,12 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     let yy = cabecalho(yPos)
     for (let li = 0; li < linhas.length; li++) {
       const linhaAtual = linhas[li]
+      // Precisa medir em 7.5 (o tamanho usado pra desenhar) ANTES do
+      // splitTextToSize — senão a primeira linha de cada página mede com o
+      // 6.5 deixado pelo cabecalho(), "cabe" na largura calculada nesse
+      // tamanho menor mas estoura a coluna de verdade ao desenhar maior,
+      // invadindo a coluna vizinha.
+      doc.setFontSize(7.5)
       const celulas = linhaAtual.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
       const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
       const alturaLinha = maxLinhas * 3.6 + 3
@@ -1305,6 +1311,13 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     let yy = cabecalho(yPos)
     for (let li = 0; li < linhas.length; li++) {
       const linha = linhas[li]
+      // O tamanho de fonte precisa estar em 7.5 (o mesmo usado pra desenhar a
+      // célula, linha 1316 originalmente) ANTES de medir com splitTextToSize —
+      // do contrário a primeira linha de cada página mede com o tamanho 6.5
+      // deixado pelo cabecalho(), o texto "cabe" na largura calculada nesse
+      // tamanho menor mas estoura a coluna de verdade ao ser desenhado maior,
+      // invadindo a coluna vizinha.
+      doc.setFontSize(7.5)
       const celulas = linha.map((texto, ci) => doc.splitTextToSize(texto || '—', colunas[ci].largura - 3))
       const maxLinhas = Math.max(...celulas.map((c: string[]) => c.length), 1)
       const alturaLinha = maxLinhas * 3.6 + 3
