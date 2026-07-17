@@ -594,9 +594,12 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     y = Math.max(yGfip, yPeric, yInsal, yAposent) + 4
 
     if (ghe.funcoes?.length) {
+      doc.setFontSize(9)
+      const linhasFunc = doc.splitTextToSize(ghe.funcoes.join(' • '), W - mg * 2 - 2)
+      const alturaFuncoes = 4 + linhasFunc.length * 4 + 3
+      if (y + alturaFuncoes > H - 15) { doc.addPage(); y = 20 }
       doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
       doc.setFontSize(9); doc.setTextColor(30)
-      const linhasFunc = doc.splitTextToSize(ghe.funcoes.join(' • '), W - mg * 2 - 2)
       doc.text(linhasFunc, mg, y); y += linhasFunc.length * 4 + 3
     }
 
