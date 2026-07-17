@@ -246,7 +246,7 @@ export interface SecaoLegal { titulo: string; paragrafos: string[] }
 
 export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
   {
-    titulo: '1. INTRODUÇÃO',
+    titulo: 'INTRODUÇÃO',
     paragrafos: [
       'O Programa de Gerenciamento de Riscos – PGR foi constituído pela Norma Regulamentadora – NR-1, através da Portaria SEPRT nº 6.730, de 09 de março de 2020, do Ministério da Economia. Esta norma estabelece a obrigatoriedade da elaboração e implementação, por parte de todos os empregadores e instituições que admitem trabalhadores como empregados, do Programa de Gerenciamento de Riscos – PGR.',
       'O PGR é parte integrante de um conjunto mais amplo de iniciativas da empresa no campo da preservação da saúde e integridade física dos trabalhadores, devendo estar articulado com o disposto nas demais Normas Regulamentadoras, em especial com o Programa de Controle Médico de Saúde Ocupacional – PCMSO, previsto na NR-7.',
@@ -256,7 +256,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '2. OBJETIVOS',
+    titulo: 'OBJETIVOS',
     paragrafos: [
       'Este programa visa a preservação da saúde e integridade física dos trabalhadores, através da antecipação, reconhecimento, avaliação e consequente acompanhamento das medidas de controle da ocorrência de riscos ambientais existentes ou que existam no ambiente de trabalho, tendo em consideração a proteção do meio ambiente e dos recursos naturais.',
       'O Programa de Gerenciamento de Riscos – PGR tem como objetivos principais: garantir a salubridade nos locais de trabalho; prevenir os riscos ocupacionais capazes de provocar doenças profissionais; controlar os riscos ambientais capazes de causar danos à saúde do trabalhador; assegurar aos trabalhadores padrões adequados de saúde e bem-estar no ambiente de trabalho; e proteger o meio ambiente e os recursos naturais.',
@@ -264,7 +264,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '3. RESPONSABILIDADES',
+    titulo: 'RESPONSABILIDADES',
     paragrafos: [
       '3.1 Organização contratante: implementar o gerenciamento de riscos ocupacionais em suas atividades; identificar os perigos e avaliar os riscos ocupacionais indicando o nível de risco; classificar os riscos para determinar a necessidade de medidas de prevenção; implementar as medidas na ordem estabelecida pela NR-1; considerar as condições de trabalho nos termos da NR-17; comunicar aos trabalhadores os riscos consolidados no inventário e as medidas do plano de ação; e manter os documentos do PGR sempre disponíveis para os trabalhadores e a Inspeção do Trabalho.',
       '3.2 Organizações contratadas: fornecer ao contratante o inventário de riscos ocupacionais específico das atividades realizadas nas dependências da organização contratante.',
@@ -273,26 +273,26 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '4. PROCESSO DE IDENTIFICAÇÃO DE PERIGOS E AVALIAÇÃO DE RISCOS OCUPACIONAIS',
+    titulo: 'PROCESSO DE IDENTIFICAÇÃO DE PERIGOS E AVALIAÇÃO DE RISCOS OCUPACIONAIS',
     paragrafos: [
       'O processo de identificação de perigos e avaliação de riscos ocupacionais deve considerar o disposto nas Normas Regulamentadoras e demais exigências legais de segurança e saúde no trabalho.',
       'O processo é conduzido em etapas sequenciais: (i) levantamento preliminar de perigos; (ii) identificação de perigos, com a descrição das fontes ou circunstâncias e do grupo de trabalhadores expostos; (iii) avaliação dos riscos ocupacionais, com a determinação do nível de risco; (iv) classificação dos riscos, para priorização das medidas de prevenção; e (v) elaboração do plano de ação. Este ciclo é contínuo, sendo retroalimentado sempre que houver mudanças nos processos de trabalho, novas evidências de exposição ou resultados de monitoramento que indiquem a necessidade de revisão.',
     ],
   },
   {
-    titulo: '5. LEVANTAMENTO PRELIMINAR DE PERIGOS',
+    titulo: 'LEVANTAMENTO PRELIMINAR DE PERIGOS',
     paragrafos: [
       'A etapa de levantamento preliminar de perigos deve seguir os seguintes critérios: ser realizada antes do início do funcionamento do estabelecimento ou de novas instalações; para atividades já existentes; e nas mudanças ou introdução de novos processos ou atividades de trabalho. Quando identificado, ainda nesta etapa, que os riscos não poderão ser evitados, a organização deve implementar o processo completo de identificação de perigos e avaliação de riscos ocupacionais.',
     ],
   },
   {
-    titulo: '6. IDENTIFICAÇÃO DE PERIGOS',
+    titulo: 'IDENTIFICAÇÃO DE PERIGOS',
     paragrafos: [
       'A etapa de identificação de perigos deve conter: a descrição dos perigos e possíveis lesões ou agravos à saúde; a identificação das fontes ou circunstâncias; e a indicação do grupo de trabalhadores sujeitos aos riscos. A organização também deve mapear os riscos externos previsíveis relacionados ao trabalho que possam afetar a saúde e segurança dos trabalhadores.',
     ],
   },
   {
-    titulo: '7. AVALIAÇÃO DE RISCOS OCUPACIONAIS',
+    titulo: 'AVALIAÇÃO DE RISCOS OCUPACIONAIS',
     paragrafos: [
       'A partir dos perigos identificados, a organização deve avaliar os riscos ocupacionais relacionados em seus estabelecimentos para a posterior elaboração das medidas de prevenção e controle, indicando para cada risco o nível determinado pela combinação da severidade das possíveis lesões e agravos à saúde com a probabilidade de sua ocorrência.',
       'A gradação da severidade leva em consideração a magnitude da consequência e o número de trabalhadores possivelmente afetados. A gradação da probabilidade considera os requisitos das Normas Regulamentadoras, as medidas de prevenção já implementadas, as exigências da atividade e a comparação do perfil de exposição com valores de referência da NR-9.',
@@ -300,14 +300,14 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '8. METODOLOGIA',
+    titulo: 'METODOLOGIA',
     paragrafos: [
       'Para compor o inventário de riscos foram avaliados os níveis de risco através da matriz de riscos definida (severidade × probabilidade), com base nas tabelas de gradação apresentadas no Anexo II — Matriz de Risco deste documento.',
       'Nas avaliações quantitativas de agentes físicos e químicos realizadas no âmbito deste PGR, foram adotadas, como referência metodológica complementar, as Normas de Higiene Ocupacional da Fundacentro pertinentes a cada agente — como a NHO-01 (ruído), a NHO-06 (calor) e a NHO-08 (poeiras e material particulado) —, sem prejuízo dos critérios e limites de tolerância estabelecidos pela NR-15.',
     ],
   },
   {
-    titulo: '9. RISCOS AMBIENTAIS',
+    titulo: 'RISCOS AMBIENTAIS',
     paragrafos: [
       'Segundo a NR-9, são considerados riscos ambientais os agentes físicos, químicos e biológicos existentes no ambiente de trabalho que, em função de sua natureza, concentração e tempo de exposição, são capazes de causar danos à saúde do trabalhador:',
       'Agentes físicos: as diversas formas de energia a que possam estar expostos os trabalhadores, tais como ruído, vibração, radiações ionizantes e não ionizantes, frio, calor, pressões anormais e umidade.',
@@ -318,7 +318,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '10. RISCOS PSICOSSOCIAIS',
+    titulo: 'RISCOS PSICOSSOCIAIS',
     paragrafos: [
       'Os riscos psicossociais foram incluídos de forma explícita no GRO/PGR pela NR-1, com alterações dadas pela Portaria MTE nº 1.419/2024 (plenamente exigível desde 26/05/2026). Compreendem fatores relacionados à organização e às relações de trabalho capazes de causar dano à saúde física e mental do trabalhador.',
       'Exemplos de fatores de risco psicossocial: sobrecarga e ritmo de trabalho excessivos, metas inalcançáveis, jornadas extenuantes, assédio moral e sexual, violência no trabalho, conflitos interpessoais, falta de clareza de papéis e responsabilidades, e outras condições organizacionais que gerem estresse ocupacional crônico ou burnout.',
@@ -327,14 +327,14 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '11. FORMAS DE AVALIAÇÃO',
+    titulo: 'FORMAS DE AVALIAÇÃO',
     paragrafos: [
       'A avaliação dos riscos ocupacionais pode ser qualitativa ou quantitativa. A avaliação qualitativa baseia-se na análise técnica da atividade, do ambiente, das fontes geradoras e da percepção dos trabalhadores, sendo suficiente para a maioria dos riscos quando não há dúvida quanto à necessidade e à eficácia das medidas de prevenção. A avaliação quantitativa, por sua vez, é exigida sempre que houver dúvida razoável sobre a exposição dos trabalhadores a agentes físicos e químicos, sendo realizada por meio de medições instrumentais, comparando os resultados obtidos com os limites de tolerância e valores de referência estabelecidos pela NR-15 e pelas Normas de Higiene Ocupacional da Fundacentro.',
       'Em ambos os casos, os resultados obtidos antes e depois da implantação das medidas de controle são comparados por critérios técnicos, permitindo verificar a eficácia das ações adotadas e subsidiar a revisão do nível de risco atribuído no inventário.',
     ],
   },
   {
-    titulo: '12. CONTROLE DOS RISCOS',
+    titulo: 'CONTROLE DOS RISCOS',
     paragrafos: [
       '12.1 Medidas de prevenção: serão adotadas medidas necessárias e suficientes para eliminação, minimização ou controle dos riscos ambientais sempre que verificada ao menos uma das situações: exigências das Normas Regulamentadoras e dispositivos legais; determinação pela classificação de riscos ocupacionais; ou evidências de associação, por controle médico, entre lesões/agravos à saúde e os riscos identificados. Quando comprovada a inviabilidade de medidas de proteção coletiva, ou quando insuficientes, devem ser adotadas, na ordem: medidas de caráter administrativo ou de organização do trabalho; e medidas de caráter individual (EPI).',
       '12.2 Implementação e acompanhamento das medidas de prevenção: a empresa, por meio de análise das ações executadas, inspeções nos ambientes de trabalho e monitoramento das condições ambientais e exposições, avaliará a eficácia das medidas existentes e implantadas, estabelecendo novas medidas quando necessário. Quando identificada ineficácia, devem ser realizados ajustes para corrigir as deficiências, com histórico registrado.',
@@ -344,19 +344,19 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '13. EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL DE USO OBRIGATÓRIO',
+    titulo: 'EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL DE USO OBRIGATÓRIO',
     paragrafos: [
       'A empresa fornece gratuitamente aos empregados apenas EPI adequado ao risco, em perfeito estado de conservação e funcionamento, sendo estes portadores de Certificado de Aprovação – CA, conforme a NR-6.',
     ],
   },
   {
-    titulo: '14. CONCLUSÃO',
+    titulo: 'CONCLUSÃO',
     paragrafos: [
       'Este programa tem como fundamento legal a NR-1, e seu objetivo é disciplinar os preceitos a serem observados na organização e no ambiente de trabalho, de forma a tornar compatível o planejamento e desenvolvimento das atividades com a busca permanente da segurança e saúde dos trabalhadores. Este programa estará em constante análise e estudo, visando seu aperfeiçoamento, podendo, portanto, sofrer modificações a qualquer momento.',
     ],
   },
   {
-    titulo: '15. REFERÊNCIAS NORMATIVAS COMPLEMENTARES',
+    titulo: 'REFERÊNCIAS NORMATIVAS COMPLEMENTARES',
     paragrafos: [
       'Além do arcabouço legal obrigatório que fundamenta este PGR (NR-1, NR-7, NR-9, NR-15, NR-16, NR-17 e Portaria MTE nº 1.419/2024), a empresa pode adotar, de forma voluntária e complementar, referências internacionais e nacionais de boas práticas de gestão de saúde e segurança ocupacional, sem que isso substitua ou dispense o cumprimento das exigências legais brasileiras.',
       'A ABNT NBR ISO 45001:2024 (Sistemas de gestão de saúde e segurança ocupacional — Requisitos com orientação para uso), publicada pela Associação Brasileira de Normas Técnicas em 21 de novembro de 2024 e complementada pela Emenda 1:2025 (que incorporou considerações sobre mudanças climáticas aos requisitos de contexto da organização), constitui a norma internacional de referência para sistemas de gestão de SST. Empresas que já estruturaram seu PGR nos moldes da NR-1 possuem base técnica relevante para eventual certificação voluntária nessa norma, cuja adoção não é exigência legal no Brasil, mas complementa e fortalece a gestão de riscos ocupacionais já estabelecida.',
@@ -364,7 +364,7 @@ export const TEXTOS_LEGAIS_PGR: SecaoLegal[] = [
     ],
   },
   {
-    titulo: '16. REFERÊNCIAS BIBLIOGRÁFICAS',
+    titulo: 'REFERÊNCIAS BIBLIOGRÁFICAS',
     paragrafos: [
       'MINISTÉRIO DO TRABALHO E EMPREGO. Norma Regulamentadora nº 1 (NR-1) — Disposições Gerais e Gerenciamento de Riscos Ocupacionais, Portaria SEPRT nº 6.730/2020 e alterações posteriores.',
       'MINISTÉRIO DO TRABALHO E EMPREGO. Normas Regulamentadoras nº 7, 9, 15, 16 e 17, e seus respectivos Anexos.',

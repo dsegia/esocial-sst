@@ -92,10 +92,11 @@ export default function PCMSO() {
   const [editandoMedico, setEditandoMedico] = useState(false)
   const [formMedico, setFormMedico] = useState({
     medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', telefones_emergencia:[],
-    clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medico_examinador_nome:'', medico_examinador_crm:'',
+    clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medicos_examinadores:[],
     cronograma: [],
   })
   const [novoTelefone, setNovoTelefone] = useState({ nome:'', telefone:'' })
+  const [novoMedicoExaminador, setNovoMedicoExaminador] = useState({ nome:'', crm:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
   const [secaoAberta, setSecaoAberta] = useState(null)
@@ -172,12 +173,12 @@ export default function PCMSO() {
           textos_legais_custom: medico.textos_legais_custom || {},
           telefones_emergencia: medico.telefones_emergencia || [],
           clinica_nome: medico.clinica_nome || '', clinica_endereco: medico.clinica_endereco || '', clinica_cnpj: medico.clinica_cnpj || '',
-          medico_examinador_nome: medico.medico_examinador_nome || '', medico_examinador_crm: medico.medico_examinador_crm || '',
+          medicos_examinadores: medico.medicos_examinadores || [],
           cronograma: medico.cronograma || [],
         }
       : {
           medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{}, telefones_emergencia:[],
-          clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medico_examinador_nome:'', medico_examinador_crm:'', cronograma:[],
+          clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medicos_examinadores:[], cronograma:[],
         })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
@@ -206,6 +207,16 @@ export default function PCMSO() {
 
   function removerTelefoneEmergencia(i) {
     setFormMedico(p => ({ ...p, telefones_emergencia: p.telefones_emergencia.filter((_,idx) => idx!==i) }))
+  }
+
+  function addMedicoExaminador() {
+    if (!novoMedicoExaminador.nome) return
+    setFormMedico(p => ({ ...p, medicos_examinadores: [...(p.medicos_examinadores||[]), { ...novoMedicoExaminador }] }))
+    setNovoMedicoExaminador({ nome:'', crm:'' })
+  }
+
+  function removerMedicoExaminador(i) {
+    setFormMedico(p => ({ ...p, medicos_examinadores: p.medicos_examinadores.filter((_,idx) => idx!==i) }))
   }
 
   function setTextoCustom(titulo, paragrafos) {
@@ -238,8 +249,7 @@ export default function PCMSO() {
       clinica_nome: formMedico.clinica_nome || null,
       clinica_endereco: formMedico.clinica_endereco || null,
       clinica_cnpj: formMedico.clinica_cnpj || null,
-      medico_examinador_nome: formMedico.medico_examinador_nome || null,
-      medico_examinador_crm: formMedico.medico_examinador_crm || null,
+      medicos_examinadores: formMedico.medicos_examinadores || [],
       cronograma: formMedico.cronograma || [],
       atualizado_em: new Date().toISOString(),
     }
@@ -400,8 +410,17 @@ export default function PCMSO() {
   // GHE) e sincronizada pra cá — evita pedir a mesma informação de novo.
   function atualizarAtividadesDoPgr() {
     const ghe = ghesCadastro.find(g => g.id === formFunc.ghe_id)
+    if (!ghe) { setErro('Selecione um GHE vinculado primeiro.'); return }
     const atividades = acharAtividadePorFuncao(ghe?.atividades_por_funcao, formFunc.funcao)
-    if (!ghe || !atividades) { setErro('Nenhuma descrição de atividades encontrada no PGR para esta função.'); return }
+    if (!atividades) {
+      const disponiveis = Object.keys(ghe?.atividades_por_funcao || {})
+      setErro(
+        disponiveis.length
+          ? `Nenhuma descrição encontrada para "${formFunc.funcao}" neste GHE. Funções com descrição no PGR: ${disponiveis.join(', ')}.`
+          : `O GHE "${ghe.nome}" ainda não tem descrição de atividades cadastrada no PGR.`
+      )
+      return
+    }
     setFormFunc(p => ({ ...p, descricao_atividades: atividades }))
     setSucesso(`Descrição das atividades atualizada a partir do PGR ("${ghe.nome}").`)
   }
@@ -498,7 +517,7 @@ export default function PCMSO() {
                 dados_gerais: {
                   medico_nome: medico?.medico_nome || '', medico_crm: medico?.medico_crm || '', medico_cpf: medico?.medico_cpf || '', data_elaboracao: medico?.data_elaboracao,
                   clinica_nome: medico?.clinica_nome || '', clinica_endereco: medico?.clinica_endereco || '', clinica_cnpj: medico?.clinica_cnpj || '',
-                  medico_examinador_nome: medico?.medico_examinador_nome || '', medico_examinador_crm: medico?.medico_examinador_crm || '',
+                  medicos_examinadores: medico?.medicos_examinadores || [],
                 },
                 programas: programa, ghes: ghesCadastro, telefones_emergencia: medico?.telefones_emergencia || [],
                 cronograma: medico?.cronograma || [],
@@ -546,7 +565,7 @@ export default function PCMSO() {
                   { l:'CPF', v: medico.medico_cpf||'—' },
                   { l:'CRM', v: medico.medico_crm||'—' },
                   ...(medico.clinica_nome ? [{ l:'Clínica Designada', v: medico.clinica_nome }] : []),
-                  ...(medico.medico_examinador_nome ? [{ l:'Médico(a) Examinador(a)', v: medico.medico_examinador_nome }] : []),
+                  ...(medico.medicos_examinadores?.length ? [{ l:'Médicos(as) Examinadores(as)', v: medico.medicos_examinadores.map(m=>m.nome).join(', ') }] : []),
                 ].map((it,i) => (
                   <div key={i}>
                     <div style={{ fontSize:10, fontWeight:600, color:'#9ca3af', textTransform:'uppercase' }}>{it.l}</div>
@@ -625,9 +644,27 @@ export default function PCMSO() {
                 <input style={s.input} value={formMedico.clinica_cnpj} onChange={e => setFormMedico({...formMedico, clinica_cnpj:e.target.value})} placeholder="CNPJ da clínica"/>
               </div>
               <input style={{ ...s.input, marginTop:8 }} value={formMedico.clinica_endereco} onChange={e => setFormMedico({...formMedico, clinica_endereco:e.target.value})} placeholder="Endereço da clínica"/>
-              <div style={{ ...s.row2, marginTop:8 }}>
-                <input style={s.input} value={formMedico.medico_examinador_nome} onChange={e => setFormMedico({...formMedico, medico_examinador_nome:e.target.value})} placeholder="Nome do(a) médico(a) examinador(a)"/>
-                <input style={s.input} value={formMedico.medico_examinador_crm} onChange={e => setFormMedico({...formMedico, medico_examinador_crm:e.target.value})} placeholder="CRM do(a) examinador(a)"/>
+
+              <label style={{ ...s.label, marginTop:10, display:'block' }}>Médicos(as) examinadores(as)</label>
+              {(formMedico.medicos_examinadores||[]).length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:8 }}>
+                  {formMedico.medicos_examinadores.map((m,i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, padding:'5px 10px', background:'#f9fafb', borderRadius:6 }}>
+                      <span style={{ flex:1, fontWeight:500, color:'#111' }}>{m.nome}</span>
+                      <span style={{ color:'#374151' }}>{m.crm}</span>
+                      <button onClick={() => removerMedicoExaminador(i)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:16, lineHeight:1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display:'flex', gap:8 }}>
+                <input style={{ ...s.input, flex:2 }} placeholder="Nome do(a) médico(a) examinador(a)"
+                  value={novoMedicoExaminador.nome} onChange={e => setNovoMedicoExaminador({...novoMedicoExaminador, nome:e.target.value})}
+                  onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addMedicoExaminador())} />
+                <input style={{ ...s.input, flex:1 }} placeholder="CRM"
+                  value={novoMedicoExaminador.crm} onChange={e => setNovoMedicoExaminador({...novoMedicoExaminador, crm:e.target.value})}
+                  onKeyDown={e => e.key==='Enter' && (e.preventDefault(), addMedicoExaminador())} />
+                <button style={s.btnOutline} onClick={addMedicoExaminador}>+ Adicionar</button>
               </div>
             </div>
 
@@ -862,8 +899,18 @@ export default function PCMSO() {
           <div style={s.row2}>
             <div>
               <label style={s.label}>Função / Cargo *</label>
-              <input style={s.input} placeholder="Ex: Operador de Produção"
+              <input style={s.input} placeholder="Ex: Operador de Produção" list="funcoes-do-ghe-pcmso"
                 value={formFunc.funcao} onChange={e => setFormFunc({...formFunc, funcao:e.target.value})} />
+              <datalist id="funcoes-do-ghe-pcmso">
+                {(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).map(fn => (
+                  <option key={fn} value={fn} />
+                ))}
+              </datalist>
+              {formFunc.ghe_id && !!(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).length && (
+                <div style={{ fontSize:11, color:'#9ca3af', marginTop:3 }}>
+                  Use exatamente o nome cadastrado no PGR pra "Usar do PGR" encontrar a descrição — sugestões: {(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).join(', ')}
+                </div>
+              )}
             </div>
             <div>
               <label style={s.label}>Setor / GHE</label>

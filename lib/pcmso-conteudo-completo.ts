@@ -10,7 +10,7 @@ export interface SecaoPcmso {
 export const SECOES_PCMSO: SecaoPcmso[] = [
   {
     id: 'perfil-profissiografico',
-    titulo: '1. Perfil Profissiográfico',
+    titulo: 'Perfil Profissiográfico',
     conteudo: `O Perfil Profissiográfico do trabalhador constando todas as condições a que o mesmo esteve exposto, suas reações e estado físico perante estas exposições a lhe ser entregue quando do desligamento, ou na forma da lei, deverá ser preenchido por preposto administrativo da empresa e as informações de monitoramento biológico serão encaminhadas diretamente ao perito do INSS quando couber em cumprimento à resolução nº 1.715 de 08 de janeiro de 2004 do CFM – Conselho Federal de Medicina.
 
 Descrição dos perfis profissionais cadastrados na empresa com suas funções, setores, GHEs (Grupos Homogêneos de Exposição) e riscos associados.`,
@@ -41,7 +41,7 @@ Cada função deve ter documentado:
   },
   {
     id: 'classificacao-riscos',
-    titulo: '2. Classificação dos Riscos',
+    titulo: 'Classificação dos Riscos',
     conteudo: `O Médico Coordenador do PCMSO deve conhecer todos os setores da empresa, e deve estar apto a realizar análise qualitativa dos ambientes de trabalho, assim como análise das atividades de trabalho, dos produtos e instrumentos de trabalho utilizados nas diversas atividades laborais de forma a identificar os possíveis riscos e/ou situação que possam gerar danos à saúde do empregado.
 
 Conforme NR-1 e NR-9, os riscos ocupacionais são classificados em:`,
@@ -111,7 +111,7 @@ CONDIÇÕES INSEGURAS: São falhas ou situações que podem provocar acidentes o
   },
   {
     id: 'primeiros-socorros',
-    titulo: '3. Primeiros Socorros',
+    titulo: 'Primeiros Socorros',
     conteudo: `Todo estabelecimento deverá estar equipado com material necessário a prestação dos primeiros socorros, considerando-se as características da atividade desenvolvida; manter esse material guardado em local adequado, e aos cuidados de pessoa treinada para esse fim. (Portaria SSST N° 24, de 29 de dezembro de 1994).
 
 Kit de Primeiros Socorros deve conter:
@@ -153,7 +153,7 @@ EMERGÊNCIAS: Sempre acionar o resgate/bombeiros (193) que conduzirá o acidenta
   },
   {
     id: 'ppr',
-    titulo: '5. PPR (Programa de Proteção Respiratória)',
+    titulo: 'PPR (Programa de Proteção Respiratória)',
     conteudo: `OBJETIVO: Realizar o controle eficaz de uso e indicação do equipamento adequado para o controle das doenças ocupacionais provocadas pela inalação de ar contaminado com poeiras, fungos, nevoas, fumaças, gases e vapores, conforme NR-6, item 6.5.1 a 6.5.3.
 
 SELEÇÃO DE RESPIRADORES: Devemos levar em conta o biótipo do trabalhador, hábitos e costumes, para que possamos avaliar os seguintes itens que podem prejudicar o bom funcionamento do respirador:
@@ -205,7 +205,7 @@ MANUTENÇÃO:
   },
   {
     id: 'pca',
-    titulo: '6. PCA (Programa de Conservação Auditiva)',
+    titulo: 'PCA (Programa de Conservação Auditiva)',
     conteudo: `OBJETIVOS:
 1. Estabelecer diretrizes para avaliação e acompanhamento de audição
 2. Fornecer subsídios para prevenção da perda auditiva induzida por ruído (PAIR)
@@ -286,7 +286,7 @@ EVOLUÇÃO SEQUENCIAL:
   },
   {
     id: 'programa-ergonomico',
-    titulo: '7. Programa Ergonômico',
+    titulo: 'Programa Ergonômico',
     conteudo: `APRESENTAÇÃO: O Programa Ergonômico visa estabelecer os critérios básicos para prevenção de acidentes e doenças ocupacionais do Trabalho conforme NR-17.
 
 A ergonomia envolve a aplicação dos conhecimentos sobre as características do ser humano para beneficiar seu bem-estar físico e mental e os resultados de seu trabalho e da empresa. Toda atividade industrial pode ser vista como um sistema homem-máquina dentro de um ambiente de produção.
@@ -367,7 +367,7 @@ EXERCÍCIOS A CADA 2 HORAS (3-5 minutos):
   },
   {
     id: 'criterios-cat',
-    titulo: '8. Critérios para Abertura de CAT',
+    titulo: 'Critérios para Abertura de CAT',
     conteudo: `A Comunicação de Acidente do Trabalho (CAT) é obrigatória quando ocorre lesão ou doença relacionada ao trabalho.
 
 SITUAÇÕES QUE EXIGEM CAT:
@@ -395,7 +395,7 @@ PRAZOS:
   },
   {
     id: 'fluxo-atendimento-acidente',
-    titulo: '9. Fluxo de Atendimento a Acidentes',
+    titulo: 'Fluxo de Atendimento a Acidentes',
     conteudo: `Procedimento padrão desde o momento do acidente até o encerramento do caso.
 
 ETAPAS DO FLUXO:
@@ -420,7 +420,7 @@ A Empresa oferece plano de saúde para seus funcionários, a fim de garantir Ass
   },
   {
     id: 'programa-vacinacao',
-    titulo: '10. Programa de Vacinação',
+    titulo: 'Programa de Vacinação',
     conteudo: `Programa de imunização conforme calendário recomendado pela Organização Mundial de Saúde (OMS) e regulamentação brasileira (ANVISA/MS).
 
 VACINAS RECOMENDADAS:

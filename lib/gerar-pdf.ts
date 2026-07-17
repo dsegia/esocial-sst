@@ -758,7 +758,18 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const W = 210; const H = 297; const mg = 12
   let y = 15
   const paginas: any = {}
-  const paginasSecoes: Record<string, number> = {}
+  // Índice construído incrementalmente conforme cada seção é desenhada — cada
+  // entrada já nasce com o número (contínuo do início ao fim do documento,
+  // igual ao cabeçalho realmente impresso no corpo) e a página certa,
+  // capturada no exato momento em que o cabeçalho é desenhado.
+  let numSecao = 1
+  const itensIndice: Array<[string, number]> = []
+  function abrirSecaoNumerada(titulo: string, yPos: number): number {
+    const novoY = secaoHeader(`${numSecao}. ${titulo}`, yPos)
+    itensIndice.push([`${numSecao}. ${titulo}`, (doc as any).internal.getNumberOfPages()])
+    numSecao++
+    return novoY
+  }
 
   // Capa no mesmo padrão visual do PGR e do LTCAT: barra com logo + nome do
   // documento no topo, nome da empresa em destaque logo abaixo.
@@ -925,8 +936,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   doc.addPage(); y = 20
 
   // Dados empresa
-  paginas.identificacao = (doc as any).internal.getNumberOfPages()
-  y = secaoHeader('DADOS DA EMPRESA', y)
+  y = abrirSecaoNumerada('DADOS DA EMPRESA', y)
   const boxTop = y
   const larguraCampoEmpresa = W - mg * 2 - 4
 
@@ -969,15 +979,19 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   y = boxTop + alturaBoxEmpresa + 8
 
-  // Clínica designada e médico examinador — só aparece se o usuário cadastrou
-  // esses dados (evita uma seção vazia quando ninguém preencheu ainda).
-  if (dg.clinica_nome || dg.medico_examinador_nome) {
+  // Clínica designada e médico(s) examinador(es) — só aparece se o usuário
+  // cadastrou esses dados (evita uma seção vazia quando ninguém preencheu ainda).
+  const medicosExaminadores = dg.medicos_examinadores || []
+  if (dg.clinica_nome || medicosExaminadores.length) {
     if (y > 245) { doc.addPage(); y = 20 }
     y = secaoHeader('CLÍNICA DESIGNADA', y)
     y = linhaLabelValor('Clínica', dg.clinica_nome, y)
     y = linhaLabelValor('Endereço da Clínica', dg.clinica_endereco, y)
     y = linhaLabelValor('CNPJ da Clínica', dg.clinica_cnpj, y)
-    y = linhaLabelValor('Médico(a) Examinador(a)', `${dg.medico_examinador_nome || '—'}${dg.medico_examinador_crm ? ' — CRM ' + dg.medico_examinador_crm : ''}`, y)
+    const textoMedicos = medicosExaminadores.length
+      ? medicosExaminadores.map((m: any) => `${m.nome || '—'}${m.crm ? ' — CRM ' + m.crm : ''}`).join('; ')
+      : '—'
+    y = linhaLabelValor(medicosExaminadores.length > 1 ? 'Médicos(as) Examinadores(as)' : 'Médico(a) Examinador(a)', textoMedicos, y)
     y += 3
   }
 
@@ -991,25 +1005,12 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     y = tabela([['CONTATO', 'TELEFONE'], ...linhasTel], '', y)
   }
 
-  // Cronograma anual do PCMSO
-  const cronograma = dados?.cronograma || []
-  if (cronograma.length > 0) {
-    if (y > 245) { doc.addPage(); y = 20 }
-    paginas.cronograma = (doc as any).internal.getNumberOfPages()
-    y = secaoHeader('CRONOGRAMA ANUAL DO PCMSO', y)
-    const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    const cronoPorMes = new Map<number, string>(cronograma.map((c: any) => [c.mes, c.atividades]))
-    const linhasCrono = NOMES_MESES.map((nome, i) => [nome, cronoPorMes.get(i + 1) || '—'])
-    y = tabela([['MÊS', 'ATIVIDADES PREVISTAS'], ...linhasCrono], '', y)
-  }
-
-  // Textos legais
-  if (y > 250) { doc.addPage(); y = 20 }
-  paginas.textosLegais = (doc as any).internal.getNumberOfPages()
+  // Textos legais — cada um vira uma entrada numerada própria no índice,
+  // continuando a mesma numeração do restante do documento.
   const textosCustom = dados?.textos_legais_custom || {}
   for (const sec of TEXTOS_LEGAIS_PCMSO) {
     if (y > 250) { doc.addPage(); y = 20 }
-    y = secaoHeader(sec.titulo, y)
+    y = abrirSecaoNumerada(sec.titulo, y)
     const pars = textosCustom[sec.titulo] || sec.paragrafos
     for (const p of pars) y = paragrafo(p, y, 9)
     y += 3
@@ -1028,8 +1029,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
 
   if (programas.length > 0) {
     if (y > 240) { doc.addPage(); y = 20 }
-    paginas.tabelaInformativa = (doc as any).internal.getNumberOfPages()
-    y = secaoHeader('TABELA INFORMATIVA – EXAMES E PERIODICIDADE', y)
+    y = abrirSecaoNumerada('TABELA INFORMATIVA – EXAMES E PERIODICIDADE', y)
   }
 
   for (const prog of programas) {
@@ -1092,8 +1092,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   const secoesImg = dados?.secoes_imagens || {}
   for (const secaoItem of SECOES_PCMSO) {
     if (y > 245) { doc.addPage(); y = 20 }
-    paginasSecoes[secaoItem.id] = (doc as any).internal.getNumberOfPages()
-    y = secaoHeader(secaoItem.titulo, y)
+    y = abrirSecaoNumerada(secaoItem.titulo, y)
 
     // Renderiza imagem se houver
     if (secoesImg[secaoItem.id]) {
@@ -1131,8 +1130,26 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     y += 2
   }
 
+  // Cronograma anual do PCMSO — no final do documento, logo antes das
+  // assinaturas. Mostra só os meses com atividade cadastrada (meses vazios
+  // não geram linha, pra não poluir a tabela com travessões).
+  const cronograma = dados?.cronograma || []
+  if (cronograma.length > 0) {
+    if (y > 245) { doc.addPage(); y = 20 }
+    y = abrirSecaoNumerada('CRONOGRAMA ANUAL DO PCMSO', y)
+    const NOMES_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    const linhasCrono = [...cronograma]
+      .filter((c: any) => c.mes >= 1 && c.mes <= 12 && c.atividades?.trim())
+      .sort((a: any, b: any) => a.mes - b.mes)
+      .map((c: any) => [NOMES_MESES[c.mes - 1], c.atividades])
+    if (linhasCrono.length) {
+      y = tabela([['MÊS', 'ATIVIDADES PREVISTAS'], ...linhasCrono], '', y)
+    }
+  }
+
   if (y > 250) { doc.addPage(); y = 20 }
-  paginas.assinaturas = (doc as any).internal.getNumberOfPages()
+  itensIndice.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
+  numSecao++
   doc.setDrawColor(200, 200, 200); doc.line(mg, y, W - mg, y); y += 10
 
   y = desenharAssinaturas(doc, y, mg, W,
@@ -1141,26 +1158,18 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
   )
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  // itensIndice já foi construído incrementalmente (abrirSecaoNumerada), com o
+  // número de cada seção contínuo do início ao fim do documento e a página
+  // certa (capturada no momento em que o cabeçalho foi desenhado).
   doc.setPage(paginas.indice)
   let yIndice = 20
   yIndice = secaoHeader('ÍNDICE', yIndice)
   yIndice += 4
-  const itensIndice: Array<[string, number | undefined]> = [
-    ['Identificação da Empresa, Responsáveis e Clínica Designada', paginas.identificacao],
-    ['Cronograma Anual do PCMSO', paginas.cronograma],
-    ['Diretrizes e Textos Legais do PCMSO', paginas.textosLegais],
-    ['Tabela Informativa – Exames e Periodicidade', paginas.tabelaInformativa],
-    ...SECOES_PCMSO.map((s): [string, number | undefined] => [s.titulo, paginasSecoes[s.id]]),
-    ['Assinaturas', paginas.assinaturas],
-  ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
-  let numItemIndice = 1
   for (const [tituloItem, paginaItem] of itensIndice) {
-    if (paginaItem == null) continue
-    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+    doc.text(tituloItem, mg, yIndice)
     doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
     yIndice += 6
-    numItemIndice++
   }
 
   const totalPags = (doc as any).internal.getNumberOfPages()
@@ -1183,6 +1192,19 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const mg = 15
   let y = 15
   const paginas: any = { capa: 1 }
+  // Índice construído incrementalmente conforme cada seção é desenhada — cada
+  // entrada já nasce com o número (contínuo do início ao fim do documento) e a
+  // página correta, capturada no exato momento em que o cabeçalho da seção é
+  // desenhado (nunca depois, senão uma seção que ocupa várias páginas — como
+  // Definições — aponta pro índice pra sua ÚLTIMA página em vez da primeira).
+  let numSecao = 1
+  const itensIndice: Array<[string, number]> = []
+  function abrirSecaoNumerada(titulo: string, yPos: number): number {
+    const novoY = secao(`${numSecao}. ${titulo}`, yPos)
+    itensIndice.push([`${numSecao}. ${titulo}`, (doc as any).internal.getNumberOfPages()])
+    numSecao++
+    return novoY
+  }
 
   function hexRgb(hex: string): [number, number, number] {
     const h = (hex || '#999999').replace('#', '')
@@ -1195,8 +1217,25 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   function secao(texto: string, yPos: number): number {
     doc.setFillColor(24, 95, 165)
     doc.rect(mg, yPos, W - mg * 2, 6, 'F')
-    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
-    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    // Títulos numerados podem ser longos (ex.: "4. PROCESSO DE IDENTIFICAÇÃO DE
+    // PERIGOS E AVALIAÇÃO DE RISCOS OCUPACIONAIS") — reduz a fonte e, em último
+    // caso, trunca com reticências em vez de deixar o texto vazar da barra.
+    let tamanho = 9
+    doc.setFontSize(tamanho)
+    const larguraDisponivel = W - mg * 2 - 6
+    let textoAjustado = texto
+    while (doc.getTextWidth(textoAjustado) > larguraDisponivel && tamanho > 6.5) {
+      tamanho -= 0.5
+      doc.setFontSize(tamanho)
+    }
+    if (doc.getTextWidth(textoAjustado) > larguraDisponivel) {
+      while (textoAjustado.length > 4 && doc.getTextWidth(textoAjustado + '...') > larguraDisponivel) {
+        textoAjustado = textoAjustado.slice(0, -1)
+      }
+      textoAjustado += '...'
+    }
+    doc.text(textoAjustado, mg + 3, yPos + 4.2)
     doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
     return yPos + 10
   }
@@ -1208,6 +1247,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     return yPos + 6
   }
   function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    if (yPos > H - 20) { doc.addPage(); yPos = 20 }
     doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
     doc.setFontSize(10); doc.setTextColor(30)
     const linhas = doc.splitTextToSize(valor || '—', largura - 2)
@@ -1387,7 +1427,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // ── PÁGINA 2: CONTRACAPA — IDENTIFICAÇÃO COMPLETA DA EMPRESA (fonte única) ─
   doc.addPage()
   y = 20
-  y = secao('IDENTIFICAÇÃO DA EMPRESA', y)
+  y = abrirSecaoNumerada('IDENTIFICAÇÃO DA EMPRESA', y)
   const yw = (W - mg * 2)
   y = linhaDupla('Razão Social', empresa?.razao_social, 'Nome Fantasia', empresa?.nome_fantasia || '—', y, yw) + 3
   y = linhaDupla('CNPJ', empresa?.cnpj, 'Grau de Risco (NR-4)', `Classe ${empresa?.grau_risco != null ? empresa.grau_risco : '—'}`, y, yw) + 3
@@ -1404,8 +1444,6 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     y = campo('Contato', `${empresa?.resp_telefone || '—'} — ${empresa?.resp_email || '—'}`, mg, y, yw) + 3
   }
 
-  paginas.contracapa = 2
-
   // ── PÁGINA 3: ÍNDICE (conteúdo preenchido só ao final, quando já se conhece a paginação real) ─
   doc.addPage()
   paginas.indice = (doc as any).internal.getNumberOfPages()
@@ -1415,7 +1453,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   const temHistoricoReal = historicoRevisoes.length > 1 || (dg.numero_revisao && dg.numero_revisao > 1)
   if (temHistoricoReal) {
     doc.addPage(); y = 20
-    y = secao('HISTÓRICO DE REVISÕES', y)
+    y = abrirSecaoNumerada('HISTÓRICO DE REVISÕES', y)
     y = tabela(
       [
         { titulo: 'REV', largura: 20 },
@@ -1431,12 +1469,11 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
       ]),
       y,
     )
-    paginas.historico = (doc as any).internal.getNumberOfPages()
   }
 
   // ── DEFINIÇÕES (glossário técnico do GRO/PGR) ────────
   doc.addPage(); y = 20
-  y = secao('DEFINIÇÕES', y)
+  y = abrirSecaoNumerada('DEFINIÇÕES', y)
   y = paragrafo('Para efeito deste documento, aplicam-se as definições a seguir, baseadas no Anexo I ("Termos e Definições") da NR-1, na redação dada pela Portaria MTE nº 1.419/2024, complementadas por conceitos técnicos consagrados na prática de segurança e saúde do trabalho.', y, 8.5)
   y += 1
   for (const d of DEFINICOES_PGR) {
@@ -1448,15 +1485,14 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     y = paragrafo(d.definicao, y, 8.5)
     y += 1.5
   }
-  paginas.definicoes = (doc as any).internal.getNumberOfPages()
 
-  // ── Textos legais (NR-1): Introdução, Objetivos, Responsabilidades etc. ─
-  doc.addPage(); y = 20
-  paginas.introducao = (doc as any).internal.getNumberOfPages()
+  // ── Textos legais (NR-1): Introdução, Objetivos, Responsabilidades etc. — cada
+  // um vira uma entrada numerada própria no índice, continuando a mesma
+  // numeração do restante do documento (nada de reiniciar em "1." de novo).
   const textosCustom = dados?.textos_legais_custom || {}
   for (const secaoTexto of TEXTOS_LEGAIS_PGR) {
     if (y > 250) { doc.addPage(); y = 20 }
-    y = secao(secaoTexto.titulo, y)
+    y = abrirSecaoNumerada(secaoTexto.titulo, y)
     const paragrafos = textosCustom[secaoTexto.titulo] || secaoTexto.paragrafos
     for (const p of paragrafos) y = paragrafo(p, y)
     y += 2
@@ -1470,8 +1506,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // contrário o cabeçalho fica "preso" sozinho no fim da página anterior,
   // com um vão em branco até o rodapé, e o primeiro ambiente pula pra próxima.
   if (y > 215) { doc.addPage(); y = 20 }
-  paginas.ambientes = (doc as any).internal.getNumberOfPages()
-  y = secao(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
+  y = abrirSecaoNumerada(`AMBIENTES DE TRABALHO (${ambientes.length})`, y)
   if (ambientes.length) {
     y = paragrafo('Abaixo estão listados todos os ambientes analisados durante a elaboração deste documento, onde os colaboradores desta empresa exercem suas atividades.', y, 8)
     y += 1
@@ -1506,8 +1541,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Inventário de riscos por GHE (página em paisagem) ─
   doc.addPage('a4', 'landscape'); W = 297; H = 210; y = 20
-  paginas.inventario = (doc as any).internal.getNumberOfPages()
-  y = secao(`INVENTÁRIO DE RISCOS POR GHE (${inventario.length})`, y)
+  y = abrirSecaoNumerada(`INVENTÁRIO DE RISCOS POR GHE (${inventario.length})`, y)
   if (inventario.length) {
     for (const g of inventario) {
       if (y > H - 30) { doc.addPage(); y = 20 }
@@ -1640,7 +1674,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── GRÁFICO: Distribuição de Riscos por Nível ────────
   if (y > H - 50) { doc.addPage(); y = 20 }
-  y = subSecao('Distribuição de Riscos por Nível', y)
+  y = abrirSecaoNumerada('DISTRIBUIÇÃO DE RISCOS POR NÍVEL', y)
 
   // Contar riscos por nível — usa as MESMAS faixas de nivelRisco() (Quadro 2 da
   // NR-1), reaproveitando QUADRO2_INTERPRETACAO para rótulo e cor, evitando
@@ -1655,7 +1689,6 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   }
 
   const totalRiscos = Object.values(distribuicaoRiscos).reduce((a, b) => a + b, 0)
-  paginas.distribuicao = (doc as any).internal.getNumberOfPages()
   if (totalRiscos > 0) {
     let yy = y
     for (const q of QUADRO2_INTERPRETACAO) {
@@ -1678,8 +1711,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // ── Plano de ação (página em paisagem — os textos de "o que/por que/como"
   // costumam ser longos e ficavam espremidos em retrato) ─────
   doc.addPage('a4', 'landscape'); W = 297; H = 210; y = 20
-  paginas.planoAcao = (doc as any).internal.getNumberOfPages()
-  y = secao(`PLANO DE AÇÃO (${planoAcao.length})`, y)
+  y = abrirSecaoNumerada(`PLANO DE AÇÃO (${planoAcao.length})`, y)
   const statusMap: Record<string, string> = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída' }
   const priorMap: Record<string, string> = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
   if (planoAcao.length) {
@@ -1725,8 +1757,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Anexo I — Plano de Emergência ─────────────────────
   doc.addPage('a4', 'portrait'); W = 210; H = 297; y = 20
-  paginas.planoEmergencia = (doc as any).internal.getNumberOfPages()
-  y = secao(TEXTO_PLANO_EMERGENCIA.titulo, y)
+  y = abrirSecaoNumerada(TEXTO_PLANO_EMERGENCIA.titulo, y)
   for (const secaoEmerg of TEXTO_PLANO_EMERGENCIA.secoes) {
     if (y > 260) { doc.addPage(); y = 20 }
     y = subSecao(secaoEmerg.subtitulo, y)
@@ -1736,8 +1767,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
 
   // ── Anexo II — Matriz de Risco Visual (Heatmap) ─────
   doc.addPage(); y = 20
-  paginas.matrizRisco = (doc as any).internal.getNumberOfPages()
-  y = secao('ANEXO — MATRIZ DE RISCO', y)
+  y = abrirSecaoNumerada('ANEXO — MATRIZ DE RISCO', y)
   y = subSecao('Matriz de Referência — Severidade × Probabilidade', y)
   y = paragrafo('Grade de referência da NR-1 (Quadros 2 e 3), com o nível de risco resultante de cada combinação de severidade e probabilidade. O número em cada célula indica quantos riscos do inventário caíram exatamente nessa combinação.', y, 8)
   y += 2
@@ -1820,8 +1850,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   // ── Critérios técnicos de referência (AIHA / AS-NZS 4360 / European
   // Commission, recomendadas pela Fundacentro) — texto e tabelas completos ──
   if (y > 230) { doc.addPage(); y = 20 }
-  paginas.criteriosTecnicos = (doc as any).internal.getNumberOfPages()
-  y = subSecao('Critérios Técnicos de Referência — Gradação de Severidade e Probabilidade', y)
+  y = abrirSecaoNumerada('CRITÉRIOS TÉCNICOS DE REFERÊNCIA — GRADAÇÃO DE SEVERIDADE E PROBABILIDADE', y)
   for (const p of CRITERIOS_GRADACAO_INTRO) y = paragrafo(p, y, 8.5)
   y += 2
 
@@ -1858,8 +1887,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   y += 2
 
   if (y > 220) { doc.addPage(); y = 20 }
-  paginas.metodologiaMatriz = (doc as any).internal.getNumberOfPages()
-  y = subSecao('Matriz de Risco — Metodologia de Referência', y)
+  y = abrirSecaoNumerada('MATRIZ DE RISCO — METODOLOGIA DE REFERÊNCIA', y)
   for (const p of TEXTO_MATRIZ_RISCO.intro) y = paragrafo(p, y, 8.5)
   y += 1
   for (const p of TEXTO_MATRIZ_RISCO.exemplo) y = paragrafo(p, y, 8.5)
@@ -1910,32 +1938,18 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
   )
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
+  // itensIndice já foi construído incrementalmente (abrirSecaoNumerada), com o
+  // número de cada seção contínuo do início ao fim do documento e a página
+  // certa (capturada no momento em que o cabeçalho foi desenhado).
   doc.setPage(paginas.indice)
   let yIndice = 20
   yIndice = secao('ÍNDICE', yIndice)
   yIndice += 4
-  const itensIndice: Array<[string, number | undefined]> = [
-    ['Identificação da Empresa', paginas.contracapa],
-    ['Histórico de Revisões', paginas.historico],
-    ['Definições', paginas.definicoes],
-    ['Introdução, Objetivos e Responsabilidades', paginas.introducao],
-    ['Ambientes de Trabalho', paginas.ambientes],
-    ['Inventário de Riscos por GHE', paginas.inventario],
-    ['Distribuição de Riscos por Nível', paginas.distribuicao],
-    ['Plano de Ação', paginas.planoAcao],
-    ['Anexo I — Plano de Emergência', paginas.planoEmergencia],
-    ['Anexo II — Matriz de Risco', paginas.matrizRisco],
-    ['Critérios Técnicos de Referência (Gradação de Severidade e Probabilidade)', paginas.criteriosTecnicos],
-    ['Matriz de Risco — Metodologia de Referência', paginas.metodologiaMatriz],
-  ]
   doc.setFontSize(9); doc.setTextColor(30); doc.setFont('helvetica', 'normal')
-  let numItemIndice = 1
   for (const [tituloItem, paginaItem] of itensIndice) {
-    if (paginaItem == null) continue
-    doc.text(`${numItemIndice}. ${tituloItem}`, mg, yIndice)
+    doc.text(tituloItem, mg, yIndice)
     doc.text(String(paginaItem), W - mg - 5, yIndice, { align: 'right' })
     yIndice += 6
-    numItemIndice++
   }
   yIndice += 6; linha(yIndice); yIndice += 6
   doc.setFontSize(8); doc.setTextColor(100)
