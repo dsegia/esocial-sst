@@ -49,20 +49,13 @@ function desenharAssinaturas(
   respImplementacao: { tituloBloco: string; descricao: string; nome?: string },
   respElaboracao: { tituloBloco: string; descricao: string; nome?: string; cargo: string; extra?: string }
 ): number {
-  const H = 297
   const centerX = W / 2
   const larguraLinha = 80
 
-  // Os dois blocos (implementação + elaboração) precisam ficar juntos na
-  // mesma página — calcula a altura total ANTES de desenhar e decide uma
-  // única quebra de página no início, em vez de cada bloco checar por conta
-  // própria (o que podia separar os dois em páginas diferentes).
-  function alturaBloco(descricao: string, temExtra: boolean): number {
-    const linhasDesc = doc.splitTextToSize(descricao, W - mg * 2 - 30)
-    return 6 + linhasDesc.length * 4 + 18 + 5 + 4.5 + 4 + (temExtra ? 4 : 0) + 12
-  }
-  const alturaTotal = alturaBloco(respImplementacao.descricao, false) + alturaBloco(respElaboracao.descricao, !!respElaboracao.extra)
-  if (y + alturaTotal > H - 15) { doc.addPage(); y = 20 }
+  // As assinaturas sempre ficam sozinhas numa página própria, no final do
+  // documento — nunca dividem página com o conteúdo anterior nem entre si.
+  doc.addPage(); y = 20
+  doc.setDrawColor(200, 200, 200); doc.line(mg, y, W - mg, y); y += 10
 
   function bloco(tituloBloco: string, descricao: string, nome: string | undefined, cargoOuLabel: string, extra?: string) {
     doc.setFontSize(11); doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold')
@@ -732,11 +725,7 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
     y,
   )
 
-  // ── Assinaturas ───────────────────────────────────────
-  if (y > 250) { doc.addPage(); y = 20 }
-  itensIndiceLtcat.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
-  numSecao++
-  y += 6; linha(y); y += 10
+  // ── Assinaturas (sempre em página própria, ver desenharAssinaturas) ──
   y = desenharAssinaturas(doc, y, mg, W,
     {
       tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO LTCAT',
@@ -751,6 +740,8 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
       extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
     }
   )
+  itensIndiceLtcat.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
+  numSecao++
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
   // itensIndiceLtcat já foi construído incrementalmente (abrirSecaoNumerada),
@@ -1179,15 +1170,13 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     }
   }
 
-  if (y > 250) { doc.addPage(); y = 20 }
-  itensIndice.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
-  numSecao++
-  doc.setDrawColor(200, 200, 200); doc.line(mg, y, W - mg, y); y += 10
-
+  // Assinaturas sempre em página própria, ver desenharAssinaturas
   y = desenharAssinaturas(doc, y, mg, W,
     { tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO', descricao: 'Cumprimento do PCMSO conforme NR-7', nome: empresa?.resp_nome },
     { tituloBloco: 'RESPONSÁVEL PELA COORDENAÇÃO', descricao: 'Médico Coordenador', nome: dg.medico_nome, cargo: 'Médico Coordenador', extra: dg.medico_crm ? `CRM ${dg.medico_crm}` : undefined }
   )
+  itensIndice.push([`${numSecao}. ASSINATURAS`, (doc as any).internal.getNumberOfPages()])
+  numSecao++
 
   // ── Preenche o Índice, agora que a paginação real do documento é conhecida ─
   // itensIndice já foi construído incrementalmente (abrirSecaoNumerada), com o
@@ -1960,8 +1949,7 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     y += 1
   }
 
-  if (y > 250) { doc.addPage(); y = 20 }
-  y += 6; linha(y); y += 10
+  // Assinaturas sempre em página própria, ver desenharAssinaturas
   y = desenharAssinaturas(doc, y, mg, W,
     {
       tituloBloco: 'RESPONSÁVEL PELA IMPLEMENTAÇÃO DO PGR',
