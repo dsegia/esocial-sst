@@ -271,7 +271,17 @@ export default function OrdemServico() {
           <div style={s.row2}>
             <div>
               <label style={s.label}>Função *</label>
-              <input style={s.input} value={form.funcao} onChange={e => setForm({ ...form, funcao: e.target.value })} />
+              <datalist id="funcoes-existentes-os">
+                {funcionarios.map(f => f.funcao).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).map(fn => (
+                  <option key={fn} value={fn} />
+                ))}
+              </datalist>
+              <input style={s.input} value={form.funcao} list="funcoes-existentes-os"
+                onChange={e => {
+                  const v = e.target.value
+                  const func = funcionarios.find(f => norm(f.funcao) === norm(v))
+                  setForm((p: any) => ({ ...p, funcao: v, setor: p.setor || (func ? func.setor || '' : '') }))
+                }} />
             </div>
             <div>
               <label style={s.label}>Setor</label>
