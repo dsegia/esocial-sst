@@ -91,6 +91,7 @@ export default function OrdemServico() {
       setor: p.setor || ghe.setor || '',
       riscos: (ghe.riscos || []).map((r: any) => ({ tipo: r.tipo, nome: r.nome })),
       epis_obrigatorios: Array.from(new Set([...(p.epis_obrigatorios || []), ...((ghe.epi || []).map((e: any) => e.nome).filter(Boolean))])),
+      medidas_preventivas: Array.from(new Set([...(p.medidas_preventivas || []), ...((ghe.epc || []).map((e: any) => e.nome).filter(Boolean))])),
     }))
     setErro('')
   }
