@@ -162,11 +162,7 @@ export default function PPP() {
   }
 
   function addPeriodo() {
-    const ghe = funcSel ? agentesDoFuncionario(ltcatAtivo, funcSel) : null
-    setForm(p => ({ ...p, historico: [...(p.historico || []), ghe ? {
-      periodo_inicio: '', periodo_fim: '', funcao: funcSel.funcao || '', setor: funcSel.setor || '',
-      agentes: ghe.agentes || [], epi_eficaz: true,
-    } : periodoVazio()] }))
+    setForm(p => ({ ...p, historico: [...(p.historico || []), periodoVazio()] }))
   }
 
   function setPeriodo(i, field, value) {
