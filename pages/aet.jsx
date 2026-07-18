@@ -7,6 +7,7 @@ import { gerarPdfAet } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { formatarCPF } from '../lib/format'
 import { TEXTOS_LEGAIS_AET } from '../lib/aet-conteudo'
+import { redimensionarImagem } from '../lib/imagem-util'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -18,6 +19,7 @@ const postoVazio = () => ({
   mobiliario_adequado: true, levantamento_peso: false, posturas_inadequadas: false, repetitividade: false,
   descricao_organizacao_trabalho: '', controle_rigido_produtividade: false, trabalho_noturno_turnos: false, pausas_previstas: '',
   recomendacoes: [],
+  imagens: [],
 })
 
 export default function AET() {
@@ -176,6 +178,34 @@ export default function AET() {
     })
   }
 
+  // ── Imagens do posto ────────────────────────────────────
+  async function addImagensPosto(i, fileList) {
+    const arquivos = Array.from(fileList || [])
+    if (!arquivos.length) return
+    const dataUrls = await Promise.all(arquivos.map(f => redimensionarImagem(f)))
+    setForm(p => {
+      const postos = [...p.postos_trabalho]
+      postos[i] = { ...postos[i], imagens: [...(postos[i].imagens || []), ...dataUrls.map(dataUrl => ({ dataUrl, legenda: '', tamanho: 45 }))] }
+      return { ...p, postos_trabalho: postos }
+    })
+  }
+  function removerImagemPosto(i, imgIdx) {
+    setForm(p => {
+      const postos = [...p.postos_trabalho]
+      postos[i] = { ...postos[i], imagens: (postos[i].imagens || []).filter((_, idx) => idx !== imgIdx) }
+      return { ...p, postos_trabalho: postos }
+    })
+  }
+  function setImagemPosto(i, imgIdx, field, value) {
+    setForm(p => {
+      const postos = [...p.postos_trabalho]
+      const imagens = [...(postos[i].imagens || [])]
+      imagens[imgIdx] = { ...imagens[imgIdx], [field]: value }
+      postos[i] = { ...postos[i], imagens }
+      return { ...p, postos_trabalho: postos }
+    })
+  }
+
   function exportarPdf(aet) {
     gerarPdfAet(
       {
@@ -295,6 +325,16 @@ export default function AET() {
                             <strong>Recomendações:</strong> {p.recomendacoes.join(' · ')}
                           </div>
                         )}
+                        {p.imagens?.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:8 }}>
+                            {p.imagens.map((img, ii) => (
+                              <div key={ii} style={{ textAlign:'center' }}>
+                                <img src={img.dataUrl} alt={img.legenda || `Foto ${ii+1}`} style={{ width: img.tamanho || 45, height: img.tamanho || 45, objectFit:'cover', borderRadius:6, border:'0.5px solid #e5e7eb' }} />
+                                {img.legenda && <div style={{ fontSize:10, color:'#6b7280', marginTop:2, maxWidth: img.tamanho || 45 }}>{img.legenda}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -397,6 +437,28 @@ export default function AET() {
                     onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addRecomendacao(i))} />
                   <button style={{ ...s.btnAcao, fontSize:11 }} onClick={() => addRecomendacao(i)}>+ Adicionar</button>
                 </div>
+
+                <div style={{ fontSize:11, fontWeight:600, color:'#9ca3af', margin:'12px 0 6px' }}>FOTOS DO POSTO</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginBottom:6 }}>
+                  {(p.imagens || []).map((img, ii) => (
+                    <div key={ii} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, border:'0.5px solid #e5e7eb', borderRadius:8, padding:8, position:'relative' }}>
+                      <button onClick={() => removerImagemPosto(i, ii)} style={{ position:'absolute', top:2, right:2, width:18, height:18, borderRadius:'50%', background:'#E24B4A', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:'18px', padding:0 }}>×</button>
+                      <img src={img.dataUrl} alt={`Foto ${ii+1}`} style={{ width: img.tamanho || 45, height: img.tamanho || 45, objectFit:'cover', borderRadius:6 }} />
+                      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        <input type="range" min={15} max={100} value={img.tamanho || 45}
+                          onChange={e => setImagemPosto(i, ii, 'tamanho', Number(e.target.value))} style={{ width:80 }} />
+                        <span style={{ fontSize:10, color:'#9ca3af', width:34 }}>{img.tamanho || 45}mm</span>
+                      </div>
+                      <input style={{ ...s.inputSm, width:110, fontSize:10 }} placeholder="Legenda (opcional)"
+                        value={img.legenda || ''} onChange={e => setImagemPosto(i, ii, 'legenda', e.target.value)} />
+                    </div>
+                  ))}
+                  <label style={{ ...s.btnAcao, fontSize:11, cursor:'pointer', display:'flex', alignItems:'center' }}>
+                    + Foto
+                    <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => { addImagensPosto(i, e.target.files); e.target.value = '' }} />
+                  </label>
+                </div>
+                <div style={{ fontSize:10, color:'#9ca3af', marginBottom:4 }}>Arraste o controle para ajustar o tamanho de cada foto no PDF (15 a 100mm).</div>
               </div>
             ))}
             {!(form.postos_trabalho || []).length && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhum posto adicionado.</div>}

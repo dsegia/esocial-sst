@@ -2065,6 +2065,27 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
     }
     return yy + 2
   }
+  function inserirImagensVariaveis(imagens: { dataUrl: string; legenda?: string; tamanho?: number }[], yPos: number): number {
+    if (!imagens?.length) return yPos
+    const gap = 5
+    let x = mg, yy = yPos, alturaLinha = 0
+    for (const img of imagens) {
+      const tam = img.tamanho || 45
+      if (x + tam > W - mg && x > mg) { x = mg; yy += alturaLinha + gap; alturaLinha = 0 }
+      if (yy + tam > 270) { doc.addPage(); yy = 20; x = mg; alturaLinha = 0 }
+      try { doc.addImage(img.dataUrl, 'JPEG', x, yy, tam, tam) } catch { /* imagem inválida, ignora */ }
+      let alturaItem = tam
+      if (img.legenda) {
+        doc.setFontSize(7); doc.setTextColor(120)
+        const linhasLeg = doc.splitTextToSize(img.legenda, tam)
+        doc.text(linhasLeg, x, yy + tam + 3)
+        alturaItem += 3 + linhasLeg.length * 3
+      }
+      alturaLinha = Math.max(alturaLinha, alturaItem)
+      x += tam + gap
+    }
+    return yy + alturaLinha + 6
+  }
 
   doc.setFillColor(24, 95, 165)
   doc.rect(0, 0, W, 20, 'F')
@@ -2145,6 +2166,7 @@ export async function gerarPdfAet(dados: any, empresa: any): Promise<void> {
       const linhas = doc.splitTextToSize(`Recomendações: ${p.recomendacoes.join('; ')}`, W - mg * 2)
       doc.text(linhas, mg, y); y += linhas.length * 4
     }
+    if (p.imagens?.length) { y += 2; y = inserirImagensVariaveis(p.imagens, y) }
     y += 4; linha(y); y += 5
   }
   if (!postos.length) {
