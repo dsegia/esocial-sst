@@ -172,7 +172,7 @@ export default function S2240() {
     if (func.funcao) {
       const fnLow = func.funcao.toLowerCase().trim()
       for (const ghe of ltcatAtivo.ghes) {
-        const fnsGhe = (ghe.funcoes || []).map((f: any) => f.toLowerCase().trim())
+        const fnsGhe = (ghe.funcoes || []).map((f: any) => (f.nome || f || '').toLowerCase().trim())
         // Verifica correspondência parcial em ambas as direções
         if (fnsGhe.some((f: any) =>
           f.includes(fnLow) || fnLow.includes(f) ||
@@ -418,7 +418,7 @@ export default function S2240() {
                 <option key={i} value={i}>
                   {g.nome||`GHE ${i+1}`}
                   {g.setor ? ` — ${g.setor}` : ''}
-                  {g.funcoes?.length ? ` · Funções: ${g.funcoes.slice(0,2).join(', ')}${g.funcoes.length>2?'...':''}` : ''}
+                  {g.funcoes?.length ? ` · Funções: ${g.funcoes.slice(0,2).map((f: any)=>f.nome||f).join(', ')}${g.funcoes.length>2?'...':''}` : ''}
                   {` (${g.agentes?.length||0} agentes)`}
                 </option>
               ))}
@@ -436,7 +436,7 @@ export default function S2240() {
                     <div style={{ fontSize:10, color:'#9ca3af', textTransform:'uppercase', marginBottom:3 }}>Funções cadastradas</div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
                       {ltcatAtivo.ghes[parseInt(gheSelecionado)].funcoes.map((fn: any, i: number) => (
-                        <span key={i} style={{ padding:'1px 7px', borderRadius:99, fontSize:11, background:'#E6F1FB', color:'#0C447C' }}>{fn}</span>
+                        <span key={i} style={{ padding:'1px 7px', borderRadius:99, fontSize:11, background:'#E6F1FB', color:'#0C447C' }}>{typeof fn === 'string' ? fn : (fn?.nome || '')}</span>
                       ))}
                     </div>
                   </div>
