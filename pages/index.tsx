@@ -2,6 +2,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { FAIXAS_VIDAS, formatarFaixaLabel } from '../lib/vidas-planos'
+import { ARTIGOS } from '../lib/artigos'
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const globalCSS = `
@@ -44,6 +45,7 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .hero-blob2{position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%);bottom:-80px;left:-80px;animation:blob 15s ease-in-out infinite reverse;pointer-events:none;}
 .hero-blob3{position:absolute;width:280px;height:280px;background:radial-gradient(circle,rgba(56,189,248,.18) 0%,transparent 70%);top:40%;left:40%;animation:blob 18s ease-in-out infinite .5s;pointer-events:none;}
 .hero-dots{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.07) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;opacity:.6;}
+.hero-spotlight{position:absolute;inset:0;pointer-events:none;transition:background .12s ease-out;}
 .hero-edge{position:absolute;left:0;right:0;bottom:-1px;line-height:0;z-index:2;}
 .hero-edge svg{display:block;width:100%;height:64px;}
 .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center;position:relative;z-index:1;}
@@ -190,7 +192,9 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .testi-marquee::after{right:0;background:linear-gradient(270deg,#f8fafc,transparent);}
 .testi-track{display:flex;gap:16px;width:max-content;animation:marquee-scroll-rev 46s linear infinite;}
 .testi-marquee:hover .testi-track{animation-play-state:paused;}
-.testi-card{width:320px;flex-shrink:0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:26px;text-align:left;}
+.testi-card{width:300px;flex-shrink:0;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:26px;text-align:left;transition:box-shadow .2s,transform .2s,border-color .2s;}
+.testi-card:hover{box-shadow:0 12px 40px rgba(24,95,165,.1);transform:translateY(-4px);border-color:rgba(24,95,165,.2);}
+.testi-diff-icon{width:40px;height:40px;border-radius:12px;background:rgba(24,95,165,.08);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:14px;}
 .testi-stars{color:#f59e0b;font-size:14px;margin-bottom:12px;letter-spacing:1px;}
 .testi-card p{font-size:13.5px;color:#475569;line-height:1.8;margin-bottom:18px;font-style:italic;}
 .testi-author{display:flex;align-items:center;gap:12px;}
@@ -235,6 +239,18 @@ nav.scrolled{box-shadow:0 4px 24px rgba(15,23,42,.08);}
 .blog-card p{font-size:12px;color:#64748b;line-height:1.7;}
 .blog-card-foot{padding:14px 22px;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;}
 .blog-more{font-size:12px;font-weight:600;color:#185FA5;}
+
+/* ── FAQ ── */
+.faq-bg{background:#f8fafc;padding:88px 0;}
+.faq-list{max-width:760px;margin:40px auto 0;display:flex;flex-direction:column;gap:12px;text-align:left;}
+.faq-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;transition:border-color .15s,box-shadow .15s;}
+.faq-item[open]{border-color:rgba(24,95,165,.3);box-shadow:0 8px 24px rgba(24,95,165,.08);}
+.faq-item summary{padding:18px 22px;font-size:14.5px;font-weight:700;color:#0f172a;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;user-select:none;}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-plus{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(24,95,165,.1);color:#185FA5;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;transition:transform .2s,background .2s,color .2s;}
+.faq-item[open] .faq-plus{transform:rotate(45deg);background:#185FA5;color:#fff;}
+.faq-item p{padding:0 22px 20px;font-size:13.5px;color:#64748b;line-height:1.75;}
+.faq-more{margin-top:28px;text-align:center;}
 
 /* ── CONTACT ── */
 .contact-section{background:#f8fafc;padding:72px 24px;text-align:center;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;}
@@ -392,11 +408,23 @@ const REST_FEATURES = [
     svg:<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></> },
 ]
 
-const TESTIMONIALS = [
-  { init:'MC', nome:'Márcia C.', role:'Médica do Trabalho · São Paulo', text:'Antes gastava horas preenchendo XML. Agora importo o PDF do ASO e em segundos está pronto para transmitir. Incrível.' },
-  { init:'RF', nome:'Ricardo F.', role:'Engenheiro de Segurança · Curitiba', text:'Gerencio 12 empresas aqui. O multi-empresa é perfeito — cada uma isolada mas acesso tudo com um login só.' },
-  { init:'PS', nome:'Patricia S.', role:'Analista de RH · Belo Horizonte', text:'O alerta de vencimento de ASO salvou minha empresa de uma autuação. O sistema avisou 30 dias antes.' },
-  { init:'JB', nome:'João B.', role:'Consultor SST · Goiânia', text:'A procuração eCAC mudou como atendo meus clientes — transmito por todos eles sem sair de uma tela só.' },
+const DIFERENCIAIS = [
+  { ic:'🤖', title:'IA dupla: Claude + Gemini', text:'Leitura de PDF com dois modelos de IA (Anthropic e Google) trabalhando na extração de dados de ASO, LTCAT e PCMSO — mais precisão na hora de conferir.' },
+  { ic:'🔒', title:'Certificado A1 em AES-256', text:'Seu certificado digital fica armazenado criptografado. Nem a nossa equipe tem acesso ao arquivo em texto claro.' },
+  { ic:'🇧🇷', title:'Dados hospedados no Brasil', text:'Banco de dados e hospedagem em território nacional, com controle de acesso e conformidade com a LGPD.' },
+  { ic:'🖊️', title:'Assinatura ICP-Brasil', text:'Todo evento transmitido ao eSocial é assinado digitalmente no padrão XMLDSig, igual ao exigido pelo Gov.br.' },
+  { ic:'🏢', title:'Multi-empresa + procuração eCAC', text:'Escritórios de SST atendem quantos CNPJs precisarem com um único login, inclusive por procuração eletrônica.' },
+  { ic:'🔗', title:'Uma fonte, 7 documentos', text:'Atualize o LTCAT uma vez e o PGR, PCMSO, AET, APR, LIP e PPP acompanham automaticamente — sem retrabalho.' },
+  { ic:'💬', title:'Suporte direto, sem robô', text:'Dúvida ou problema, você fala com gente de verdade por WhatsApp ou e-mail — sem central de atendimento automatizada.' },
+]
+
+const FAQ_HOME = [
+  { p:'Preciso ter o PGR, LTCAT e PCMSO prontos para começar?', r:'Não. Você pode importar um PDF que já existe (a IA extrai os dados) ou cadastrar direto na plataforma para gerar o documento do zero. Como os 7 documentos compartilham a mesma base, depois do primeiro cadastro os demais ficam bem mais rápidos.' },
+  { p:'Como funciona a leitura de PDF por IA?', r:'Você solta o PDF de um ASO, LTCAT ou PCMSO e os modelos Claude (Anthropic) e Gemini extraem os campos automaticamente — funcionário, CPF, datas, agentes de risco, médico responsável. Você revisa antes de gerar o XML e transmitir.' },
+  { p:'Preciso de certificado digital para transmitir?', r:'Sim, certificado e-CNPJ A1 (.pfx) emitido por uma AC credenciada ICP-Brasil. O arquivo fica armazenado com criptografia AES-256 e não é exposto nem para nossa equipe.' },
+  { p:'Dá para gerenciar mais de uma empresa com um login só?', r:'Sim. Ideal para escritórios de SST e consultorias: um único login acessa múltiplos CNPJs, cada um isolado, inclusive com transmissão por procuração eCAC.' },
+  { p:'Como funciona o preço?', r:'Um plano só que escala pelo número de funcionários ativos (vidas) — de R$ 59/mês até faixas maiores. Os 7 documentos e a transmissão eSocial são ilimitados em qualquer faixa. Trial de 14 dias sem cartão.' },
+  { p:'O que acontece se eu perder um prazo do eSocial?', r:'A plataforma envia alertas automáticos por e-mail de 7 a 90 dias antes do vencimento de ASO e LTCAT, justamente para evitar as multas do art. 47 da CLT (de R$ 402,53 a R$ 4.025,33 por evento).' },
 ]
 
 function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
@@ -879,12 +907,15 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [scrollPct, setScrollPct] = useState(0)
+  const [scrollY, setScrollY] = useState(0)
   const [modalPlano, setModalPlano] = useState<string | null>(null)
+  const [spot, setSpot] = useState({ x: 50, y: 30 })
   useReveal()
 
   useEffect(() => {
     const handler = () => {
       setScrolled(window.scrollY > 20)
+      setScrollY(window.scrollY)
       const h = document.documentElement
       const max = h.scrollHeight - h.clientHeight
       setScrollPct(max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 0)
@@ -892,6 +923,11 @@ export default function Home() {
     window.addEventListener('scroll', handler)
     return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  function handleHeroMove(e: React.MouseEvent<HTMLElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setSpot({ x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 })
+  }
 
   return (
     <>
@@ -922,7 +958,6 @@ export default function Home() {
           url: 'https://www.dsegconsultoria.com.br',
           description: 'Software SaaS brasileiro que emite os 7 documentos de Saúde e Segurança do Trabalho exigidos pelas Normas Regulamentadoras (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmite os eventos SST ao eSocial Gov.br, com leitura de PDF por inteligência artificial.',
           featureList: ['Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Leitura de PDF com IA (ASO, LTCAT, PCMSO, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Dashboard executivo e relatório de conformidade', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
-          aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '12' },
         }) }} />
         <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
       </Head>
@@ -974,10 +1009,11 @@ export default function Home() {
       </nav>
 
       {/* ── HERO ── */}
-      <section className="hero">
-        <div className="hero-blob1"></div>
-        <div className="hero-blob2"></div>
-        <div className="hero-blob3"></div>
+      <section className="hero" onMouseMove={handleHeroMove}>
+        <div className="hero-spotlight" style={{ background: `radial-gradient(560px circle at ${spot.x}% ${spot.y}%, rgba(96,165,250,.14), transparent 62%)` }}></div>
+        <div className="hero-blob1" style={{ transform: `translateY(${scrollY * 0.12}px)` }}></div>
+        <div className="hero-blob2" style={{ transform: `translateY(${scrollY * -0.08}px)` }}></div>
+        <div className="hero-blob3" style={{ transform: `translateY(${scrollY * 0.16}px)` }}></div>
         <div className="hero-dots"></div>
         <div className="hero-inner">
           {/* Left */}
@@ -1217,26 +1253,20 @@ export default function Home() {
 
       {modalPlano && <ProposalModal plano={modalPlano} onClose={() => setModalPlano(null)} />}
 
-      {/* ── DEPOIMENTOS (marquee) ── */}
+      {/* ── DIFERENCIAIS (marquee) ── */}
       <section className="testi-section">
         <div className="section-wrap section-center" style={{ paddingBottom:0 }}>
-          <div className="section-label">Depoimentos</div>
-          <h2 className="section-h2">Quem já usa o <span className="grad">eSocial SST</span></h2>
-          <p className="section-desc">Profissionais de SST economizando horas por semana em todo o Brasil.</p>
+          <div className="section-label">Diferenciais</div>
+          <h2 className="section-h2">Por que confiar no <span className="grad">eSocial SST</span></h2>
+          <p className="section-desc">Segurança, precisão e suporte de verdade — não só uma lista de funcionalidades.</p>
         </div>
         <div className="testi-marquee">
           <div className="testi-track">
-            {[...TESTIMONIALS, ...TESTIMONIALS].map((t,i) => (
+            {[...DIFERENCIAIS, ...DIFERENCIAIS].map((d,i) => (
               <div key={i} className="testi-card">
-                <div className="testi-stars">★★★★★</div>
-                <p>&ldquo;{t.text}&rdquo;</p>
-                <div className="testi-author">
-                  <div className="testi-avatar">{t.init}</div>
-                  <div>
-                    <div className="testi-name">{t.nome}</div>
-                    <div className="testi-role">{t.role}</div>
-                  </div>
-                </div>
+                <div className="testi-diff-icon">{d.ic}</div>
+                <div className="testi-name" style={{ marginBottom:8, fontSize:14 }}>{d.title}</div>
+                <p style={{ fontStyle:'normal' }}>{d.text}</p>
               </div>
             ))}
           </div>
@@ -1250,20 +1280,16 @@ export default function Home() {
           <h2 className="section-h2">Notícias sobre <span className="grad">eSocial SST</span></h2>
           <p className="section-desc">Artigos e tutoriais para manter sua empresa em conformidade.</p>
           <div className="blog-grid">
-            {[
-              { tag:'Obrigatoriedade', title:'O que é o eSocial SST e quem é obrigado em 2025', resumo:'Quais empresas devem enviar os eventos SST, prazos e penalidades.', data:'02/06/2025', slug:'o-que-e-esocial-sst' },
-              { tag:'Tutorial', title:'Como transmitir o S-2220 (ASO) ao eSocial: passo a passo', resumo:'Guia completo para médicos do trabalho enviarem o ASO corretamente.', data:'09/06/2025', slug:'como-transmitir-s2220-aso' },
-              { tag:'Inteligência Artificial', title:'Como a IA lê PDFs de ASO e LTCAT para o eSocial', resumo:'Entenda o processo de extração automática de dados com IA.', data:'16/06/2025', slug:'ia-leitura-pdf-aso-ltcat' },
-            ].map((a,i) => (
+            {ARTIGOS.slice().sort((a,b) => b.data.localeCompare(a.data)).slice(0,3).map((a,i) => (
               <Link key={i} href={`/noticias/${a.slug}`} className="blog-card reveal">
                 <div className="blog-card-top" />
                 <div className="blog-card-body">
-                  <span className="blog-tag">{a.tag}</span>
-                  <h3>{a.title}</h3>
+                  <span className="blog-tag">{a.tags[0]}</span>
+                  <h3>{a.titulo}</h3>
                   <p>{a.resumo}</p>
                 </div>
                 <div className="blog-card-foot">
-                  <span>{a.data}</span>
+                  <span>{new Date(a.data + 'T00:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })}</span>
                   <span className="blog-more">Ler →</span>
                 </div>
               </Link>
@@ -1272,6 +1298,31 @@ export default function Home() {
           <div style={{ marginTop:32 }}>
             <Link href="/noticias" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'12px 24px', background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontWeight:600, color:'#185FA5', textDecoration:'none', transition:'border-color .15s,box-shadow .15s' }}>
               Ver todos os artigos →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className="faq-bg">
+        <div className="section-wrap section-center">
+          <div className="section-label">Perguntas frequentes</div>
+          <h2 className="section-h2">Ainda com <span className="grad">dúvidas?</span></h2>
+          <p className="section-desc">As perguntas mais comuns de quem está avaliando o eSocial SST.</p>
+          <div className="faq-list">
+            {FAQ_HOME.map((f, i) => (
+              <details key={i} className="faq-item reveal">
+                <summary>
+                  {f.p}
+                  <span className="faq-plus">+</span>
+                </summary>
+                <p>{f.r}</p>
+              </details>
+            ))}
+          </div>
+          <div className="faq-more">
+            <Link href="/faq" style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'12px 24px', background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, fontWeight:600, color:'#185FA5', textDecoration:'none' }}>
+              Ver todas as perguntas →
             </Link>
           </div>
         </div>
