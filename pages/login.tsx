@@ -4,9 +4,6 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { supabase } from '../lib/supabase'
 import { setEmpresaId, setMultiEmpresa } from '../lib/empresa'
-import { formatarCNPJ } from '../lib/format'
-
-type Empresa = { id: string; razao_social: string; cnpj: string; perfil?: string }
 
 export default function Login() {
   const router = useRouter()
@@ -15,9 +12,7 @@ export default function Login() {
   const [erro, setErro] = useState('')
   const [info, setInfo] = useState('')
   const [carregando, setCarregando] = useState(false)
-  const [etapa, setEtapa] = useState<'login' | 'selecionar' | 'reset'>('login')
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [nomeUser, setNomeUser] = useState('')
+  const [etapa, setEtapa] = useState<'login' | 'reset'>('login')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -63,8 +58,6 @@ export default function Login() {
         setInfo(''); setErro('Usuário sem cadastro no sistema. Entre em contato com o suporte.'); setCarregando(false); return
       }
 
-      setNomeUser(usuario.nome)
-
       const empresaId = usuario.empresa_id
       setMultiEmpresa(false)
       setEmpresaId(empresaId)
@@ -87,73 +80,6 @@ export default function Login() {
     setCarregando(false)
     if (error) { setInfo(''); setErro('Erro: ' + error.message); return }
     setInfo('E-mail enviado! Verifique sua caixa de entrada (e o spam).')
-  }
-
-  function selecionarEmpresa(empresa: Empresa) {
-    setEmpresaId((empresa as any).empresa_id || empresa.id)
-    router.push('/dashboard')
-  }
-
-  if (etapa === 'selecionar') {
-    return (
-      <>
-        <Head><title>eSocial SST — Selecionar empresa</title></Head>
-        <div style={s.page}>
-          <div style={{ ...s.card, maxWidth: 520 }}>
-
-            <div style={s.logoWrap}>
-              <img src="/logo-completa.png" alt="DSEG Consultoria" style={{ height:'80px', width:'auto' }} />
-              <div style={{ ...s.logoSub, marginLeft:4 }}>Olá, {nomeUser}</div>
-            </div>
-
-            <div style={{ fontSize:14, fontWeight:600, color:'#111', marginBottom:4 }}>Selecionar empresa</div>
-            <div style={{ fontSize:12, color:'#6b7280', marginBottom:18 }}>
-              Você tem acesso a {empresas.length} empresas. Escolha com qual deseja trabalhar agora.
-            </div>
-
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {empresas.map((emp) => (
-                <button key={(emp as any).empresa_id || emp.id} onClick={() => selecionarEmpresa(emp)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, cursor:'pointer', textAlign:'left', transition:'border-color .15s, background .15s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#185FA5'; (e.currentTarget as HTMLButtonElement).style.background = '#f5f9ff' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb'; (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
-                >
-                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    <div style={{ width:38, height:38, borderRadius:8, background:'#E6F1FB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:600, color:'#111' }}>{emp.razao_social}</div>
-                      <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>{formatarCNPJ(emp.cnpj)}</div>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {emp.perfil && (
-                      <span style={{ padding:'2px 8px', borderRadius:99, fontSize:10, fontWeight:600, background:'#E6F1FB', color:'#185FA5', textTransform:'uppercase' }}>
-                        {emp.perfil}
-                      </span>
-                    )}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                      <polyline points="9,18 15,12 9,6"/>
-                    </svg>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ marginTop:16, textAlign:'center' }}>
-              <button onClick={() => { supabase.auth.signOut(); setEtapa('login') }}
-                style={{ background:'none', border:'none', fontSize:12, color:'#9ca3af', cursor:'pointer', textDecoration:'underline' }}>
-                Sair e usar outra conta
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </>
-    )
   }
 
   if (etapa === 'reset') return (

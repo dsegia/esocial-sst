@@ -344,6 +344,14 @@ export default function PCMSO() {
 
   async function fazerUploadImagem(idSecao, arquivo) {
     if (!arquivo) return
+    if (!arquivo.type.startsWith('image/')) {
+      alert('Apenas arquivos de imagem são permitidos.')
+      return
+    }
+    if (arquivo.size > 5 * 1024 * 1024) {
+      alert('Imagem muito grande (máximo 5MB).')
+      return
+    }
     try {
       setUploading(true)
       const ext = arquivo.name.split('.').pop()
