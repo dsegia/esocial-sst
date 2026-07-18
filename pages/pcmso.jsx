@@ -406,23 +406,23 @@ export default function PCMSO() {
     setSucesso(`Riscos atualizados a partir do GHE "${ghe.nome}".`)
   }
 
-  // A descrição das atividades é digitada uma vez no PGR (por função dentro do
-  // GHE) e sincronizada pra cá — evita pedir a mesma informação de novo.
+  // A descrição das atividades é digitada uma vez por função dentro do GHE
+  // (em /ghes ou no PGR) e sincronizada pra cá — evita pedir a mesma informação de novo.
   function atualizarAtividadesDoPgr() {
     const ghe = ghesCadastro.find(g => g.id === formFunc.ghe_id)
     if (!ghe) { setErro('Selecione um GHE vinculado primeiro.'); return }
-    const atividades = acharAtividadePorFuncao(ghe?.atividades_por_funcao, formFunc.funcao)
+    const atividades = acharAtividadePorFuncao(ghe?.funcoes, formFunc.funcao)
     if (!atividades) {
-      const disponiveis = Object.keys(ghe?.atividades_por_funcao || {})
+      const disponiveis = (ghe?.funcoes || []).filter(f => f.atividades?.trim()).map(f => f.nome)
       setErro(
         disponiveis.length
-          ? `Nenhuma descrição encontrada para "${formFunc.funcao}" neste GHE. Funções com descrição no PGR: ${disponiveis.join(', ')}.`
-          : `O GHE "${ghe.nome}" ainda não tem descrição de atividades cadastrada no PGR.`
+          ? `Nenhuma descrição encontrada para "${formFunc.funcao}" neste GHE. Funções com descrição: ${disponiveis.join(', ')}.`
+          : `O GHE "${ghe.nome}" ainda não tem descrição de atividades cadastrada.`
       )
       return
     }
     setFormFunc(p => ({ ...p, descricao_atividades: atividades }))
-    setSucesso(`Descrição das atividades atualizada a partir do PGR ("${ghe.nome}").`)
+    setSucesso(`Descrição das atividades atualizada a partir do cadastro central ("${ghe.nome}").`)
   }
 
   // Abrir formulário de novo programa para função
@@ -439,7 +439,7 @@ export default function PCMSO() {
       ghe_id: gheSugerido?.id || null,
       riscos: riscos.map(r => r.nome),
       exames: progExistente?.exames || examesRec.map(e => ({ nome:e, tipos:['admissional','periodico'], obrigatorio:true })),
-      descricao_atividades: progExistente?.descricao_atividades || acharAtividadePorFuncao(gheSugerido?.atividades_por_funcao, func.funcao) || ''
+      descricao_atividades: progExistente?.descricao_atividades || acharAtividadePorFuncao(gheSugerido?.funcoes, func.funcao) || ''
     })
     setAba('novo')
   }
@@ -737,7 +737,7 @@ export default function PCMSO() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button style={s.btnAcao} onClick={() => {
                         setEditandoFunc({ funcao:prog.funcao, setor:prog.setor })
-                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || acharAtividadePorFuncao(ghesCadastro.find(g=>g.id===prog.ghe_id)?.atividades_por_funcao, prog.funcao) || '' })
+                        setFormFunc({ funcao:prog.funcao, setor:prog.setor, ghe_id: prog.ghe_id || null, riscos: Array.isArray(prog.riscos)?prog.riscos:todosRiscos(prog.riscos), exames: Object.entries(exNorm).flatMap(([t,lista])=>lista.map(ex=>({...ex,tipos:[t]}))), descricao_atividades: prog.descricao_atividades || acharAtividadePorFuncao(ghesCadastro.find(g=>g.id===prog.ghe_id)?.funcoes, prog.funcao) || '' })
                         setAba('novo')
                       }}>Editar</button>
                       <button style={{ ...s.btnAcao, color:'#E24B4A', borderColor:'#F09595' }} onClick={() => excluirPrograma(prog.id)}>Excluir</button>
@@ -903,12 +903,12 @@ export default function PCMSO() {
                 value={formFunc.funcao} onChange={e => setFormFunc({...formFunc, funcao:e.target.value})} />
               <datalist id="funcoes-do-ghe-pcmso">
                 {(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).map(fn => (
-                  <option key={fn} value={fn} />
+                  <option key={fn.nome} value={fn.nome} />
                 ))}
               </datalist>
               {formFunc.ghe_id && !!(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).length && (
                 <div style={{ fontSize:11, color:'#9ca3af', marginTop:3 }}>
-                  Use exatamente o nome cadastrado no PGR pra "Usar do PGR" encontrar a descrição — sugestões: {(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).join(', ')}
+                  Use exatamente o nome cadastrado no GHE pra "Usar do PGR" encontrar a descrição — sugestões: {(ghesCadastro.find(g => g.id === formFunc.ghe_id)?.funcoes || []).map(fn=>fn.nome).join(', ')}
                 </div>
               )}
             </div>

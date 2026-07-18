@@ -35,14 +35,14 @@ export function normalizeExames(prog: any): Record<string, any[]> {
 
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase()
 
-// Busca a descrição de atividade de uma função dentro do mapa `atividades_por_funcao`
-// do GHE (sincronizado a partir do PGR), normalizando espaço/maiúscula — o nome da
-// função digitado no PCMSO pode diferir trivialmente do usado no PGR.
-export function acharAtividadePorFuncao(mapa: Record<string, string> | undefined | null, nomeFuncao: string | undefined | null): string | undefined {
-  if (!mapa || !nomeFuncao) return undefined
+// Busca a descrição de atividade de uma função dentro de `ghe.funcoes` (cadastro
+// central em /ghes, também usado pelo PGR), normalizando espaço/maiúscula — o
+// nome da função digitado no PCMSO pode diferir trivialmente do usado no PGR.
+export function acharAtividadePorFuncao(funcoes: { nome?: string; atividades?: string }[] | undefined | null, nomeFuncao: string | undefined | null): string | undefined {
+  if (!funcoes || !nomeFuncao) return undefined
   const alvo = norm(nomeFuncao)
-  for (const [chave, valor] of Object.entries(mapa)) {
-    if (norm(chave) === alvo) return valor
+  for (const f of funcoes) {
+    if (norm(f.nome) === alvo) return f.atividades
   }
   return undefined
 }

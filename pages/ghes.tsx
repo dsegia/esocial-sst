@@ -8,6 +8,7 @@ import { ESOCIAL_TABELA24 } from '../lib/esocial-tabela24'
 import { sugerirParaRisco } from '../lib/pgr-sugestoes'
 import { sugerirAnexoIV } from '../lib/ltcat-anexo-iv'
 import { AGENTES_POR_TIPO } from '../lib/agentes-risco'
+import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, nivelRisco } from '../lib/pgr-conteudo'
 
 const TIPO_AGENTE = { fis:'Físico', qui:'Químico', bio:'Biológico', erg:'Ergonômico', aci:'Acidentes', psi:'Psicossocial' }
 const COR_AGENTE  : Record<string,string> = { fis:'#E6F1FB', qui:'#FAEEDA', bio:'#EAF3DE', erg:'#FCEBEB', aci:'#FDEBD3', psi:'#EDE6FB' }
@@ -16,14 +17,23 @@ const TXT_AGENTE  : Record<string,string> = { fis:'#0C447C', qui:'#633806', bio:
 const gheVazio = () => ({
   nome: '', setor: '', qtd_trabalhadores: 1, aposentadoria_especial: false,
   periculosidade: false, insalubridade: false, horario_funcionamento: '',
-  riscos: [] as any[], epc: [] as any[], epi: [] as any[], funcoes: [] as string[],
+  riscos: [] as any[], epc: [] as any[], epi: [] as any[], funcoes: [] as any[],
 })
 const riscoVazio = () => ({
-  id: crypto.randomUUID(), tipo:'fis', nome:'', valor:'', limite:'', unidade:'',
-  supera_lt:false, medicao_quantitativa:false, metodologia:'', codigo_esocial:'', fonte_geradora:'', danos_saude:'',
+  id: crypto.randomUUID(), tipo:'fis', nome:'', perigo:'', fontes_circunstancias:'',
+  valor:'', limite:'', unidade:'', supera_lt:false, medicao_quantitativa:false, metodologia:'',
+  codigo_esocial:'', fonte_geradora:'', danos_saude:'',
+  severidade:'' as number | '', probabilidade:'' as number | '', trajetoria:'', tipo_exposicao:'',
 })
-const epiVazio = () => ({ nome:'', ca:'', eficaz:true })
+const epiVazio = () => ({ nome:'', ca:'', atenuacao:'', eficaz:true })
 const epcVazio = () => ({ nome:'', eficaz:true })
+const funcaoVazia = () => ({ nome:'', cbo:'', nivel:'Pleno', atividades:'', requisitos:'' })
+
+function nomeDaFuncao(f: any) { return typeof f === 'string' ? f : (f?.nome || '') }
+function normalizarFuncao(f: any) {
+  if (typeof f === 'string') return { nome: f, cbo:'', nivel:'Pleno', atividades:'', requisitos:'' }
+  return { nome: f.nome||'', cbo: f.cbo||'', nivel: f.nivel||'Pleno', atividades: f.atividades||'', requisitos: f.requisitos||'' }
+}
 
 export default function Ghes() {
   const router = useRouter()
@@ -80,11 +90,14 @@ export default function Ghes() {
   function normalizarRisco(r: any) {
     return {
       id: crypto.randomUUID(), tipo: r.tipo || 'fis', nome: r.nome || '',
+      perigo: r.perigo || '', fontes_circunstancias: r.fontes_circunstancias || '',
       valor: r.valor || '', limite: r.limite || '', unidade: r.unidade || '',
       supera_lt: !!r.supera_lt, medicao_quantitativa: !!r.medicao_quantitativa,
       metodologia: r.metodologia || '', codigo_esocial: r.codigo_t24 || r.codigo_esocial || '',
       fonte_geradora: r.equipamento || r.fonte_geradora || '',
       danos_saude: r.danos_saude || r.possiveis_danos || '',
+      severidade: r.severidade || '', probabilidade: r.probabilidade || '',
+      trajetoria: r.trajetoria || '', tipo_exposicao: r.tipo_exposicao || '',
     }
   }
 
@@ -107,10 +120,11 @@ export default function Ghes() {
       setor: g.setor || g.nome || '',
       qtd_trabalhadores: g.qtd_trabalhadores || 1,
       aposentadoria_especial: !!g.aposentadoria_especial,
-      funcoes: (g.funcoes || []).map((f: any) => typeof f === 'string' ? f : f.nome).filter(Boolean),
+      horario_funcionamento: g.horario_funcionamento || '',
+      funcoes: (g.funcoes || []).map(normalizarFuncao).filter((f: any) => f.nome),
       riscos: (g.agentes || g.riscos || []).map(normalizarRisco),
       epc: g.epc || [],
-      epi: (g.epi || []).map((e: any) => ({ nome: e.nome || '', ca: e.ca || '', eficaz: e.eficaz !== false })),
+      epi: (g.epi || []).map((e: any) => ({ nome: e.nome || '', ca: e.ca || '', atenuacao: e.atenuacao || '', eficaz: e.eficaz !== false })),
     }))
 
     const doPgr = inventarioPgr.map((g: any) => ({
@@ -119,10 +133,11 @@ export default function Ghes() {
       setor: g.ambientes_relacionados || g.nome || '',
       qtd_trabalhadores: parseInt(g.numero_empregados) || 1,
       aposentadoria_especial: false,
-      funcoes: (g.funcoes || []).map((f: any) => typeof f === 'string' ? f : f.nome).filter(Boolean),
+      horario_funcionamento: g.jornada_trabalho || '',
+      funcoes: (g.funcoes || []).map(normalizarFuncao).filter((f: any) => f.nome),
       riscos: (g.riscos || []).map(normalizarRisco),
       epc: [],
-      epi: (g.epis || []).map((e: any) => ({ nome: e.nome || '', ca: '', eficaz: e.eficaz !== false })),
+      epi: (g.epis || []).map((e: any) => ({ nome: e.nome || '', ca: '', atenuacao: e.atenuacao || '', eficaz: e.eficaz !== false })),
     }))
 
     const todos = [...doLtcat, ...doPgr]
@@ -150,6 +165,7 @@ export default function Ghes() {
       empresa_id: _empresaId,
       nome: c.nome, setor: c.setor, qtd_trabalhadores: c.qtd_trabalhadores || 1,
       aposentadoria_especial: !!c.aposentadoria_especial,
+      horario_funcionamento: c.horario_funcionamento || '',
       funcoes: c.funcoes || [], riscos: c.riscos || [], epc: c.epc || [], epi: c.epi || [],
       ativo: true,
     }))
@@ -263,10 +279,16 @@ export default function Ghes() {
     })
   }
 
-  function addFuncao(nome: string) {
-    const fn = nome.trim()
-    if (!fn) return
-    setFormGhe((p: any) => ({ ...p, funcoes: [...(p.funcoes||[]), fn] }))
+  // Helpers de edição — Funções/cargos
+  function addFuncao() {
+    setFormGhe((p: any) => ({ ...p, funcoes: [...(p.funcoes||[]), funcaoVazia()] }))
+  }
+  function setFuncao(fi: number, field: string, value: any) {
+    setFormGhe((p: any) => {
+      const funcoes = JSON.parse(JSON.stringify(p.funcoes))
+      funcoes[fi][field] = value
+      return { ...p, funcoes }
+    })
   }
   function removeFuncao(fi: number) {
     setFormGhe((p: any) => ({ ...p, funcoes: p.funcoes.filter((_: any, i: number) => i !== fi) }))
@@ -419,42 +441,66 @@ export default function Ghes() {
                   <div style={{ marginBottom:14 }}>
                     <div style={s.secLabel}>Riscos / agentes</div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                      {gheSel.riscos.map((ag: any, i: number) => (
+                      {gheSel.riscos.map((ag: any, i: number) => {
+                        const nr = nivelRisco(ag.severidade, ag.probabilidade)
+                        return (
                         <div key={ag.id||i} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:10, borderLeft:`3px solid ${TXT_AGENTE[ag.tipo]||'#6b7280'}` }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3, flexWrap:'wrap', gap:4 }}>
                             <span style={{ padding:'1px 7px', borderRadius:99, fontSize:10, fontWeight:600, background:COR_AGENTE[ag.tipo]||'#f3f4f6', color:TXT_AGENTE[ag.tipo]||'#374151' }}>
                               {(TIPO_AGENTE as any)[ag.tipo]||ag.tipo}
                             </span>
-                            {ag.supera_lt && <span style={{ fontSize:10, fontWeight:700, color:'#E24B4A' }}>⚠ Supera LT</span>}
+                            <div style={{ display:'flex', gap:4 }}>
+                              {nr && <span style={{ padding:'1px 7px', borderRadius:99, fontSize:10, fontWeight:700, background:nr.bg, color:nr.cor }}>{nr.faixa} ({nr.valor})</span>}
+                              {ag.supera_lt && <span style={{ fontSize:10, fontWeight:700, color:'#E24B4A' }}>⚠ Supera LT</span>}
+                            </div>
                           </div>
                           <div style={{ fontSize:13, fontWeight:500, color:'#111' }}>{ag.nome}</div>
+                          {ag.perigo && <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>Perigo: {ag.perigo}</div>}
+                          {ag.fontes_circunstancias && <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>Fontes/circunstâncias: {ag.fontes_circunstancias}</div>}
                           {ag.medicao_quantitativa && (ag.valor||ag.limite) && (
                             <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>
                               {ag.valor&&`Medido: ${ag.valor}${ag.unidade?' '+ag.unidade:''}`}{ag.valor&&ag.limite?' · ':''}{ag.limite&&`LT: ${ag.limite}`}
                             </div>
                           )}
                           {ag.metodologia && <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Metodologia: {ag.metodologia}</div>}
+                          {ag.fonte_geradora && <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Equipamento: {ag.fonte_geradora}</div>}
+                          {(ag.trajetoria || ag.tipo_exposicao) && (
+                            <div style={{ fontSize:11, color:'#6b7280', marginTop:2 }}>
+                              {ag.trajetoria && `Trajetória: ${ag.trajetoria}`}{ag.trajetoria && ag.tipo_exposicao ? ' · ' : ''}{ag.tipo_exposicao && `Exposição: ${ag.tipo_exposicao}`}
+                            </div>
+                          )}
                           {ag.danos_saude && <div style={{ fontSize:11, color:'#791F1F', marginTop:2 }}>Danos à saúde: {ag.danos_saude}</div>}
                           {ag.codigo_esocial && <div style={{ fontSize:10, color:'#9ca3af', marginTop:2, fontFamily:'monospace' }}>eSocial: {ag.codigo_esocial}</div>}
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
 
                 {(() => {
                   const fncsVinculadas = funcionariosDoGhe(gheSel)
-                  const todasFuncoes = [...new Set([
-                    ...(gheSel.funcoes||[]),
-                    ...fncsVinculadas.map((f:any)=>f.funcao).filter(Boolean)
-                  ])]
+                  const nomesGhe = (gheSel.funcoes||[]).map(nomeDaFuncao).filter(Boolean)
+                  const nomesFuncionarios = fncsVinculadas.map((f:any)=>f.funcao).filter(Boolean)
+                  const todasFuncoes = [...new Set([...nomesGhe, ...nomesFuncionarios])]
                   if (!todasFuncoes.length) return null
                   return (
                     <div style={{ marginBottom:14 }}>
                       <div style={s.secLabel}>Funções/cargos neste GHE ({fncsVinculadas.length} funcionário(s) vinculado(s))</div>
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                        {todasFuncoes.map((fn,i) => (
-                          <span key={i} style={{ padding:'3px 10px', borderRadius:99, fontSize:11, background:'#E6F1FB', color:'#0C447C' }}>{fn}</span>
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        {(gheSel.funcoes||[]).map((fn: any, i: number) => (
+                          <div key={i} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:10 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:13, fontWeight:600, color:'#111' }}>{fn.nome}</span>
+                              {fn.cbo && <span style={{ fontSize:10, color:'#6b7280', fontFamily:'monospace' }}>CBO {fn.cbo}</span>}
+                              {fn.nivel && <span style={{ padding:'1px 7px', borderRadius:99, fontSize:10, fontWeight:600, background:'#E6F1FB', color:'#0C447C' }}>{fn.nivel}</span>}
+                            </div>
+                            {fn.atividades && <div style={{ fontSize:11, color:'#6b7280', marginTop:4 }}>{fn.atividades}</div>}
+                            {fn.requisitos && <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>Requisitos: {fn.requisitos}</div>}
+                          </div>
+                        ))}
+                        {nomesFuncionarios.filter(n => !nomesGhe.includes(n)).map((n,i) => (
+                          <span key={`extra-${i}`} style={{ padding:'3px 10px', borderRadius:99, fontSize:11, background:'#f3f4f6', color:'#6b7280', width:'fit-content' }}>{n} (só no cadastro de funcionários)</span>
                         ))}
                       </div>
                     </div>
@@ -471,7 +517,7 @@ export default function Ghes() {
                   <div>
                     <div style={s.secLabel}>EPI</div>
                     {!gheSel.epi?.length ? <div style={s.emptySmall}>Nenhum EPI</div> : gheSel.epi.map((e: any,i: number) => (
-                      <div key={i} style={s.epiRow}><span style={{ fontSize:14 }}>{e.eficaz?'✓':'✗'}</span><div><div style={{ fontSize:13 }}>{e.nome}</div><div style={{ fontSize:11, color:'#6b7280' }}>CA: {e.ca||'—'}</div></div></div>
+                      <div key={i} style={s.epiRow}><span style={{ fontSize:14 }}>{e.eficaz?'✓':'✗'}</span><div><div style={{ fontSize:13 }}>{e.nome}</div><div style={{ fontSize:11, color:'#6b7280' }}>CA: {e.ca||'—'}{e.atenuacao?` · Atenuação: ${e.atenuacao}`:''}</div></div></div>
                     ))}
                   </div>
                 </div>
@@ -532,39 +578,32 @@ export default function Ghes() {
 
                 {/* Funções/Cargos */}
                 <div style={{ marginBottom:12 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                    <label style={s.label}>Funções/Cargos neste GHE</label>
-                    <span style={{ fontSize:11, color:'#9ca3af' }}>Usado para vincular funcionários automaticamente</span>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <div style={s.secLabel}>Funções/Cargos neste GHE</div>
+                    <button style={{ ...s.btnOutline, padding:'3px 8px', fontSize:11 }} onClick={addFuncao}>+ Função</button>
                   </div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:6 }}>
-                    {(formGhe.funcoes||[]).map((fn: string, fi: number) => (
-                      <span key={fi} style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:99, fontSize:12, background:'#E6F1FB', color:'#0C447C' }}>
-                        {fn}
-                        <button onClick={()=>removeFuncao(fi)} style={{background:'none',border:'none',cursor:'pointer',color:'#0C447C',fontSize:14,lineHeight:1,padding:0}}>×</button>
-                      </span>
+                  <datalist id="funcoes-existentes">
+                    {todosFunc.map(f=>f.funcao).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).map(fn=>(
+                      <option key={fn} value={fn}/>
                     ))}
-                  </div>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <input id="inp-funcao-ghe" style={{ ...s.input, flex:1 }}
-                      placeholder="Ex: Operador de Produção, Soldador, Cargo/Função..."
-                      list="funcoes-existentes"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
-                          addFuncao((e.target as HTMLInputElement).value)
-                          ;(e.target as HTMLInputElement).value = ''
-                        }
-                      }}/>
-                    <datalist id="funcoes-existentes">
-                      {todosFunc.map(f=>f.funcao).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).map(fn=>(
-                        <option key={fn} value={fn}/>
-                      ))}
-                    </datalist>
-                    <button style={{ ...s.btnOutline, padding:'6px 12px', fontSize:12, whiteSpace:'nowrap' }}
-                      onClick={() => {
-                        const inp = document.getElementById('inp-funcao-ghe') as HTMLInputElement
-                        if (inp?.value.trim()) { addFuncao(inp.value); inp.value = '' }
-                      }}>+ Adicionar</button>
-                  </div>
+                  </datalist>
+                  {(formGhe.funcoes||[]).map((fn: any, fi: number) => (
+                    <div key={fi} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:10, marginBottom:8 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 30px', gap:8, marginBottom:6, alignItems:'center' }}>
+                        <input style={s.input} value={fn.nome||''} onChange={e=>setFuncao(fi,'nome',e.target.value)} list="funcoes-existentes" placeholder="Nome da função (ex: Operador de Produção)"/>
+                        <input style={s.input} value={fn.cbo||''} onChange={e=>setFuncao(fi,'cbo',e.target.value)} placeholder="CBO"/>
+                        <select style={s.input} value={fn.nivel||'Pleno'} onChange={e=>setFuncao(fi,'nivel',e.target.value)}>
+                          <option value="Junior">Junior</option>
+                          <option value="Pleno">Pleno</option>
+                          <option value="Senior">Senior</option>
+                        </select>
+                        <button onClick={()=>removeFuncao(fi)} style={{ background:'none', border:'none', color:'#E24B4A', cursor:'pointer', fontSize:18, padding:0 }}>×</button>
+                      </div>
+                      <textarea style={{ ...s.input, minHeight:50, marginBottom:6, resize:'vertical' }} value={fn.atividades||''} onChange={e=>setFuncao(fi,'atividades',e.target.value)} placeholder="Descrição das atividades desta função"/>
+                      <textarea style={{ ...s.input, minHeight:36, resize:'vertical' }} value={fn.requisitos||''} onChange={e=>setFuncao(fi,'requisitos',e.target.value)} placeholder="Requisitos do cargo (formação, experiência...)"/>
+                    </div>
+                  ))}
+                  {!(formGhe.funcoes?.length) && <div style={{ fontSize:12, color:'#9ca3af' }}>Nenhuma função. Clique em + Função.</div>}
                 </div>
 
                 {/* Riscos */}
@@ -573,7 +612,9 @@ export default function Ghes() {
                     <div style={s.secLabel}>Riscos / agentes</div>
                     <button style={{ ...s.btnOutline, padding:'3px 8px', fontSize:11 }} onClick={addRisco}>+ Risco</button>
                   </div>
-                  {(formGhe.riscos||[]).map((ag: any, ai: number) => (
+                  {(formGhe.riscos||[]).map((ag: any, ai: number) => {
+                    const nr = nivelRisco(ag.severidade, ag.probabilidade)
+                    return (
                     <div key={ag.id||ai} style={{ border:'0.5px solid #e5e7eb', borderRadius:8, padding:10, marginBottom:8 }}>
                       <div style={{ display:'grid', gridTemplateColumns:'110px 1fr 30px', gap:8, marginBottom:6, alignItems:'center' }}>
                         <select style={s.input} value={ag.tipo||'fis'} onChange={e=>setRisco(ai,'tipo',e.target.value)}>
@@ -593,6 +634,10 @@ export default function Ghes() {
                           </div>
                         )
                       })()}
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:6 }}>
+                        <input style={s.input} value={ag.perigo||''} onChange={e=>setRisco(ai,'perigo',e.target.value)} placeholder="Perigo (ex: Intensidade/concentração do agente)"/>
+                        <input style={s.input} value={ag.fontes_circunstancias||''} onChange={e=>setRisco(ai,'fontes_circunstancias',e.target.value)} placeholder="Fontes/circunstâncias de exposição"/>
+                      </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 130px', gap:8, marginBottom:6 }}>
                         <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11 }}>
                           <input type="checkbox" checked={ag.medicao_quantitativa||false} onChange={e=>setRisco(ai,'medicao_quantitativa',e.target.checked)}/>
@@ -602,7 +647,7 @@ export default function Ghes() {
                         <input style={s.input} value={ag.unidade||''} onChange={e=>setRisco(ai,'unidade',e.target.value)} placeholder="Unidade (dB(A)...)" disabled={!ag.medicao_quantitativa}/>
                         <input style={s.input} value={ag.limite||''} onChange={e=>setRisco(ai,'limite',e.target.value)} placeholder="Limite de tolerância"/>
                       </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 140px 160px', gap:8 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 140px 160px', gap:8, marginBottom:6 }}>
                         <input style={s.input} value={ag.metodologia||''} onChange={e=>setRisco(ai,'metodologia',e.target.value)} placeholder="Metodologia (ex: NHO-01)" disabled={!ag.medicao_quantitativa}/>
                         <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, whiteSpace:'nowrap' }}>
                           <input type="checkbox" checked={ag.supera_lt||false} onChange={e=>setRisco(ai,'supera_lt',e.target.checked)}/>
@@ -610,9 +655,34 @@ export default function Ghes() {
                         </label>
                         <input style={s.input} value={ag.codigo_esocial||''} onChange={e=>setRisco(ai,'codigo_esocial',e.target.value)} list="tabela24-codigos" placeholder="Código eSocial"/>
                       </div>
-                      <input style={{ ...s.input, marginTop:6 }} value={ag.danos_saude||''} onChange={e=>setRisco(ai,'danos_saude',e.target.value)} placeholder="Possíveis danos à saúde (ex: PAIR, dermatose, LER/DORT...)"/>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:6 }}>
+                        <input style={s.input} value={ag.fonte_geradora||''} onChange={e=>setRisco(ai,'fonte_geradora',e.target.value)} placeholder="Equipamento / fonte geradora"/>
+                        <input style={s.input} value={ag.danos_saude||''} onChange={e=>setRisco(ai,'danos_saude',e.target.value)} placeholder="Possíveis danos à saúde (ex: PAIR, dermatose, LER/DORT...)"/>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:6 }}>
+                        <select style={s.input} value={ag.severidade} onChange={e=>setRisco(ai,'severidade', e.target.value?parseInt(e.target.value,10):'')}>
+                          <option value="">Severidade</option>
+                          {SEVERIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                        </select>
+                        <select style={s.input} value={ag.probabilidade} onChange={e=>setRisco(ai,'probabilidade', e.target.value?parseInt(e.target.value,10):'')}>
+                          <option value="">Probabilidade</option>
+                          {PROBABILIDADE_OPCOES.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                        </select>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:8, alignItems:'center' }}>
+                        <select style={s.input} value={ag.trajetoria||''} onChange={e=>setRisco(ai,'trajetoria',e.target.value)}>
+                          <option value="">Trajetória</option>
+                          {TRAJETORIA_OPCOES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                        <select style={s.input} value={ag.tipo_exposicao||''} onChange={e=>setRisco(ai,'tipo_exposicao',e.target.value)}>
+                          <option value="">Tipo de exposição</option>
+                          {TIPO_EXPOSICAO_OPCOES.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                        {nr && <span style={{ padding:'4px 10px', borderRadius:99, fontSize:11, fontWeight:700, background:nr.bg, color:nr.cor, whiteSpace:'nowrap' }}>{nr.faixa} ({nr.valor})</span>}
+                      </div>
                     </div>
-                  ))}
+                    )
+                  })}
                   <datalist id="tabela24-codigos">
                     {ESOCIAL_TABELA24.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}
                   </datalist>
@@ -646,9 +716,10 @@ export default function Ghes() {
                       <button style={{ ...s.btnOutline, padding:'2px 7px', fontSize:10 }} onClick={addEPI}>+ EPI</button>
                     </div>
                     {(formGhe.epi||[]).map((e: any, ei: number) => (
-                      <div key={ei} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                        <input style={{ ...s.input, flex:2 }} value={e.nome||''} onChange={v=>setEPI(ei,'nome',v.target.value)} placeholder="Nome do EPI"/>
-                        <input style={{ ...s.input, width:70 }} value={e.ca||''} onChange={v=>setEPI(ei,'ca',v.target.value)} placeholder="CA"/>
+                      <div key={ei} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center', flexWrap:'wrap' }}>
+                        <input style={{ ...s.input, flex:2, minWidth:100 }} value={e.nome||''} onChange={v=>setEPI(ei,'nome',v.target.value)} placeholder="Nome do EPI"/>
+                        <input style={{ ...s.input, width:60 }} value={e.ca||''} onChange={v=>setEPI(ei,'ca',v.target.value)} placeholder="CA"/>
+                        <input style={{ ...s.input, width:80 }} value={e.atenuacao||''} onChange={v=>setEPI(ei,'atenuacao',v.target.value)} placeholder="Atenuação"/>
                         <select style={{ ...s.input, width:90 }} value={e.eficaz?'sim':'nao'} onChange={v=>setEPI(ei,'eficaz',v.target.value==='sim')}>
                           <option value="sim">Eficaz</option><option value="nao">Ineficaz</option>
                         </select>

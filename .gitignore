@@ -14,6 +14,9 @@ build/
 .env.test.local
 .env.production.local
 
+# MCP config (contem API keys locais)
+.mcp.json
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
@@ -40,6 +43,9 @@ Thumbs.db
 *.crt
 
 .vercel
+
+# Material de referencia (nao faz parte do app)
+.reference/
 
 # Temporários e cache de build
 tsconfig.tsbuildinfo

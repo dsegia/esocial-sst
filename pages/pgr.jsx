@@ -56,10 +56,15 @@ function gheVazio() {
   }
 }
 
-// Campos do risco que vêm do cadastro central (/ghes) e podem ser sincronizados;
-// os demais (perigo, severidade, probabilidade, possiveis_danos, equipamento,
-// trajetoria, tipo_exposicao) são exclusivos do PGR e nunca são sobrescritos.
-const CAMPOS_RISCO_COMPARTILHADOS = ['nome', 'tipo', 'valor', 'unidade', 'limite', 'medicao_quantitativa', 'codigo_esocial', 'metodologia']
+// Campos do risco que vêm do cadastro central (/ghes) e são sincronizados — o
+// cadastro central manda: ao sincronizar, estes campos sempre sobrescrevem o
+// que estiver no PGR. Só `estimativa` (grau de certeza da avaliação, usado na
+// priorização do plano de ação) e `medidas administrativas`/jornada/nº de
+// empregados continuam exclusivos do PGR.
+const CAMPOS_RISCO_COMPARTILHADOS = [
+  'nome', 'tipo', 'valor', 'unidade', 'limite', 'medicao_quantitativa', 'codigo_esocial', 'metodologia',
+  'perigo', 'fontes_circunstancias', 'severidade', 'probabilidade', 'trajetoria', 'tipo_exposicao',
+]
 
 function riscoDoCadastro(ag, atualizadoEm) {
   const sugestao = sugerirParaRisco(ag.nome)
@@ -70,6 +75,10 @@ function riscoDoCadastro(ag, atualizadoEm) {
     codigo_esocial: ag.codigo_esocial || sugestao?.codigo_esocial || '',
     valor: ag.valor || '', unidade: ag.unidade || '', limite: ag.limite || '',
     medicao_quantitativa: !!ag.medicao_quantitativa, metodologia: ag.metodologia || '',
+    perigo: ag.perigo || '', fontes_circunstancias: ag.fontes_circunstancias || '',
+    severidade: ag.severidade || '', probabilidade: ag.probabilidade || '',
+    trajetoria: ag.trajetoria || '', tipo_exposicao: ag.tipo_exposicao || '',
+    equipamento: ag.fonte_geradora || '', possiveis_danos: ag.danos_saude || '',
   }
 }
 
@@ -81,10 +90,13 @@ function gheInventarioDoCadastro(ghesCadastro) {
       ghe_id: ghe.id, ghe_sync: { atualizado_em: ghe.atualizado_em },
       nome: ghe.nome || ghe.setor || 'GHE',
       ambientes_relacionados: ghe.nome || ghe.setor || '',
-      jornada_trabalho: '', numero_empregados: '',
-      funcoes: (ghe.funcoes || []).map(fn => ({ nome: fn, atividades: '' })),
+      jornada_trabalho: ghe.horario_funcionamento || '', numero_empregados: ghe.qtd_trabalhadores || '',
+      funcoes: (ghe.funcoes || []).map(fn => ({
+        nome: fn.nome || '', cbo: fn.cbo || '', nivel: fn.nivel || 'Pleno',
+        atividades: fn.atividades || '', requisitos: fn.requisitos || '',
+      })),
       riscos,
-      epis: (ghe.epi || []).map(e => ({ nome: e.nome || '', atenuacao: '', eficaz: e.eficaz !== false })),
+      epis: (ghe.epi || []).map(e => ({ nome: e.nome || '', atenuacao: e.atenuacao || '', eficaz: e.eficaz !== false })),
       medidas_administrativas: nomesRiscos.map(nome => {
         const sugestao = sugerirParaRisco(nome)
         return { risco: nome, medida: sugestao?.medida_administrativa || '' }
@@ -125,9 +137,28 @@ function sincronizarInventarioComCadastro(inventarioAtual, ghesCadastro) {
     if (grupo.nome !== ghe.nome) changelog.campos_atualizados.push(`${grupo.nome} → nome`)
     grupo.nome = ghe.nome
 
-    const nomesFuncoesAtuais = new Set((grupo.funcoes || []).map(f => f.nome))
-    for (const fn of (ghe.funcoes || [])) {
-      if (!nomesFuncoesAtuais.has(fn)) grupo.funcoes = [...(grupo.funcoes || []), { nome: fn, atividades: ghe.atividades_por_funcao?.[fn] || '' }]
+    if (ghe.horario_funcionamento && grupo.jornada_trabalho !== ghe.horario_funcionamento) {
+      changelog.campos_atualizados.push(`${grupo.nome} → jornada de trabalho`)
+      grupo.jornada_trabalho = ghe.horario_funcionamento
+    }
+
+    const funcoesPorNome = new Map((grupo.funcoes || []).map(f => [f.nome, f]))
+    for (const fnCadastro of (ghe.funcoes || [])) {
+      const fnPgr = funcoesPorNome.get(fnCadastro.nome)
+      if (!fnPgr) {
+        grupo.funcoes = [...(grupo.funcoes || []), {
+          nome: fnCadastro.nome, cbo: fnCadastro.cbo || '', nivel: fnCadastro.nivel || 'Pleno',
+          atividades: fnCadastro.atividades || '', requisitos: fnCadastro.requisitos || '',
+        }]
+        changelog.campos_atualizados.push(`${fnCadastro.nome} → função nova`)
+        continue
+      }
+      for (const campo of ['cbo', 'nivel', 'atividades', 'requisitos']) {
+        if (fnCadastro[campo] !== undefined && fnPgr[campo] !== fnCadastro[campo]) {
+          changelog.campos_atualizados.push(`${fnCadastro.nome} → ${campo}`)
+          fnPgr[campo] = fnCadastro[campo]
+        }
+      }
     }
 
     for (const riscoCadastro of (ghe.riscos || [])) {
@@ -182,6 +213,12 @@ function riscoParaCadastro(r) {
     codigo_esocial: r.codigo_esocial || '',
     fonte_geradora: r.equipamento || '',
     danos_saude: r.possiveis_danos || '',
+    perigo: r.perigo || '',
+    fontes_circunstancias: r.fontes_circunstancias || '',
+    severidade: r.severidade || '',
+    probabilidade: r.probabilidade || '',
+    trajetoria: r.trajetoria || '',
+    tipo_exposicao: r.tipo_exposicao || '',
   }
 }
 
@@ -196,13 +233,13 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
 
   for (const grupo of novoInventario) {
     const riscosNovos = (grupo.riscos || []).filter(r => !r.risco_id)
-    const funcoesNovas = [...new Set((grupo.funcoes || []).map(f => f.nome).filter(Boolean))]
-    // Descrição das atividades é digitada aqui no PGR — o cadastro central (e por
-    // tabela LTCAT/PCMSO, que leem de lá) precisa receber o texto atual, não só o
-    // nome da função, senão cada módulo pediria a mesma descrição de novo.
-    const atividadesMap = Object.fromEntries(
-      (grupo.funcoes || []).filter(f => f.nome && f.atividades?.trim()).map(f => [f.nome, f.atividades])
-    )
+    // Função/atividade/CBO/requisitos são digitados aqui no PGR — o cadastro
+    // central (e por tabela LTCAT/PCMSO, que leem de lá) precisa receber o
+    // objeto completo, não só o nome, senão cada módulo pediria tudo de novo.
+    const funcoesGrupo = (grupo.funcoes || []).filter(f => f.nome?.trim()).map(f => ({
+      nome: f.nome, cbo: f.cbo || '', nivel: f.nivel || 'Pleno',
+      atividades: f.atividades || '', requisitos: f.requisitos || '',
+    }))
 
     if (!grupo.ghe_id) {
       if (!grupo.nome?.trim() && !riscosNovos.length) continue
@@ -213,10 +250,9 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
         setor: grupo.ambientes_relacionados || grupo.nome || '',
         qtd_trabalhadores: parseInt(grupo.numero_empregados) || 1,
         horario_funcionamento: grupo.jornada_trabalho || '',
-        funcoes: funcoesNovas,
-        atividades_por_funcao: atividadesMap,
+        funcoes: funcoesGrupo,
         riscos: riscosMapeados,
-        epi: (grupo.epis || []).map(e => ({ nome: e.nome || '', ca: '', eficaz: e.eficaz !== false })),
+        epi: (grupo.epis || []).map(e => ({ nome: e.nome || '', ca: '', atenuacao: e.atenuacao || '', eficaz: e.eficaz !== false })),
         epc: [],
         ativo: true,
       }
@@ -234,18 +270,24 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
     const ghe = ghesMap.get(grupo.ghe_id)
     if (!ghe) continue
 
-    const nomesFuncoesCadastro = new Set(ghe.funcoes || [])
-    const funcoesParaAdicionar = funcoesNovas.filter(f => !nomesFuncoesCadastro.has(f))
-    const atividadesAtuais = ghe.atividades_por_funcao || {}
-    const atividadesMudaram = Object.entries(atividadesMap).some(([nome, texto]) => atividadesAtuais[nome] !== texto)
+    const funcoesCadastro = ghe.funcoes || []
+    const funcoesPorNome = new Map(funcoesCadastro.map(f => [f.nome, f]))
+    const funcoesNovas = funcoesGrupo.filter(f => !funcoesPorNome.has(f.nome))
+    const funcoesMudaram = funcoesGrupo.some(fn => {
+      const atual = funcoesPorNome.get(fn.nome)
+      return atual && (atual.cbo !== fn.cbo || atual.nivel !== fn.nivel || atual.atividades !== fn.atividades || atual.requisitos !== fn.requisitos)
+    })
+    const funcoesAtualizadas = funcoesCadastro.map(f => {
+      const doPgr = funcoesGrupo.find(fn => fn.nome === f.nome)
+      return doPgr ? { ...f, ...doPgr } : f
+    })
     const horarioMudou = !!grupo.jornada_trabalho?.trim() && grupo.jornada_trabalho !== ghe.horario_funcionamento
-    if (!riscosNovos.length && !funcoesParaAdicionar.length && !atividadesMudaram && !horarioMudou) continue
+    if (!riscosNovos.length && !funcoesNovas.length && !funcoesMudaram && !horarioMudou) continue
 
     const riscosMapeados = riscosNovos.map(riscoParaCadastro)
     const patch = {
       riscos: [...(ghe.riscos || []), ...riscosMapeados],
-      funcoes: [...(ghe.funcoes || []), ...funcoesParaAdicionar],
-      atividades_por_funcao: { ...atividadesAtuais, ...atividadesMap },
+      funcoes: [...funcoesAtualizadas, ...funcoesNovas],
       ...(horarioMudou ? { horario_funcionamento: grupo.jornada_trabalho } : {}),
       atualizado_em: new Date().toISOString(),
     }
@@ -258,7 +300,6 @@ async function sincronizarInventarioParaCadastro(inventario, ghesCadastroAtual, 
     })
     ghe.riscos = patch.riscos
     ghe.funcoes = patch.funcoes
-    ghe.atividades_por_funcao = patch.atividades_por_funcao
     if (horarioMudou) ghe.horario_funcionamento = patch.horario_funcionamento
   }
 
@@ -1488,7 +1529,7 @@ export default function PGR() {
                     </div>
                   )}
                   <div style={{ fontSize:11, color:'#9ca3af', marginTop:8 }}>
-                    Campos exclusivos do PGR (severidade, probabilidade, medidas administrativas, jornada, nº de empregados) não são alterados por esta sincronização.
+                    Nome, valor/limite, perigo, severidade, probabilidade, trajetória, tipo de exposição, função (CBO/nível/atividades/requisitos) e jornada de trabalho vêm do cadastro central e são sobrescritos. Estimativa e medidas administrativas continuam exclusivas deste PGR.
                   </div>
                 </>
               )

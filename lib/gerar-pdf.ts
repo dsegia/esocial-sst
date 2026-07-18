@@ -597,9 +597,10 @@ export async function gerarPdfLtcat(dados: any, empresa: any): Promise<void> {
       if (y > H - 30) { doc.addPage(); y = 20 }
       doc.setFontSize(7); doc.setTextColor(100); doc.text('FUNÇÕES/CARGOS VINCULADOS', mg, y); y += 4
       for (const fn of ghe.funcoes) {
-        const descricao = acharAtividadePorFuncao(ghe.atividades_por_funcao, fn)
+        const nomeFuncao = fn.nome || fn
+        const descricao = fn.atividades || acharAtividadePorFuncao(ghe.funcoes, nomeFuncao)
         doc.setFontSize(8.5)
-        const linhasNome = doc.splitTextToSize(fn, W - mg * 2 - 4)
+        const linhasNome = doc.splitTextToSize(nomeFuncao, W - mg * 2 - 4)
         doc.setFontSize(7.5)
         const linhasDesc = descricao ? doc.splitTextToSize(descricao, W - mg * 2 - 6) : []
         const alturaBloco = linhasNome.length * 3.8 + linhasDesc.length * 3.3 + 3
@@ -1097,7 +1098,7 @@ export async function gerarPdfPcmso(dados: any, empresa: any): Promise<void> {
     // inventário) para cada função do grupo — só usa o texto digitado manualmente
     // no PCMSO se o usuário tiver sobrescrito por lá.
     const atividadesEncontradas = [...new Set(
-      funcoesDoPrograma.map(fn => acharAtividadePorFuncao(ghe?.atividades_por_funcao, fn)).filter(Boolean)
+      funcoesDoPrograma.map(fn => acharAtividadePorFuncao(ghe?.funcoes, fn)).filter(Boolean)
     )]
     const descricaoAtividade = prog.descricao_atividades || atividadesEncontradas.join(' ') || '—'
     y = linhaLabelValor('Descrição da Atividade', descricaoAtividade, y)

@@ -260,13 +260,20 @@ async function salvarDocumento(tipo, dados, empresaId) {
     const ghesInseridosIds = []
     try {
       for (const g of (dados.ghes || [])) {
+        // A extração por IA do PDF só traz o nome do cargo (o laudo raramente
+        // detalha CBO/nível/atividades por função) — normaliza pro shape completo
+        // do cadastro central, que o usuário pode enriquecer depois em /ghes.
+        const funcoesNormalizadas = (g.funcoes || []).map(f => typeof f === 'string'
+          ? { nome: f, cbo: '', nivel: 'Pleno', atividades: '', requisitos: '' }
+          : { nome: f.nome || '', cbo: f.cbo || '', nivel: f.nivel || 'Pleno', atividades: f.atividades || '', requisitos: f.requisitos || '' }
+        ).filter(f => f.nome)
         const { data: gheNovo, error: gheErr } = await supabase.from('ghes').insert({
           empresa_id: empresaId,
           nome: g.nome || '',
           setor: g.setor || '',
           qtd_trabalhadores: g.qtd_trabalhadores || 1,
           aposentadoria_especial: !!g.aposentadoria_especial,
-          funcoes: g.funcoes || [],
+          funcoes: funcoesNormalizadas,
           riscos: (g.agentes || []).map(a => ({
             id: crypto.randomUUID(), tipo: a.tipo, nome: a.nome,
             valor: a.valor || '', limite: a.limite || '', unidade: '',

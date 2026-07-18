@@ -218,7 +218,6 @@ export default function LTCAT() {
       periculosidade: g.periculosidade, insalubridade: g.insalubridade,
       horario_funcionamento: g.horario_funcionamento || '',
       funcoes: g.funcoes || [],
-      atividades_por_funcao: g.atividades_por_funcao || {},
       agentes: (g.riscos || []).map(r => ({
         tipo: r.tipo, nome: r.nome, valor: r.valor, limite: r.limite, unidade: r.unidade,
         supera_lt: r.supera_lt, codigo_t24: r.codigo_esocial,
@@ -423,7 +422,7 @@ export default function LTCAT() {
                         <button onClick={() => {
                           const _funcsDoGhe = todosFunc.filter(f =>
                             (f.setor||'').toLowerCase().includes((ghe.setor||'').toLowerCase()) ||
-                            (ghe.funcoes||[]).some(fn => (f.funcao||'').toLowerCase().includes(fn.toLowerCase()))
+                            (ghe.funcoes||[]).some(fn => (f.funcao||'').toLowerCase().includes((fn.nome||fn||'').toLowerCase()))
                           )
                           const funcPlaceholder = { nome: `Trabalhadores do ${ghe.nome||'GHE'}`, cpf:'', matricula_esocial:'', funcao: ghe.setor||'', setor: ghe.setor||'', data_adm:'' }
                           pdfFichaEPI(nomeEmpresa, cnpjEmpresa, funcPlaceholder, [ghe])
@@ -470,7 +469,7 @@ export default function LTCAT() {
                         {/* Funções/cargos deste GHE */}
                         {/* Funções cadastradas no GHE */}
                         {(() => {
-                          const fnsCadastradas = ghe.funcoes || []
+                          const fnsCadastradas = (ghe.funcoes || []).map(f => typeof f === 'string' ? f : f.nome).filter(Boolean)
                           const fncsVinculadas = todosFunc.filter(f => {
                             if (f.ghe_id === ltcatSel.ghes.indexOf(ghe)) return true
                             const sg = (ghe.setor||'').toLowerCase()

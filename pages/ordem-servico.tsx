@@ -10,7 +10,7 @@ const norm = (s: any) => String(s ?? '').trim().toLowerCase()
 
 function gheDaFuncao(ghes: any[], funcao: string) {
   if (!funcao) return null
-  return ghes.find(g => (g.funcoes || []).some((f: string) => norm(f) === norm(funcao))) || null
+  return ghes.find(g => (g.funcoes || []).some((f: any) => norm(f.nome || f) === norm(funcao))) || null
 }
 
 const formVazio = () => ({

@@ -41,7 +41,7 @@ function funcoesDoLtcat(ltcat) {
   if (!ltcat?.ghes) return []
   const lista = []
   for (const ghe of ltcat.ghes) {
-    const nomes = ghe.funcoes?.length ? ghe.funcoes : [ghe.nome || 'Função não identificada']
+    const nomes = ghe.funcoes?.length ? ghe.funcoes.map(f => f.nome || f).filter(Boolean) : [ghe.nome || 'Função não identificada']
     for (const funcao of nomes) {
       if (lista.find(f => f.funcao === funcao)) continue
       lista.push({

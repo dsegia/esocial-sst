@@ -324,7 +324,7 @@ function resolverGheFuncionario(ghes, func) {
   if (func.funcao) {
     const fnLow = func.funcao.toLowerCase().trim()
     for (const ghe of ghes) {
-      const fnsGhe = (ghe.funcoes || []).map(f => f.toLowerCase().trim())
+      const fnsGhe = (ghe.funcoes || []).map(f => (f.nome || f || '').toLowerCase().trim())
       if (fnsGhe.some(f =>
         f.includes(fnLow) || fnLow.includes(f) ||
         fnLow.split(' ').filter(w => w.length > 3).some(w => f.includes(w))
@@ -343,6 +343,25 @@ function resolverGheFuncionario(ghes, func) {
   if (ghes.length === 1) return ghes[0]
 
   return null
+}
+
+// Descrição de atividade (dscAtivDes) — usa o texto cadastrado para a função
+// específica do trabalhador dentro do GHE (mesma fonte central do PGR/PCMSO),
+// caindo para a lista de nomes de função e, por fim, para o nome do GHE.
+function descricaoAtividadeFuncionario(ghe, funcionario) {
+  const funcoes = ghe.funcoes || []
+  const fnLow = (funcionario.funcao || '').toLowerCase().trim()
+  let match = null
+  if (fnLow) {
+    match = funcoes.find(f => (f.nome || f || '').toLowerCase().trim() === fnLow)
+      || funcoes.find(f => {
+        const n = (f.nome || f || '').toLowerCase().trim()
+        return n && (n.includes(fnLow) || fnLow.includes(n))
+      })
+  }
+  if (match?.atividades) return match.atividades
+  const nomes = funcoes.map(f => f.nome || f || '').filter(Boolean)
+  return nomes.join(', ') || ghe.nome || 'Atividades não detalhadas'
 }
 
 // ─── S-2240: CONDIÇÕES AMBIENTAIS ────────────────────
@@ -453,7 +472,7 @@ function gerarS2240(ltcat, empresa, tpAmb, funcionario = {}) {
         <nrInsc>${cnpjEmp}</nrInsc>
       </infoAmb>
       <infoAtiv>
-        <dscAtivDes>${escapeXml(((ghe.funcoes || []).join(', ') || ghe.nome || 'Atividades não detalhadas').slice(0, 999))}</dscAtivDes>
+        <dscAtivDes>${escapeXml(descricaoAtividadeFuncionario(ghe, funcionario).slice(0, 999))}</dscAtivDes>
       </infoAtiv>
       ${agNocXML}
       <respReg>
