@@ -9,7 +9,8 @@ import { requireAuth } from '../../lib/auth-middleware'
 import { resolverCertEmpresa } from '../../lib/resolve-cert'
 
 const ENDPOINTS = {
-  producao: 'https://webservices.esocial.gov.br/servicos/empregador/consultaLoteEventos/consultarLoteEventos/v1_1_0/index.php',
+  producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/consultaLoteEventos/consultarLoteEventos/v1_1_0/index.php',
+  producao:          'https://webservices.esocial.gov.br/servicos/empregador/consultaLoteEventos/consultarLoteEventos/v1_1_0/index.php',
 }
 
 const sbAdmin = createClient(
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 10 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições.', retryAfter })
 
-  const { nrRec, cnpj_empregador, ambiente = 'producao', pfx: pfxBase64, cert_senha, transmissao_id } = req.body
+  const { nrRec, cnpj_empregador, ambiente = 'producao_restrita', pfx: pfxBase64, cert_senha, transmissao_id } = req.body
 
   if (!nrRec || !cnpj_empregador) {
     return res.status(400).json({ erro: 'nrRec e cnpj_empregador são obrigatórios' })

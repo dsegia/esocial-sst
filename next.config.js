@@ -29,7 +29,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data:",
               "img-src 'self' data: https:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.resend.com https://generativelanguage.googleapis.com https://api.anthropic.com https://webservices.esocial.gov.br",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.resend.com https://generativelanguage.googleapis.com https://api.anthropic.com https://webservices.esocial.gov.br https://webservices.producaorestrita.esocial.gov.br",
               "frame-src https://js.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",

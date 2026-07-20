@@ -13,7 +13,10 @@ const sbAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
-const ENDPOINT = 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php'
+const ENDPOINTS = {
+  producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+  producao:          'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+}
 
 const SOAP_MINIMO = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope
@@ -35,9 +38,9 @@ const SOAP_MINIMO = `<?xml version="1.0" encoding="UTF-8"?>
   </soapenv:Body>
 </soapenv:Envelope>`
 
-function postComCert(pfxBuffer, passphrase) {
+function postComCert(pfxBuffer, passphrase, endpoint) {
   return new Promise((resolve, reject) => {
-    const url = new URL(ENDPOINT)
+    const url = new URL(endpoint)
     const body = Buffer.from(SOAP_MINIMO, 'utf-8')
     const req = https.request({
       hostname: url.hostname,
@@ -75,7 +78,9 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 5 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições.', retryAfter })
 
-  const { pfx: pfxBase64, cert_senha } = req.body || {}
+  const { pfx: pfxBase64, cert_senha, ambiente = 'producao_restrita' } = req.body || {}
+  const endpoint = ENDPOINTS[ambiente]
+  if (!endpoint) return res.status(400).json({ erro: 'Ambiente inválido' })
 
   // Resolver certificado: body (sessão) → cert próprio / procuração (consultoria)
   let pfxBuffer = pfxBase64 ? Buffer.from(pfxBase64, 'base64') : null
@@ -101,7 +106,7 @@ export default async function handler(req, res) {
   const inicio = Date.now()
 
   try {
-    const { status, body } = await postComCert(pfxBuffer, senha)
+    const { status, body } = await postComCert(pfxBuffer, senha, endpoint)
     const latencia = Date.now() - inicio
 
     const cdResp    = body.match(/<cdResp>([^<]+)<\/cdResp>/)?.[1]

@@ -36,7 +36,8 @@ function postSoap(url, headers, body, pfxBuffer, passphrase) {
 }
 
 const ENDPOINTS = {
-  producao: 'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+  producao_restrita: 'https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
+  producao:          'https://webservices.esocial.gov.br/servicos/empregador/envioLoteEventos/enviarLoteEventos/v1_1_0/index.php',
 }
 
 const sbAdmin = createClient(
@@ -151,7 +152,7 @@ export default async function handler(req, res) {
     }
   }
 
-  const { xml_assinado, cnpj_empregador, ambiente = 'producao', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body
+  const { xml_assinado, cnpj_empregador, ambiente = 'producao_restrita', transmissao_id: _transmissao_id, pfx: pfxBase64, cert_senha } = req.body
 
   if (!xml_assinado || !cnpj_empregador) {
     return res.status(400).json({ erro: 'XML assinado e CNPJ são obrigatórios' })

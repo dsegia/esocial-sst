@@ -23,7 +23,7 @@ export default function TransmissaoManual() {
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
   const [resultados, setResultados] = useState<any[]>([])
-  const ambiente = 'producao'
+  const [ambiente, setAmbiente] = useState('producao_restrita')
   const [testando, setTestando] = useState(false)
   const [testeResult, setTesteResult] = useState<null | { ok: boolean; msg: string; latencia?: number }>(null)
   // Certificado (nunca sai do estado do browser)
@@ -87,7 +87,7 @@ export default function TransmissaoManual() {
       const resp = await fetch('/api/testar-conexao-esocial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sessionToken}` },
-        body: JSON.stringify({ pfx: pfxBase64, cert_senha: certSenha }),
+        body: JSON.stringify({ pfx: pfxBase64, cert_senha: certSenha, ambiente }),
       })
       const data = await resp.json()
       if (data.conectado) {
@@ -359,6 +359,10 @@ export default function TransmissaoManual() {
           <div style={s.sub}>Assinar e transmitir eventos eSocial SST</div>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <select style={{ ...s.input, width:'auto' }} value={ambiente} onChange={e => { setAmbiente(e.target.value); setTesteResult(null) }}>
+            <option value="producao_restrita">Produção Restrita (Testes)</option>
+            <option value="producao">Produção (Real)</option>
+          </select>
           <button onClick={testarConexao} disabled={testando}
             style={{ background:'#f0f4f8', border:'1px solid #cbd5e1', borderRadius:8, padding:'8px 14px', fontSize:12, cursor:'pointer', color:'#374151', whiteSpace:'nowrap' }}>
             {testando ? 'Testando...' : '🔌 Testar conexão'}
@@ -371,6 +375,17 @@ export default function TransmissaoManual() {
         </div>
       )}
 
+      {/* Aviso produção */}
+      {ambiente === 'producao' && (
+        <div style={{ background:'#FCEBEB', border:'1.5px solid #E24B4A', borderRadius:10, padding:'12px 16px', fontSize:13, color:'#791F1F', marginBottom:14, fontWeight:500 }}>
+          ⚠ ATENÇÃO: Modo PRODUÇÃO selecionado. Os eventos serão transmitidos de verdade ao Gov.br.
+        </div>
+      )}
+      {ambiente === 'producao_restrita' && (
+        <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 16px', fontSize:12, color:'#0C447C', marginBottom:14 }}>
+          Modo Produção Restrita: ambiente de testes do Gov.br. Nenhum dado real é enviado.
+        </div>
+      )}
 
       {erro && <div style={s.erroBox}>{erro}</div>}
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}

@@ -14,11 +14,11 @@ export default async function handler(req, res) {
   const { limited, retryAfter } = await checkRateLimit(ip, { windowMs: 60_000, max: 20 })
   if (limited) return res.status(429).json({ erro: 'Muitas requisições. Tente novamente em breve.', retryAfter })
 
-  const { tipo, dados, empresa, ambiente = 'producao', funcionario } = req.body
+  const { tipo, dados, empresa, ambiente = 'producao_restrita', funcionario } = req.body
   if (!tipo || !dados || !empresa) return res.status(400).json({ erro: 'Dados incompletos' })
 
-  // tpAmb: 1=Produção
-  const tpAmb = '1'
+  // tpAmb: 1=Produção, 2=Produção Restrita (testes)
+  const tpAmb = ambiente === 'producao' ? '1' : '2'
 
   try {
     // Validações antes de gerar XML
