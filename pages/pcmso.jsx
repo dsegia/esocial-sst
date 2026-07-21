@@ -95,11 +95,15 @@ export default function PCMSO() {
   const [formMedico, setFormMedico] = useState({
     medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', telefones_emergencia:[],
     clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medicos_examinadores:[],
-    cronograma: [],
   })
   const [novoTelefone, setNovoTelefone] = useState({ nome:'', telefone:'' })
   const [novoMedicoExaminador, setNovoMedicoExaminador] = useState({ nome:'', crm:'' })
   const [salvandoMedico, setSalvandoMedico] = useState(false)
+
+  // Cronograma anual do PCMSO — independente da edição do médico coordenador
+  const [editandoCronograma, setEditandoCronograma] = useState(false)
+  const [formCronograma, setFormCronograma] = useState([])
+  const [salvandoCronograma, setSalvandoCronograma] = useState(false)
   const [textoAberto, setTextoAberto] = useState(null)
   const [secaoAberta, setSecaoAberta] = useState(null)
   const [editandoSecao, setEditandoSecao] = useState(null)
@@ -180,11 +184,10 @@ export default function PCMSO() {
           telefones_emergencia: medico.telefones_emergencia || [],
           clinica_nome: medico.clinica_nome || '', clinica_endereco: medico.clinica_endereco || '', clinica_cnpj: medico.clinica_cnpj || '',
           medicos_examinadores: medico.medicos_examinadores || [],
-          cronograma: medico.cronograma || [],
         }
       : {
           medico_nome:'', medico_cpf:'', medico_crm:'', data_elaboracao:'', prox_revisao:'', textos_legais_custom:{}, telefones_emergencia:[],
-          clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medicos_examinadores:[], cronograma:[],
+          clinica_nome:'', clinica_endereco:'', clinica_cnpj:'', medicos_examinadores:[],
         })
     setEditandoMedico(true)
     setSucesso(''); setErro('')
@@ -192,17 +195,38 @@ export default function PCMSO() {
 
   const MESES_CRONOGRAMA = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
+  function abrirEdicaoCronograma() {
+    setFormCronograma(medico?.cronograma || [])
+    setEditandoCronograma(true)
+    setSucesso(''); setErro('')
+  }
+
   function atividadeDoMes(mes) {
-    return formMedico.cronograma?.find(c => c.mes === mes)?.atividades || ''
+    return formCronograma?.find(c => c.mes === mes)?.atividades || ''
   }
 
   function setAtividadeDoMes(mes, atividades) {
-    setFormMedico(p => {
-      const cronograma = (p.cronograma || []).filter(c => c.mes !== mes)
+    setFormCronograma(prev => {
+      const cronograma = (prev || []).filter(c => c.mes !== mes)
       if (atividades.trim()) cronograma.push({ mes, atividades })
       cronograma.sort((a, b) => a.mes - b.mes)
-      return { ...p, cronograma }
+      return cronograma
     })
+  }
+
+  async function salvarCronograma() {
+    setSalvandoCronograma(true); setErro(''); setSucesso('')
+    const { error } = await supabase.from('pcmso_dados').upsert(
+      { empresa_id: empresaId, cronograma: formCronograma || [], atualizado_em: new Date().toISOString() },
+      { onConflict: 'empresa_id' }
+    )
+    if (error) { setErro('Erro ao salvar: ' + error.message) }
+    else {
+      setSucesso('Cronograma anual salvo!')
+      setEditandoCronograma(false)
+      await init()
+    }
+    setSalvandoCronograma(false)
   }
 
   function addTelefoneEmergencia() {
@@ -256,7 +280,6 @@ export default function PCMSO() {
       clinica_endereco: formMedico.clinica_endereco || null,
       clinica_cnpj: formMedico.clinica_cnpj || null,
       medicos_examinadores: formMedico.medicos_examinadores || [],
-      cronograma: formMedico.cronograma || [],
       atualizado_em: new Date().toISOString(),
     }
     const { error } = await supabase.from('pcmso_dados').upsert(dados, { onConflict: 'empresa_id' })
@@ -744,22 +767,50 @@ export default function PCMSO() {
               </div>
             </div>
 
-            {/* Cronograma anual */}
-            <div style={{ marginBottom:14 }}>
-              <label style={s.label}>Cronograma anual do PCMSO</label>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {MESES_CRONOGRAMA.map((nomeMes, i) => (
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ width:90, fontSize:12, color:'#374151', flexShrink:0 }}>{nomeMes}</span>
-                    <input style={{ ...s.input, flex:1 }} value={atividadeDoMes(i+1)} onChange={e => setAtividadeDoMes(i+1, e.target.value)} placeholder="Atividades previstas neste mês (opcional)"/>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             <div style={{ display:'flex', gap:8 }}>
               <button style={s.btnPrimary} onClick={salvarMedico} disabled={salvandoMedico}>{salvandoMedico ? 'Salvando...' : 'Salvar'}</button>
               <button style={s.btnOutline} onClick={() => setEditandoMedico(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Cronograma anual — independente da edição do médico coordenador */}
+      <div style={{ ...s.card, marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+          <div style={{ flex:1 }}>
+            <div style={s.cardTit}>Cronograma anual do PCMSO</div>
+            {medico?.cronograma?.length ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:4, marginTop:8 }}>
+                {medico.cronograma.map((c,i) => (
+                  <div key={i} style={{ display:'flex', gap:8, fontSize:12 }}>
+                    <span style={{ width:90, fontWeight:600, color:'#374151', flexShrink:0 }}>{MESES_CRONOGRAMA[c.mes-1]}</span>
+                    <span style={{ color:'#6b7280' }}>{c.atividades}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize:12, color:'#9ca3af', marginTop:6 }}>Nenhuma atividade planejada por mês ainda.</div>
+            )}
+          </div>
+          <button style={{ ...s.btnAcao, flexShrink:0 }} onClick={abrirEdicaoCronograma}>
+            {medico?.cronograma?.length ? 'Editar' : '+ Planejar cronograma'}
+          </button>
+        </div>
+
+        {editandoCronograma && (
+          <div style={{ marginTop:14, paddingTop:14, borderTop:'0.5px solid #e5e7eb' }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:14 }}>
+              {MESES_CRONOGRAMA.map((nomeMes, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ width:90, fontSize:12, color:'#374151', flexShrink:0 }}>{nomeMes}</span>
+                  <input style={{ ...s.input, flex:1 }} value={atividadeDoMes(i+1)} onChange={e => setAtividadeDoMes(i+1, e.target.value)} placeholder="Atividades previstas neste mês (opcional)"/>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={s.btnPrimary} onClick={salvarCronograma} disabled={salvandoCronograma}>{salvandoCronograma ? 'Salvando...' : 'Salvar cronograma'}</button>
+              <button style={s.btnOutline} onClick={() => setEditandoCronograma(false)}>Cancelar</button>
             </div>
           </div>
         )}
