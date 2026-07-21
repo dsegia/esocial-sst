@@ -46,6 +46,16 @@ const MENU_COMPLETO = [
   { href:'/conta',           label:'Minha Conta',             icon:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z' },
 ]
 
+// Descobre a qual grupo (sep) uma rota pertence, para abrir esse grupo por padrão
+function grupoDaPagina(pagina: string): string {
+  let grupoAtual = ''
+  for (const item of MENU_COMPLETO) {
+    if (item.sep || !item.href) { grupoAtual = item.label; continue }
+    if (item.href.replace('/', '').split('?')[0] === pagina) return grupoAtual
+  }
+  return ''
+}
+
 // Rotas que o Visualizador pode acessar
 const ROTAS_VISUALIZADOR = ['/relatorios', '/historico', '/conta', '/planos']
 
@@ -63,6 +73,22 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
   const [perfil, setPerfil] = useState<string>('admin')
   const [semCert, setSemCert] = useState(false)
   const [multi, setMulti] = useState(false)
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    let salvos: Record<string, boolean> = {}
+    try { salvos = JSON.parse(localStorage.getItem('menu_grupos_abertos') || '{}') } catch { /* ignora */ }
+    const grupoAtual = grupoDaPagina(pagina)
+    setGruposAbertos(grupoAtual ? { ...salvos, [grupoAtual]: true } : salvos)
+  }, [pagina])
+
+  function toggleGrupo(label: string) {
+    setGruposAbertos(prev => {
+      const novo = { ...prev, [label]: !prev[label] }
+      try { localStorage.setItem('menu_grupos_abertos', JSON.stringify(novo)) } catch { /* ignora */ }
+      return novo
+    })
+  }
   const [plano, setPlano] = useState<string>('trial')
   const [trialDias, setTrialDias] = useState<number>(14)
   const [qtdFuncionarios, setQtdFuncionarios] = useState<number | null>(null)
@@ -215,34 +241,51 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
 
         {/* Menu de navegação — filtrado por perfil */}
         <nav style={{ flex:1, padding:'0 .75rem', overflowY:'auto' }}>
-          {(perfil === 'visualizador' ? MENU_VISUALIZADOR : MENU_COMPLETO).map((item: any, i) => {
-            if (item.sep) return (
-              <div key={i} style={{ fontSize:9, fontWeight:700, color:'#c4c4c0', textTransform:'uppercase', letterSpacing:'.08em', padding:'10px 10px 4px', marginTop:4 }}>
-                {item.label}
-              </div>
-            )
-            const ativo = pagina === item.href.replace('/','').split('?')[0]
-            const isCfg = item.href === '/configuracoes'
-            return (
-              <a key={item.href} href={item.href} style={{
-                display:'flex', alignItems:'center', gap:8,
-                padding:'7px 10px', borderRadius:8, marginBottom:1,
-                fontSize:12, textDecoration:'none',
-                background: ativo ? '#E6F1FB' : 'transparent',
-                color: ativo ? '#185FA5' : '#374151',
-                fontWeight: ativo ? 500 : 400,
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke={ativo ? '#185FA5' : '#9ca3af'} strokeWidth="2" style={{ flexShrink:0 }}>
-                  <path d={item.icon}/>
-                </svg>
-                <span style={{ lineHeight:1.3 }}>{item.label}</span>
-                {isCfg && semCert && (
-                  <span style={{ marginLeft:'auto', width:7, height:7, borderRadius:'50%', background:'#EF9F27', flexShrink:0 }}></span>
-                )}
-              </a>
-            )
-          })}
+          {(() => {
+            let grupoAtual = ''
+            return (perfil === 'visualizador' ? MENU_VISUALIZADOR : MENU_COMPLETO).map((item: any, i) => {
+              if (item.sep) {
+                grupoAtual = item.label
+                const aberto = !!gruposAbertos[item.label]
+                return (
+                  <div key={i} onClick={() => toggleGrupo(item.label)} style={{
+                    display:'flex', alignItems:'center', justifyContent:'space-between', gap:6, cursor:'pointer',
+                    padding:'10px 10px 4px', marginTop:4,
+                  }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:'#c4c4c0', textTransform:'uppercase', letterSpacing:'.08em' }}>
+                      {item.label}
+                    </span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#c4c4c0" strokeWidth="3" style={{ flexShrink:0, transform: aberto ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>
+                      <polyline points="9,18 15,12 9,6"/>
+                    </svg>
+                  </div>
+                )
+              }
+              const grupo = grupoAtual
+              if (grupo && !gruposAbertos[grupo]) return null
+              const ativo = pagina === item.href.replace('/','').split('?')[0]
+              const isCfg = item.href === '/configuracoes'
+              return (
+                <a key={item.href} href={item.href} style={{
+                  display:'flex', alignItems:'center', gap:8,
+                  padding:'7px 10px', borderRadius:8, marginBottom:1,
+                  fontSize:12, textDecoration:'none',
+                  background: ativo ? '#E6F1FB' : 'transparent',
+                  color: ativo ? '#185FA5' : '#374151',
+                  fontWeight: ativo ? 500 : 400,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke={ativo ? '#185FA5' : '#9ca3af'} strokeWidth="2" style={{ flexShrink:0 }}>
+                    <path d={item.icon}/>
+                  </svg>
+                  <span style={{ lineHeight:1.3 }}>{item.label}</span>
+                  {isCfg && semCert && (
+                    <span style={{ marginLeft:'auto', width:7, height:7, borderRadius:'50%', background:'#EF9F27', flexShrink:0 }}></span>
+                  )}
+                </a>
+              )
+            })
+          })()}
         </nav>
 
         {/* Vidas ativas (assinantes ativos) — cobrança escala com esse número */}
