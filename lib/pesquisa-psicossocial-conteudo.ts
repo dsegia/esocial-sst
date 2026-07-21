@@ -158,9 +158,11 @@ export const MIN_RESPOSTAS_SETOR = 5
 // nunca abaixo de 1 — a proteção de anonimato aqui é textual/de contexto
 // (aviso na tela), já que com um quadro tão pequeno não há como segmentar
 // mais sem já saber quem respondeu.
-export function limiteAnaliseEfetivo(totalFuncionariosAtivos) {
-  const total = Number.isInteger(totalFuncionariosAtivos) && totalFuncionariosAtivos > 0 ? totalFuncionariosAtivos : MIN_RESPOSTAS_ANALISE
-  return Math.min(MIN_RESPOSTAS_ANALISE, total)
+export function limiteAnaliseEfetivo(totalFuncionariosAtivos: number | null | undefined): number {
+  if (!Number.isInteger(totalFuncionariosAtivos) || !totalFuncionariosAtivos || totalFuncionariosAtivos <= 0) {
+    return MIN_RESPOSTAS_ANALISE
+  }
+  return Math.min(MIN_RESPOSTAS_ANALISE, totalFuncionariosAtivos)
 }
 
 export function mediaDimensao(respostasAgregadas: Record<string, number[]>, dimensaoId: string): number | null {
