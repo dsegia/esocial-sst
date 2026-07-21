@@ -263,11 +263,39 @@ export default function PCMSO() {
 
     if (error) { setErro('Erro ao salvar: ' + error.message) }
     else {
+      await sincronizarCadastroMedicosClinicas(formMedico)
       setSucesso('Dados do médico coordenador salvos!')
       setEditandoMedico(false)
       await init()
     }
     setSalvandoMedico(false)
+  }
+
+  // Mantém o cadastro reutilizável de médicos/clínicas atualizado com o que
+  // for digitado no PCMSO, sem duplicar quem já está cadastrado (nome igual,
+  // ignorando maiúsculas/espaços).
+  async function sincronizarCadastroMedicosClinicas(fm) {
+    const jaTemMedico = (nome) => medicosCadastro.some(m => (m.nome||'').trim().toLowerCase() === (nome||'').trim().toLowerCase())
+    const jaTemClinica = (nome) => clinicasCadastro.some(c => (c.nome||'').trim().toLowerCase() === (nome||'').trim().toLowerCase())
+
+    const novosMedicos = []
+    if (fm.medico_nome && !jaTemMedico(fm.medico_nome)) {
+      novosMedicos.push({ empresa_id: empresaId, nome: fm.medico_nome, cpf: fm.medico_cpf || null, crm: fm.medico_crm || null })
+    }
+    for (const m of (fm.medicos_examinadores || [])) {
+      if (m.nome && !jaTemMedico(m.nome) && !novosMedicos.some(n => n.nome.trim().toLowerCase() === m.nome.trim().toLowerCase())) {
+        novosMedicos.push({ empresa_id: empresaId, nome: m.nome, crm: m.crm || null })
+      }
+    }
+    if (novosMedicos.length) {
+      try { await supabase.from('medicos').insert(novosMedicos) } catch { /* sincronização best-effort */ }
+    }
+
+    if (fm.clinica_nome && !jaTemClinica(fm.clinica_nome)) {
+      try {
+        await supabase.from('clinicas').insert({ empresa_id: empresaId, nome: fm.clinica_nome, cnpj: fm.clinica_cnpj || null, endereco: fm.clinica_endereco || null })
+      } catch { /* sincronização best-effort */ }
+    }
   }
 
   function abrirEdicaoSecao(idSecao) {
@@ -598,7 +626,7 @@ export default function PCMSO() {
 
         {editandoMedico && (
           <div style={{ marginTop:14, paddingTop:14, borderTop:'0.5px solid #e5e7eb' }}>
-            {medicosCadastro.length > 0 && (
+            {medicosCadastro.length > 0 ? (
               <div style={{ marginBottom:10 }}>
                 <label style={s.label}>Preencher a partir do cadastro de médicos</label>
                 <select style={s.input} value="" onChange={e => {
@@ -608,6 +636,10 @@ export default function PCMSO() {
                   <option value="">— selecione um médico cadastrado —</option>
                   {medicosCadastro.map(m => <option key={m.id} value={m.id}>{m.nome}{m.crm ? ` — ${m.crm}` : ''}</option>)}
                 </select>
+              </div>
+            ) : (
+              <div style={{ fontSize:11, color:'#9ca3af', marginBottom:10 }}>
+                Nenhum médico cadastrado ainda. Ao salvar, o nome informado abaixo entra automaticamente no <a href="/medicos" style={{ color:'#185FA5' }}>cadastro de médicos</a> para reuso futuro.
               </div>
             )}
             <div style={s.row2}>
