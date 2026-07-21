@@ -143,12 +143,25 @@ export function todosItens(): ItemPesquisa[] {
   return DIMENSOES_PESQUISA.flatMap(d => d.itens)
 }
 
-// Tamanho mínimo de respostas para liberar a análise (protege o anonimato:
-// abaixo disso, dá para "adivinhar" quem respondeu o quê).
+// Tamanho mínimo "ideal" de respostas para liberar a análise (protege o
+// anonimato: abaixo disso, dá para "adivinhar" quem respondeu o quê).
 export const MIN_RESPOSTAS_ANALISE = 5
 // Tamanho mínimo de um subgrupo (setor) para aparecer segmentado nos
-// resultados — abaixo disso, some no agregado geral da empresa.
+// resultados — abaixo disso, some no agregado geral da empresa. Não escala
+// com o tamanho da empresa (diferente de limiteAnaliseEfetivo): segmentar por
+// setor uma empresa pequena de qualquer forma expõe demais quem respondeu.
 export const MIN_RESPOSTAS_SETOR = 5
+
+// Empresas com menos funcionários que MIN_RESPOSTAS_ANALISE nunca atingiriam
+// o mínimo "ideal" (ex.: empresa com 4 funcionários jamais teria 5 respostas).
+// O limite efetivo cai para o tamanho do quadro de funcionários da empresa,
+// nunca abaixo de 1 — a proteção de anonimato aqui é textual/de contexto
+// (aviso na tela), já que com um quadro tão pequeno não há como segmentar
+// mais sem já saber quem respondeu.
+export function limiteAnaliseEfetivo(totalFuncionariosAtivos) {
+  const total = Number.isInteger(totalFuncionariosAtivos) && totalFuncionariosAtivos > 0 ? totalFuncionariosAtivos : MIN_RESPOSTAS_ANALISE
+  return Math.min(MIN_RESPOSTAS_ANALISE, total)
+}
 
 export function mediaDimensao(respostasAgregadas: Record<string, number[]>, dimensaoId: string): number | null {
   const dimensao = DIMENSOES_PESQUISA.find(d => d.id === dimensaoId)

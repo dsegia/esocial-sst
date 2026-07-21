@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import {
   DIMENSOES_PESQUISA, ITENS_PREVALENCIA_CRITICA, todosItens,
-  mediaDimensao, classificarNivel, MIN_RESPOSTAS_ANALISE,
+  mediaDimensao, classificarNivel, limiteAnaliseEfetivo,
 } from '../../lib/pesquisa-psicossocial-conteudo'
 
 const TITULO_SECAO = 'RISCOS PSICOSSOCIAIS'
@@ -70,13 +70,16 @@ export default async function handler(req, res) {
     .order('criado_em', { ascending: false }).limit(1).maybeSingle()
   if (!pgrAtivo) return res.status(400).json({ erro: 'Nenhum PGR ativo encontrado. Crie o PGR da empresa antes de gerar a análise psicossocial.' })
 
-  const { data: respostas, error: errRespostas } = await sbAdmin.from('pesquisa_psicossocial_respostas')
-    .select('respostas, comentario, sugestao').eq('empresa_id', empresaId).limit(5000)
+  const [{ data: respostas, error: errRespostas }, { count: totalFuncionarios }] = await Promise.all([
+    sbAdmin.from('pesquisa_psicossocial_respostas').select('respostas, comentario, sugestao').eq('empresa_id', empresaId).limit(5000),
+    sbAdmin.from('funcionarios').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId).eq('ativo', true),
+  ])
   if (errRespostas) return res.status(500).json({ erro: 'Erro ao carregar respostas da pesquisa.' })
 
+  const minRespostasAnalise = limiteAnaliseEfetivo(totalFuncionarios)
   const total = respostas?.length || 0
-  if (total < MIN_RESPOSTAS_ANALISE) {
-    return res.status(400).json({ erro: `São necessárias ao menos ${MIN_RESPOSTAS_ANALISE} respostas para gerar a análise (recebidas: ${total}).` })
+  if (total < minRespostasAnalise) {
+    return res.status(400).json({ erro: `São necessárias ao menos ${minRespostasAnalise} respostas para gerar a análise (recebidas: ${total}).` })
   }
 
   const valoresPorItem = {}

@@ -4,7 +4,7 @@ import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
 import { getEmpresaIdValida } from '../lib/empresa'
-import { MIN_RESPOSTAS_ANALISE } from '../lib/pesquisa-psicossocial-conteudo'
+import { MIN_RESPOSTAS_SETOR } from '../lib/pesquisa-psicossocial-conteudo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -128,6 +128,7 @@ export default function PesquisaPsicossocial() {
 
   const total = resultados?.total || 0
   const liberado = resultados?.liberado_analise
+  const minNecessario = resultados?.min_respostas_analise || 5
 
   return (
     <Layout>
@@ -156,8 +157,8 @@ export default function PesquisaPsicossocial() {
           <p style={s.hint}>{total} resposta{total === 1 ? '' : 's'} até agora.</p>
           {!liberado && (
             <>
-              <div style={s.aviso}>São necessárias ao menos {MIN_RESPOSTAS_ANALISE} respostas para liberar a análise por IA — isso protege o anonimato de quem já respondeu.</div>
-              <div style={s.progressoBarra}><div style={s.progressoFill((total / MIN_RESPOSTAS_ANALISE) * 100)} /></div>
+              <div style={s.aviso}>São necessárias ao menos {minNecessario} resposta{minNecessario === 1 ? '' : 's'} para liberar a análise por IA — isso protege o anonimato de quem já respondeu.</div>
+              <div style={s.progressoBarra}><div style={s.progressoFill((total / minNecessario) * 100)} /></div>
             </>
           )}
         </div>
@@ -201,7 +202,7 @@ export default function PesquisaPsicossocial() {
             {resultados.setores.length > 0 && (
               <div style={s.card}>
                 <h2 style={s.h2}>Por setor</h2>
-                <p style={s.hint}>Só exibido para setores com {MIN_RESPOSTAS_ANALISE}+ respostas, para preservar o anonimato.</p>
+                <p style={s.hint}>Só exibido para setores com {MIN_RESPOSTAS_SETOR}+ respostas, para preservar o anonimato.</p>
                 <table style={s.tabela}>
                   <thead><tr><th style={s.th}>Setor</th><th style={s.th}>Respostas</th><th style={s.th}>Nível geral</th></tr></thead>
                   <tbody>

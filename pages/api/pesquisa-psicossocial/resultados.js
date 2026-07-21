@@ -8,7 +8,7 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   DIMENSOES_PESQUISA, ITENS_PREVALENCIA_CRITICA, todosItens,
-  mediaDimensao, classificarNivel, MIN_RESPOSTAS_ANALISE, MIN_RESPOSTAS_SETOR,
+  mediaDimensao, classificarNivel, MIN_RESPOSTAS_SETOR, limiteAnaliseEfetivo,
 } from '../../../lib/pesquisa-psicossocial-conteudo'
 
 export default async function handler(req, res) {
@@ -26,18 +26,22 @@ export default async function handler(req, res) {
   if (!usuarioDb?.empresa_id) return res.status(403).json({ erro: 'Usuário sem empresa vinculada' })
   const empresaId = usuarioDb.empresa_id
 
-  const { data: respostas, error } = await sbAdmin.from('pesquisa_psicossocial_respostas')
-    .select('setor, respostas, comentario, sugestao, criado_em')
-    .eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(5000)
+  const [{ data: respostas, error }, { count: totalFuncionarios }] = await Promise.all([
+    sbAdmin.from('pesquisa_psicossocial_respostas')
+      .select('setor, respostas, comentario, sugestao, criado_em')
+      .eq('empresa_id', empresaId).order('criado_em', { ascending: false }).limit(5000),
+    sbAdmin.from('funcionarios').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId).eq('ativo', true),
+  ])
 
   if (error) return res.status(500).json({ erro: 'Erro ao carregar resultados.' })
 
+  const minRespostasAnalise = limiteAnaliseEfetivo(totalFuncionarios)
   const total = respostas?.length || 0
-  const liberadoAnalise = total >= MIN_RESPOSTAS_ANALISE
+  const liberadoAnalise = total >= minRespostasAnalise
 
   if (!total) {
     return res.status(200).json({
-      total, liberado_analise: false, min_respostas_analise: MIN_RESPOSTAS_ANALISE,
+      total, liberado_analise: false, min_respostas_analise: minRespostasAnalise,
       dimensoes: [], prevalencia_critica: [], setores: [], comentarios: [], sugestoes: [],
     })
   }
@@ -102,7 +106,7 @@ export default async function handler(req, res) {
   const sugestoes = liberadoAnalise ? respostas.map(r => r.sugestao).filter(Boolean) : []
 
   return res.status(200).json({
-    total, liberado_analise: liberadoAnalise, min_respostas_analise: MIN_RESPOSTAS_ANALISE,
+    total, liberado_analise: liberadoAnalise, min_respostas_analise: minRespostasAnalise,
     dimensoes, prevalencia_critica: prevalenciaCritica, setores, comentarios, sugestoes,
   })
 }
