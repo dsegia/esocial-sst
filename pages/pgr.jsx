@@ -726,6 +726,7 @@ export default function PGR() {
         plano_acao: pgr.plano_acao || [],
         textos_legais_custom: pgr.textos_legais_custom || {},
         imagens_anexas: pgr.imagens_anexas || [],
+        psicossocial_resultados: pgr.psicossocial_resultados || {},
       },
       {
         ...(empresaCompleta || {}),
