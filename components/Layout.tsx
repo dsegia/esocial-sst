@@ -31,6 +31,7 @@ const MENU_COMPLETO = [
   { href:'/epis',            label:'Controle de EPI',         icon:'M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z' },
   { href:'/sesmt',           label:'Dimensionamento SESMT',   icon:'M9 3v18M15 3v18M3 9h18M3 15h18' },
   { href:'/indicadores',     label:'Indicadores SST',         icon:'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { href:'/pesquisa-psicossocial', label:'Pesquisa Psicossocial', icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
   { sep:true, label:'TRANSMISSÕES' },
   { href:'/s2220',           label:'S-2220 Monit. Saúde',     icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
   { href:'/s2240',           label:'S-2240 Cond. Ambientais', icon:'M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2zM14 3v5h5' },
