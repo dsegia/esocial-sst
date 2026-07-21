@@ -16,6 +16,8 @@ import { SECOES_PCMSO } from './pcmso-conteudo-completo'
 import { TIPOS_CONSULTA, normalizeExames, acharAtividadePorFuncao } from './pcmso-exames'
 import { TEXTOS_LEGAIS_LIP } from './lip-conteudo'
 import { TEXTOS_LEGAIS_PPP } from './ppp-conteudo'
+import { TEXTOS_LEGAIS_AEP } from './aep-conteudo'
+import { TEXTOS_LEGAIS_DIR } from './dir-conteudo'
 
 // Reserva uma aba em branco de forma síncrona, ainda dentro do gesto de clique
 // do usuário — chamar window.open() depois de qualquer await (import do jsPDF,
@@ -2669,6 +2671,274 @@ export async function gerarPdfPpp(dados: any, empresa: any): Promise<void> {
   const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
   const nome = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
   abrirPdfEmNovaAba(doc, `PPP_${nome}_${data}.pdf`, _pdfTab)
+}
+
+export async function gerarPdfAep(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('ATESTADO DE EXPOSIÇÃO A AGENTES NOCIVOS', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('AEP', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DO TRABALHADOR', y)
+  const func = dados?.funcionario || {}
+  campo('Nome Completo', func.nome, mg, y, yw / 2)
+  campo('CPF', func.cpf, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10
+  campo('Matrícula', func.matricula_esocial, mg, y, yw / 3)
+  campo('Função Atual', func.funcao, mg + yw / 3 + 5, y, yw / 3 - 5)
+  campo('Admissão', func.data_adm ? new Date(func.data_adm + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + (yw / 3 + 5) * 2, y, yw / 3 - 5)
+  y += 12; linha(y); y += 6
+
+  const dg = dados?.dados_gerais || {}
+  y = secao('DADOS DO ATESTADO', y)
+  campo('Data de Emissão', dg.data_emissao ? new Date(dg.data_emissao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, yw / 3)
+  const periodo = `${dg.periodo_inicio ? new Date(dg.periodo_inicio + 'T00:00').toLocaleDateString('pt-BR') : '—'} a ${dg.periodo_fim ? new Date(dg.periodo_fim + 'T00:00').toLocaleDateString('pt-BR') : 'atual'}`
+  campo('Período Avaliado', periodo, mg + yw / 3 + 5, y, yw / 3 - 5)
+  campo('Função / Setor', `${dg.funcao || '—'}${dg.setor ? ` — ${dg.setor}` : ''}`, mg + (yw / 3 + 5) * 2, y, yw / 3 - 5)
+  y += 12; linha(y); y += 6
+
+  // ── Textos legais (Lei 8.213/91 / Decreto 3.048/99) ────
+  const textosCustomAep = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_AEP) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomAep[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
+
+  const agentes = dados?.agentes || []
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = secao(`AGENTES NOCIVOS (${agentes.length})`, y)
+  for (const a of agentes) {
+    if (y > 270) { doc.addPage(); y = 20 }
+    doc.setFontSize(9); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(`${a.tipo || '—'} — ${a.nome || '—'}${a.valor ? ` · ${a.valor}` : ''}${a.limite ? ` (limite: ${a.limite})` : ''}`, W - mg * 2)
+    doc.text(linhas, mg, y); y += linhas.length * 4.3 + 2
+  }
+  if (!agentes.length) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhum agente nocivo registrado.', mg + 2, y); y += 6
+  }
+  doc.setFontSize(9); doc.setTextColor(dg.epc_epi_eficaz === false ? 151 : 39, dg.epc_epi_eficaz === false ? 30 : 80, dg.epc_epi_eficaz === false ? 30 : 10)
+  doc.text(dg.epc_epi_eficaz === false ? 'EPC/EPI não eficaz / não fornecido no período' : 'EPC/EPI eficaz no período', mg, y)
+  y += 8; linha(y); y += 6
+
+  if (dg.conclusao) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao('CONCLUSÃO', y)
+    y = paragrafo(dg.conclusao, y)
+    y += 2
+  }
+
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  y = desenharAssinaturas(doc, y, mg, W,
+    {
+      tituloBloco: 'RESPONSÁVEL PELA EMISSÃO DO AEP',
+      descricao: 'Será responsável pela veracidade das informações do AEP — Atestado de Exposição a Agentes Nocivos.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL TÉCNICO',
+      descricao: 'Atestado de Exposição a Agentes Nocivos — AEP.',
+      nome: dg.resp_nome,
+      cargo: dg.resp_cargo || 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
+  )
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const dataArq = dg.data_emissao || new Date().toISOString().split('T')[0]
+  const nomeArq = func?.nome?.replace(/\s+/g, '_') || 'funcionario'
+  abrirPdfEmNovaAba(doc, `AEP_${nomeArq}_${dataArq}.pdf`, _pdfTab)
+}
+
+export async function gerarPdfDir(dados: any, empresa: any): Promise<void> {
+  const _pdfTab = reservarAbaPdf()
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = 210; const mg = 15
+  let y = 15
+
+  function linha(yPos: number) {
+    doc.setDrawColor(220, 220, 220)
+    doc.line(mg, yPos, W - mg, yPos)
+  }
+  function secao(texto: string, yPos: number): number {
+    doc.setFillColor(24, 95, 165)
+    doc.rect(mg, yPos, W - mg * 2, 6, 'F')
+    doc.setFontSize(9); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+    doc.text(texto, mg + 3, yPos + 4.2)
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal')
+    return yPos + 10
+  }
+  function campo(label: string, valor: string, xPos: number, yPos: number, largura: number): number {
+    doc.setFontSize(7); doc.setTextColor(100); doc.text(label.toUpperCase(), xPos, yPos)
+    doc.setFontSize(10); doc.setTextColor(30)
+    const linhas = doc.splitTextToSize(valor || '—', largura - 2)
+    doc.text(linhas, xPos, yPos + 4)
+    return yPos + 4 + linhas.length * 5
+  }
+  function paragrafo(texto: string, yPos: number, tamanho = 9): number {
+    doc.setFontSize(tamanho); doc.setTextColor(50)
+    const linhas = doc.splitTextToSize(texto, W - mg * 2)
+    let yy = yPos
+    for (const ln of linhas) {
+      if (yy > 278) { doc.addPage(); yy = 20 }
+      doc.text(ln, mg, yy)
+      yy += 4.3
+    }
+    return yy + 2
+  }
+
+  doc.setFillColor(24, 95, 165)
+  doc.rect(0, 0, W, 20, 'F')
+  if (empresa?.logo_url) {
+    try { doc.addImage(empresa.logo_url, 'JPEG', 2, 2, 16, 16) } catch { }
+  }
+  doc.setFontSize(13); doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold')
+  doc.text('DECLARAÇÃO DE INEXISTÊNCIA DE RISCO', W / 2, 8, { align: 'center' })
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.text('DIR', W / 2, 14, { align: 'center' })
+  y = 26
+
+  y = secao('DADOS DA EMPRESA', y)
+  const yw = (W - mg * 2)
+  campo('Razão Social', empresa?.razao_social, mg, y, yw / 2)
+  campo('CNPJ', empresa?.cnpj, mg + yw / 2 + 5, y, yw / 2 - 5)
+  y += 10; linha(y); y += 6
+
+  y = secao('DADOS DA DECLARAÇÃO', y)
+  const dg = dados?.dados_gerais || {}
+  const col = (W - mg * 2 - 10) / 3
+  campo('Data de Elaboração', dg.data_elaboracao ? new Date(dg.data_elaboracao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg, y, col)
+  campo('Próxima Revisão', dg.prox_revisao ? new Date(dg.prox_revisao + 'T00:00').toLocaleDateString('pt-BR') : '—', mg + col + 5, y, col)
+  campo(`${dg.resp_conselho || 'CREA'} Nº`, dg.resp_registro, mg + (col + 5) * 2, y, col)
+  y += 10; linha(y); y += 6
+  campo('Responsável Técnico', dg.resp_nome, mg, y, col * 2)
+  campo('CPF', dg.resp_cpf, mg + col * 2 + 5, y, col)
+  y += 12; linha(y); y += 6
+
+  // ── Textos legais ────
+  const textosCustomDir = dados?.textos_legais_custom || {}
+  for (const secaoTexto of TEXTOS_LEGAIS_DIR) {
+    if (y > 250) { doc.addPage(); y = 20 }
+    y = secao(secaoTexto.titulo, y)
+    const paragrafos = textosCustomDir[secaoTexto.titulo] || secaoTexto.paragrafos
+    for (const p of paragrafos) y = paragrafo(p, y)
+    y += 2
+  }
+  if (y > 240) { doc.addPage(); y = 20 }
+  linha(y); y += 6
+
+  const funcoes = dados?.funcoes || []
+  if (y > 240) { doc.addPage(); y = 20 }
+  y = secao(`FUNÇÕES DECLARADAS SEM RISCO (${funcoes.length})`, y)
+  for (const f of funcoes) {
+    if (y > 265) { doc.addPage(); y = 20 }
+    doc.setFontSize(10); doc.setTextColor(30); doc.setFont('helvetica', 'bold')
+    doc.text(`${f.funcao || '—'}${f.setor ? ` — ${f.setor}` : ''}`, mg, y)
+    doc.setFont('helvetica', 'normal'); y += 5
+    doc.setFontSize(8); doc.setTextColor(39, 80, 10)
+    doc.text('Sem risco ocupacional identificado', mg, y); y += 4.5
+    if (f.observacao) {
+      doc.setFontSize(7); doc.setTextColor(100)
+      const linhas = doc.splitTextToSize(f.observacao, W - mg * 2)
+      doc.text(linhas, mg, y); y += linhas.length * 3.5
+    }
+    y += 3; linha(y); y += 5
+  }
+  if (!funcoes.length) {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Nenhuma função declarada.', mg + 2, y); y += 6
+  }
+
+  if (y > 250) { doc.addPage(); y = 20 }
+  y += 6; linha(y); y += 10
+  y = desenharAssinaturas(doc, y, mg, W,
+    {
+      tituloBloco: 'RESPONSÁVEL PELA EMPRESA',
+      descricao: 'Declara ciência do conteúdo desta Declaração de Inexistência de Risco — DIR.',
+      nome: empresa?.resp_nome,
+    },
+    {
+      tituloBloco: 'RESPONSÁVEL PELA ELABORAÇÃO DO DIR',
+      descricao: 'Declaração de Inexistência de Risco, com base no PGR e no LTCAT vigentes.',
+      nome: dg.resp_nome,
+      cargo: 'Técnico/Engenheiro de Segurança do Trabalho',
+      extra: `${dg.resp_conselho || 'CREA'} ${dg.resp_registro || ''}`.trim() || undefined,
+    }
+  )
+
+  const totalPags = (doc as any).internal.getNumberOfPages()
+  for (let p = 1; p <= totalPags; p++) {
+    doc.setPage(p)
+    doc.setFontSize(7); doc.setTextColor(150)
+    doc.text(`eSocial SST — Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 292)
+    doc.text(`Página ${p}/${totalPags}`, W - mg, 292, { align: 'right' })
+  }
+
+  const data = dg.data_elaboracao || new Date().toISOString().split('T')[0]
+  abrirPdfEmNovaAba(doc, `DIR_${empresa?.cnpj?.replace(/\D/g, '') || 'empresa'}_${data}.pdf`, _pdfTab)
 }
 
 // ── Treinamentos NR ─────────────────────────────────────────

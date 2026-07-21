@@ -72,6 +72,8 @@ export default function PCMSO() {
   const [ltcatAtivo, setLtcatAtivo] = useState(null)
   const [ghesCadastro, setGhesCadastro] = useState([])
   const [asos, setAsos] = useState([])
+  const [medicosCadastro, setMedicosCadastro] = useState([])
+  const [clinicasCadastro, setClinicasCadastro] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [aba, setAba] = useState('programa') // programa | funcionarios | novo
   const [filtroSetor, setFiltroSetor] = useState('')
@@ -123,13 +125,15 @@ export default function PCMSO() {
       setEmpresaCompleta(emp)
     }
 
-    const [funcsRes, ltcatRes, ghesRes, asosRes, progRes, medicoRes] = await Promise.all([
+    const [funcsRes, ltcatRes, ghesRes, asosRes, progRes, medicoRes, medicosCadRes, clinicasCadRes] = await Promise.all([
       supabase.from('funcionarios').select('id,nome,cpf,funcao,setor,matricula_esocial').eq('empresa_id', empId).eq('ativo',true).order('nome').limit(2000),
       supabase.from('ltcats').select('*').eq('empresa_id', empId).eq('ativo',true).order('data_emissao',{ascending:false}).limit(1).maybeSingle(),
       supabase.from('ghes').select('*').eq('empresa_id', empId).eq('ativo', true).order('criado_em'),
       supabase.from('asos').select('funcionario_id,tipo_aso,data_exame,prox_exame,conclusao,exames').eq('empresa_id', empId).order('data_exame',{ascending:false}).limit(5000),
       supabase.from('pcmso_programa').select('*').eq('empresa_id', empId).order('funcao').limit(200),
       supabase.from('pcmso_dados').select('*').eq('empresa_id', empId).maybeSingle(),
+      supabase.from('medicos').select('*').eq('empresa_id', empId).eq('ativo', true).order('nome'),
+      supabase.from('clinicas').select('*').eq('empresa_id', empId).eq('ativo', true).order('nome'),
     ])
 
     const ghesAtuais = ghesRes.data || []
@@ -163,6 +167,8 @@ export default function PCMSO() {
     setAsos(asosRes.data || [])
     setPrograma(programaAtual)
     setMedico(medicoRes.data || null)
+    setMedicosCadastro(medicosCadRes.data || [])
+    setClinicasCadastro(clinicasCadRes.data || [])
     setCarregando(false)
   }
 
@@ -592,6 +598,18 @@ export default function PCMSO() {
 
         {editandoMedico && (
           <div style={{ marginTop:14, paddingTop:14, borderTop:'0.5px solid #e5e7eb' }}>
+            {medicosCadastro.length > 0 && (
+              <div style={{ marginBottom:10 }}>
+                <label style={s.label}>Preencher a partir do cadastro de médicos</label>
+                <select style={s.input} value="" onChange={e => {
+                  const m = medicosCadastro.find(x => x.id === e.target.value)
+                  if (m) setFormMedico({ ...formMedico, medico_nome: m.nome, medico_crm: m.crm || '', medico_cpf: m.cpf || '' })
+                }}>
+                  <option value="">— selecione um médico cadastrado —</option>
+                  {medicosCadastro.map(m => <option key={m.id} value={m.id}>{m.nome}{m.crm ? ` — ${m.crm}` : ''}</option>)}
+                </select>
+              </div>
+            )}
             <div style={s.row2}>
               <div>
                 <label style={s.label}>Nome do médico *</label>
@@ -647,6 +665,15 @@ export default function PCMSO() {
             {/* Clínica designada e médico examinador */}
             <div style={{ marginBottom:14 }}>
               <label style={s.label}>Clínica designada</label>
+              {clinicasCadastro.length > 0 && (
+                <select style={{ ...s.input, marginBottom:8 }} value="" onChange={e => {
+                  const c = clinicasCadastro.find(x => x.id === e.target.value)
+                  if (c) setFormMedico({ ...formMedico, clinica_nome: c.nome, clinica_cnpj: c.cnpj || '', clinica_endereco: c.endereco || '' })
+                }}>
+                  <option value="">— selecione uma clínica cadastrada —</option>
+                  {clinicasCadastro.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              )}
               <div style={s.row2}>
                 <input style={s.input} value={formMedico.clinica_nome} onChange={e => setFormMedico({...formMedico, clinica_nome:e.target.value})} placeholder="Nome da clínica designada"/>
                 <input style={s.input} value={formMedico.clinica_cnpj} onChange={e => setFormMedico({...formMedico, clinica_cnpj:e.target.value})} placeholder="CNPJ da clínica"/>
@@ -664,6 +691,15 @@ export default function PCMSO() {
                     </div>
                   ))}
                 </div>
+              )}
+              {medicosCadastro.length > 0 && (
+                <select style={{ ...s.input, marginBottom:8 }} value="" onChange={e => {
+                  const m = medicosCadastro.find(x => x.id === e.target.value)
+                  if (m) setNovoMedicoExaminador({ nome: m.nome, crm: m.crm || '' })
+                }}>
+                  <option value="">— selecione um médico cadastrado —</option>
+                  {medicosCadastro.map(m => <option key={m.id} value={m.id}>{m.nome}{m.crm ? ` — ${m.crm}` : ''}</option>)}
+                </select>
               )}
               <div style={{ display:'flex', gap:8 }}>
                 <input style={{ ...s.input, flex:2 }} placeholder="Nome do(a) médico(a) examinador(a)"

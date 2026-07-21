@@ -3,7 +3,6 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { createClient } from '@supabase/supabase-js'
 import Layout from '../components/Layout'
-import UploadLogo from '../components/UploadLogo'
 import { gerarPdfPgr } from '../lib/gerar-pdf'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 import { SEVERIDADE_OPCOES, PROBABILIDADE_OPCOES, TRAJETORIA_OPCOES, TIPO_EXPOSICAO_OPCOES, PRIORIZACAO_OPCOES, ESTIMATIVA_OPCOES, nivelRisco, calcularIQCT, TEXTOS_LEGAIS_PGR } from '../lib/pgr-conteudo'
@@ -333,30 +332,8 @@ export default function PGR() {
   const [erro, setErro] = useState('')
   const [textoAberto, setTextoAberto] = useState(null)
   const [modalTextos, setModalTextos] = useState(false)
-  const [salvandoLogo, setSalvandoLogo] = useState(false)
 
   useEffect(() => { init() }, [])
-
-  async function atualizarLogo(logoUrl) {
-    setSalvandoLogo(true)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/empresa/atualizar-logo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ logo_url: logoUrl })
-      })
-      if (!res.ok) throw new Error('Erro ao atualizar logo')
-      setEmpresaCompleta({ ...empresaCompleta, logo_url: logoUrl })
-      setSucesso('Logo atualizada com sucesso!')
-      setTimeout(() => setSucesso(''), 3000)
-    } catch (err) {
-      setErro(err.message)
-      setTimeout(() => setErro(''), 3000)
-    } finally {
-      setSalvandoLogo(false)
-    }
-  }
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -794,18 +771,6 @@ export default function PGR() {
 
       {sucesso && <div style={s.sucessoBox}>{sucesso}</div>}
       {erro && aba !== 'editar' && <div style={s.erroBox}>{erro}</div>}
-
-      <div style={s.card}>
-        <div style={{ fontSize:13, fontWeight:600, color:'#111', marginBottom:12 }}>Marca da Empresa</div>
-        <UploadLogo
-          empresa={empresaCompleta}
-          onUpdate={atualizarLogo}
-          isLoading={salvandoLogo}
-        />
-        <div style={{ fontSize:12, color:'#6b7280', marginTop:8 }}>
-          A logo será incluída automaticamente em todos os documentos PDF (PGR, LTCAT, PCMSO, ASO, AET, PPP, LIP, APR, Treinamentos, Fichas de EPI e Ordens de Serviço).
-        </div>
-      </div>
 
       {!ghesCadastro.length && (
         <div style={{ ...s.card, background:'#FAEEDA', border:'0.5px solid #F3D9A4' }}>

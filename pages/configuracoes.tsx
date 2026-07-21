@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
+import UploadLogo from '../components/UploadLogo'
 import { getEmpresaId, getEmpresaIdValida } from '../lib/empresa'
 
 function formatCnpj(cnpj: string) {
@@ -41,6 +42,7 @@ export default function Configuracoes() {
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState('')
   const [erro, setErro] = useState('')
+  const [salvandoLogo, setSalvandoLogo] = useState(false)
 
   // Certificado A1
   const [certArquivo, setCertArquivo] = useState<File | null>(null)
@@ -326,6 +328,27 @@ export default function Configuracoes() {
       setConviteErro(err.message)
     }
     setEnviandoConvite(false)
+  }
+
+  async function atualizarLogo(logoUrl: string | null) {
+    setSalvandoLogo(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/empresa/atualizar-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ logo_url: logoUrl })
+      })
+      if (!res.ok) throw new Error('Erro ao atualizar logo')
+      setEmpresa((e: any) => ({ ...e, logo_url: logoUrl }))
+      setSucesso('Logo atualizada com sucesso!')
+      setTimeout(() => setSucesso(''), 3000)
+    } catch (err: any) {
+      setErro(err.message)
+      setTimeout(() => setErro(''), 3000)
+    } finally {
+      setSalvandoLogo(false)
+    }
   }
 
   async function salvarEmpresa() {
@@ -683,6 +706,16 @@ export default function Configuracoes() {
       {/* ABA: Dados da Empresa */}
       {aba === 'empresa' && (
         <div style={s.card}>
+          <div style={s.cardTit}>Identidade Visual</div>
+          <UploadLogo
+            empresa={empresa}
+            onUpdate={atualizarLogo}
+            isLoading={salvandoLogo}
+          />
+          <div style={{ fontSize:12, color:'#6b7280', marginTop:-8, marginBottom:20 }}>
+            A logo será incluída automaticamente em todos os documentos PDF (PGR, LTCAT, PCMSO, ASO, AET, PPP, LIP, APR, Treinamentos, Fichas de EPI e Ordens de Serviço).
+          </div>
+
           <div style={s.cardTit}>Dados da Empresa</div>
           <div style={s.row2}>
             <div>
