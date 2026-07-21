@@ -1376,6 +1376,38 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     }
     return yy + 3
   }
+  // Tabela de resultados agregados da pesquisa de riscos psicossociais
+  // (gerada por pages/api/gerar-analise-psicossocial-ia.js e salva em
+  // pgr.psicossocial_resultados) — puramente renderização, nenhum cálculo
+  // novo aqui, só desenha o snapshot já pronto.
+  function tabelaResultadosPsicossociais(resultados: any, yPos: number): number {
+    let yy = yPos
+    const dataGerado = resultados.gerado_em ? new Date(resultados.gerado_em).toLocaleDateString('pt-BR') : ''
+    yy = paragrafo(`Resultado agregado da pesquisa de percepção dos colaboradores (${resultados.total_respostas} respondente${resultados.total_respostas === 1 ? '' : 's'}, anônimos, aplicada em ${dataGerado}):`, yy, 8.5)
+    yy += 1
+
+    if (resultados.dimensoes?.length) {
+      yy = tabela(
+        [{ titulo: 'Dimensão', largura: 105 }, { titulo: 'Média (1-5)', largura: 30 }, { titulo: 'Nível', largura: 45 }],
+        resultados.dimensoes.map((d: any) => [d.nome, d.media != null ? String(d.media) : '—', d.nivel_label || '—']),
+        yy,
+        (li, ci) => (ci === 2 ? { bg: hexRgb(resultados.dimensoes[li].nivel_bg), texto: hexRgb(resultados.dimensoes[li].nivel_cor) } : null),
+      )
+      yy += 2
+    }
+
+    if (resultados.itens_criticos?.length) {
+      yy = paragrafo('Itens críticos relatados (assédio e discriminação) — qualquer percentual acima de zero merece atenção, mesmo isolado:', yy, 8.5)
+      yy = tabela(
+        [{ titulo: 'Item', largura: 145 }, { titulo: '% que relatou', largura: 35 }],
+        resultados.itens_criticos.map((it: any) => [it.texto, `${it.percentual}%`]),
+        yy,
+        () => ({ bg: hexRgb('#FCEBEB'), texto: hexRgb('#791F1F') }),
+      )
+      yy += 2
+    }
+    return yy
+  }
   function inserirImagens(imagens: string[], yPos: number, legendas?: (string | undefined)[]): number {
     if (!imagens?.length) return yPos
     const tam = 35, gap = 5
@@ -1557,6 +1589,10 @@ export async function gerarPdfPgr(dados: any, empresa: any): Promise<void> {
     const paragrafos = textosCustom[secaoTexto.titulo] || secaoTexto.paragrafos
     for (const p of paragrafos) y = paragrafo(p, y)
     y += 2
+    if (secaoTexto.titulo === 'RISCOS PSICOSSOCIAIS' && dados?.psicossocial_resultados?.dimensoes?.length) {
+      if (y > 230) { doc.addPage(); y = 20 }
+      y = tabelaResultadosPsicossociais(dados.psicossocial_resultados, y)
+    }
   }
   if (y > 240) { doc.addPage(); y = 20 }
   linha(y); y += 6

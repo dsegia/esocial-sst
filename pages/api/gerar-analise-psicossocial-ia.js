@@ -96,12 +96,25 @@ export default async function handler(req, res) {
     return { dimensao: d.nome, media_1_a_5: media != null ? Number(media.toFixed(2)) : null, nivel: classificarNivel(media).label }
   })
 
+  // Snapshot para a tabela de resultados do PDF (lib/gerar-pdf.ts não consulta
+  // o Supabase — só renderiza o que já vier pronto em pgr.psicossocial_resultados).
+  const dimensoesSnapshot = DIMENSOES_PESQUISA.map(d => {
+    const media = mediaDimensao(valoresPorItem, d.id)
+    const nivel = classificarNivel(media)
+    return { nome: d.nome, media: media != null ? Number(media.toFixed(2)) : null, nivel_label: nivel.label, nivel_cor: nivel.cor, nivel_bg: nivel.bg }
+  })
+
   const prevalenciaCritica = ITENS_PREVALENCIA_CRITICA.map(itemId => {
     const valores = valoresPorItem[itemId] || []
     const relatos = valores.filter(v => v >= 4).length
     const item = todosItens().find(i => i.id === itemId)
     return { descricao: item?.texto, percentual_relato: valores.length ? Number(((relatos / valores.length) * 100).toFixed(1)) : 0 }
   })
+
+  const itensCriticosSnapshot = prevalenciaCritica
+    .filter(p => p.percentual_relato > 0)
+    .map(p => ({ texto: p.descricao, percentual: p.percentual_relato }))
+    .sort((a, b) => b.percentual - a.percentual)
 
   const comentarios = respostas.map(r => r.comentario).filter(Boolean).slice(0, 40)
   const sugestoes = respostas.map(r => r.sugestao).filter(Boolean).slice(0, 40)
@@ -146,8 +159,14 @@ export default async function handler(req, res) {
     }
 
     const novosTextos = { ...(pgrAtivo.textos_legais_custom || {}), [TITULO_SECAO]: resultado.paragrafos }
+    const psicossocialResultados = {
+      gerado_em: new Date().toISOString(),
+      total_respostas: total,
+      dimensoes: dimensoesSnapshot,
+      itens_criticos: itensCriticosSnapshot,
+    }
     const { error: errUpdate } = await sbAdmin.from('pgr')
-      .update({ textos_legais_custom: novosTextos }).eq('id', pgrAtivo.id)
+      .update({ textos_legais_custom: novosTextos, psicossocial_resultados: psicossocialResultados }).eq('id', pgrAtivo.id)
     if (errUpdate) return res.status(500).json({ erro: 'IA gerou o texto, mas houve erro ao salvar no PGR.' })
 
     fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/internal/log-ia`, {
