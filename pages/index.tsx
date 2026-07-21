@@ -293,6 +293,50 @@ footer{background:#0f172a;padding:56px 24px 32px;}
 .reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease;}
 .reveal.visible{opacity:1;transform:translateY(0);}
 
+/* ── PSICOSSOCIAL (prévia interativa) ── */
+.psico-bg{background:#fff;padding:88px 0;}
+.psico-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;text-align:left;}
+.psico-copy-list{list-style:none;display:flex;flex-direction:column;gap:14px;margin:24px 0 28px;}
+.psico-copy-list li{display:flex;gap:12px;font-size:14px;color:#475569;line-height:1.7;}
+.psico-copy-list li b{color:#0f172a;}
+.psico-copy-ic{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:rgba(24,95,165,.1);color:#185FA5;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+.psico-panel{background:#fff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(15,23,42,.14),0 4px 24px rgba(15,23,42,.06);}
+.psico-panel-bar{background:#f8fafc;padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#94a3b8;font-family:monospace;font-weight:500;}
+.psico-panel-body{padding:22px;min-height:300px;display:flex;flex-direction:column;gap:14px;}
+.psico-q-label{font-size:10px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:1px;}
+.psico-q-text{font-size:14.5px;font-weight:700;color:#0f172a;line-height:1.5;}
+.psico-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px;}
+.psico-scale button{padding:10px 4px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;font-size:10.5px;font-weight:700;color:#64748b;cursor:pointer;transition:all .15s;font-family:inherit;}
+.psico-scale button:hover{border-color:#185FA5;color:#185FA5;}
+.psico-progress-dots{display:flex;gap:6px;justify-content:center;margin-top:auto;padding-top:10px;}
+.psico-progress-dots span{width:6px;height:6px;border-radius:50%;background:#e2e8f0;transition:background .2s;}
+.psico-progress-dots span.done{background:#185FA5;}
+.psico-result-row{display:flex;flex-direction:column;gap:4px;}
+.psico-result-head{display:flex;justify-content:space-between;font-size:12px;}
+.psico-result-head b{color:#0f172a;font-weight:700;}
+.psico-result-track{background:#f1f5f9;border-radius:99px;height:8px;overflow:hidden;}
+.psico-result-fill{height:100%;border-radius:99px;transition:width .8s cubic-bezier(.2,.8,.2,1);}
+.psico-ai-line{display:flex;align-items:center;gap:8px;font-size:12px;color:#7c3aed;font-weight:600;}
+.psico-restart{width:100%;padding:10px;border:1.5px solid rgba(24,95,165,.2);background:transparent;border-radius:10px;font-size:12px;font-weight:600;color:#185FA5;cursor:pointer;margin-top:4px;font-family:inherit;}
+.psico-restart:hover{background:rgba(24,95,165,.05);border-color:#185FA5;}
+
+/* ── SESMT CALC ── */
+.sesmt-bg{background:#f8fafc;padding:88px 0;}
+.sesmt-panel{max-width:760px;margin:40px auto 0;background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:36px;box-shadow:0 20px 60px rgba(15,23,42,.08);text-align:left;}
+.sesmt-row{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:26px;}
+.sesmt-field{flex:1;min-width:220px;}
+.sesmt-field label{display:block;font-size:11px;font-weight:700;color:#185FA5;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+.sesmt-grau-btns{display:flex;gap:8px;}
+.sesmt-grau-btns button{flex:1;padding:10px 6px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;font-size:12.5px;font-weight:700;color:#64748b;cursor:pointer;transition:all .15s;font-family:inherit;}
+.sesmt-grau-btns button.active{border-color:transparent;background:linear-gradient(135deg,#185FA5,#3b82f6);color:#fff;box-shadow:0 4px 14px rgba(24,95,165,.3);}
+.sesmt-slider-val{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px;}
+.sesmt-slider{width:100%;accent-color:#185FA5;}
+.sesmt-results{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.sesmt-result-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px 10px;text-align:center;}
+.sesmt-result-num{font-size:26px;font-weight:900;color:#185FA5;letter-spacing:-1px;}
+.sesmt-result-label{font-size:10.5px;color:#64748b;margin-top:4px;font-weight:600;line-height:1.4;}
+.sesmt-disclaimer{margin-top:20px;font-size:11.5px;color:#94a3b8;line-height:1.6;border-top:1px solid #f1f5f9;padding-top:16px;}
+
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .hero-inner{grid-template-columns:1fr;gap:40px;text-align:center;}
@@ -307,6 +351,8 @@ footer{background:#0f172a;padding:56px 24px 32px;}
   .docs-grid{grid-template-columns:repeat(2,1fr);}
   .feat-bento{grid-template-columns:repeat(2,1fr);}
   .feat-tile.big{grid-column:span 2;grid-row:span 1;}
+  .psico-grid{grid-template-columns:1fr;gap:32px;}
+  .sesmt-results{grid-template-columns:repeat(3,1fr);}
 }
 @media(max-width:640px){
   .nav-links,.nav-cta{display:none;}
@@ -334,6 +380,11 @@ footer{background:#0f172a;padding:56px 24px 32px;}
   .footer-top{flex-direction:column;gap:28px;}
   .footer-bottom{flex-direction:column;align-items:center;text-align:center;}
   .stat-num{font-size:34px;}
+  .psico-scale{grid-template-columns:repeat(5,1fr);gap:4px;}
+  .psico-scale button{font-size:9px;padding:8px 2px;}
+  .sesmt-panel{padding:24px 18px;}
+  .sesmt-row{flex-direction:column;gap:18px;}
+  .sesmt-results{grid-template-columns:repeat(2,1fr);}
 }
 `
 
@@ -406,10 +457,16 @@ const REST_FEATURES = [
     svg:<><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><polyline points="16,4 18,6 22,2"/></> },
   { bg:'rgba(22,163,74,.1)', ic:'#16a34a', title:'Onboarding guiado', desc:'Checklist de primeiros passos: empresa, certificado, funcionários e primeira transmissão.',
     svg:<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></> },
+  { bg:'rgba(59,130,246,.1)', ic:'#2563eb', title:'GHEs gerados por IA', desc:'A IA sugere os Grupos Homogêneos de Exposição a partir dos funcionários já cadastrados — fonte única de risco/EPI/EPC para PGR, LTCAT, PCMSO e OS.',
+    svg:<><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></> },
+  { bg:'rgba(234,88,12,.1)', ic:'#ea580c', title:'Indicadores TF/TG', desc:'Taxa de Frequência e Taxa de Gravidade calculadas automaticamente a partir das CATs e horas-homem trabalhadas, sem planilha manual.',
+    svg:<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></> },
+  { bg:'rgba(8,145,178,.1)', ic:'#0891b2', title:'Histórico completo', desc:'Todas as transmissões já enviadas, pesquisáveis por evento e status, com exportação — além da fila de pendentes e rejeitados.',
+    svg:<><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></> },
 ]
 
 const DIFERENCIAIS = [
-  { ic:'🤖', title:'IA dupla: Claude + Gemini', text:'Leitura de PDF com dois modelos de IA (Anthropic e Google) trabalhando na extração de dados de ASO, LTCAT e PCMSO — mais precisão na hora de conferir.' },
+  { ic:'🤖', title:'IA em 3 frentes, não só leitura de PDF', text:'Claude e Gemini extraem dados de ASO/LTCAT/PCMSO, sugerem GHEs a partir dos funcionários cadastrados e escrevem a análise de riscos psicossociais do PGR — sempre com revisão antes de salvar.' },
   { ic:'🔒', title:'Certificado A1 em AES-256', text:'Seu certificado digital fica armazenado criptografado. Nem a nossa equipe tem acesso ao arquivo em texto claro.' },
   { ic:'🇧🇷', title:'Dados hospedados no Brasil', text:'Banco de dados e hospedagem em território nacional, com controle de acesso e conformidade com a LGPD.' },
   { ic:'🖊️', title:'Assinatura ICP-Brasil', text:'Todo evento transmitido ao eSocial é assinado digitalmente no padrão XMLDSig, igual ao exigido pelo Gov.br.' },
@@ -425,7 +482,80 @@ const FAQ_HOME = [
   { p:'Dá para gerenciar mais de uma empresa com um login só?', r:'Sim. Ideal para escritórios de SST e consultorias: um único login acessa múltiplos CNPJs, cada um isolado, inclusive com transmissão por procuração eCAC.' },
   { p:'Como funciona o preço?', r:'Um plano só que escala pelo número de funcionários ativos (vidas) — de R$ 59/mês até faixas maiores. Os 7 documentos e a transmissão eSocial são ilimitados em qualquer faixa. Trial de 14 dias sem cartão.' },
   { p:'O que acontece se eu perder um prazo do eSocial?', r:'A plataforma envia alertas automáticos por e-mail de 7 a 90 dias antes do vencimento de ASO e LTCAT, justamente para evitar as multas do art. 47 da CLT (de R$ 402,53 a R$ 4.025,33 por evento).' },
+  { p:'Como funciona a pesquisa de riscos psicossociais da NR-1?', r:'Você gera um link público e envia para os colaboradores por WhatsApp ou e-mail — sem exigir login. As respostas são anônimas (um controle local evita respostas duplicadas) e só liberam o resultado após um número mínimo de respostas, para proteger o anonimato. Com um clique, a IA analisa os dados por dimensão e escreve a seção "Riscos Psicossociais" do seu PGR automaticamente.' },
 ]
+
+// ─── PESQUISA PSICOSSOCIAL (prévia) — mesmas dimensões/escala do módulo real, ver lib/pesquisa-psicossocial-conteudo.ts
+const PSICO_ESCALA = [
+  { valor: 1, label: 'Nunca' },
+  { valor: 2, label: 'Raramente' },
+  { valor: 3, label: 'Às vezes' },
+  { valor: 4, label: 'Frequentemente' },
+  { valor: 5, label: 'Sempre' },
+]
+
+const PSICO_SAMPLE = [
+  { dimensao: 'Demandas e ritmo de trabalho', texto: 'Preciso trabalhar em ritmo muito acelerado para dar conta das tarefas.' },
+  { dimensao: 'Suporte social (liderança e colegas)', texto: 'Sinto falta de apoio da minha liderança quando preciso.' },
+  { dimensao: 'Equilíbrio entre trabalho e vida pessoal', texto: 'Penso ou me preocupo com o trabalho mesmo fora do horário de expediente.' },
+]
+
+function classificarNivelPsico(media: number) {
+  if (media < 2.5) return { label: 'Baixo', cor: '#16a34a', bg: '#dcfce7' }
+  if (media <= 3.5) return { label: 'Moderado', cor: '#d97706', bg: '#fef3c7' }
+  return { label: 'Elevado', cor: '#dc2626', bg: '#fee2e2' }
+}
+
+// ─── SESMT (NR-4, Quadro II) — mesma tabela de lib/nr4-sesmt.ts
+type FaixaSesmt = { min: number; max: number | null; tecnico: number; engenheiro: number; auxEnfermagem: number; enfermeiro: number; medico: number; incrementoAcima?: { cada: number; tecnico?: number; engenheiro?: number; auxEnfermagem?: number; enfermeiro?: number; medico?: number } }
+
+const SESMT_QUADRO_II: Record<'1-2' | '3' | '4', FaixaSesmt[]> = {
+  '1-2': [
+    { min: 101, max: 250, tecnico: 1, engenheiro: 0, auxEnfermagem: 0, enfermeiro: 0, medico: 0 },
+    { min: 251, max: 500, tecnico: 1, engenheiro: 0, auxEnfermagem: 1, enfermeiro: 0, medico: 0 },
+    { min: 501, max: 1000, tecnico: 1, engenheiro: 0, auxEnfermagem: 1, enfermeiro: 0, medico: 0 },
+    { min: 1001, max: 2000, tecnico: 2, engenheiro: 1, auxEnfermagem: 1, enfermeiro: 1, medico: 1 },
+    { min: 2001, max: 3500, tecnico: 3, engenheiro: 1, auxEnfermagem: 2, enfermeiro: 1, medico: 1 },
+    { min: 3501, max: 5000, tecnico: 4, engenheiro: 1, auxEnfermagem: 3, enfermeiro: 1, medico: 1 },
+    { min: 5001, max: null, tecnico: 4, engenheiro: 1, auxEnfermagem: 3, enfermeiro: 1, medico: 1, incrementoAcima: { cada: 3000, tecnico: 1, auxEnfermagem: 1 } },
+  ],
+  '3': [
+    { min: 50, max: 100, tecnico: 1, engenheiro: 0, auxEnfermagem: 1, enfermeiro: 0, medico: 1 },
+    { min: 101, max: 250, tecnico: 1, engenheiro: 0, auxEnfermagem: 1, enfermeiro: 0, medico: 1 },
+    { min: 251, max: 500, tecnico: 2, engenheiro: 1, auxEnfermagem: 1, enfermeiro: 0, medico: 1 },
+    { min: 501, max: 1000, tecnico: 3, engenheiro: 1, auxEnfermagem: 2, enfermeiro: 1, medico: 1 },
+    { min: 1001, max: 2000, tecnico: 4, engenheiro: 2, auxEnfermagem: 3, enfermeiro: 1, medico: 2 },
+    { min: 2001, max: 3500, tecnico: 5, engenheiro: 2, auxEnfermagem: 4, enfermeiro: 2, medico: 2 },
+    { min: 3501, max: 5000, tecnico: 6, engenheiro: 3, auxEnfermagem: 5, enfermeiro: 2, medico: 3 },
+    { min: 5001, max: null, tecnico: 6, engenheiro: 3, auxEnfermagem: 5, enfermeiro: 2, medico: 3, incrementoAcima: { cada: 1500, tecnico: 1, engenheiro: 1, auxEnfermagem: 1, medico: 1 } },
+  ],
+  '4': [
+    { min: 50, max: 100, tecnico: 1, engenheiro: 0, auxEnfermagem: 1, enfermeiro: 0, medico: 1 },
+    { min: 101, max: 250, tecnico: 2, engenheiro: 1, auxEnfermagem: 2, enfermeiro: 0, medico: 1 },
+    { min: 251, max: 500, tecnico: 3, engenheiro: 1, auxEnfermagem: 3, enfermeiro: 1, medico: 1 },
+    { min: 501, max: 1000, tecnico: 4, engenheiro: 2, auxEnfermagem: 4, enfermeiro: 1, medico: 2 },
+    { min: 1001, max: 2000, tecnico: 5, engenheiro: 3, auxEnfermagem: 5, enfermeiro: 2, medico: 3 },
+    { min: 2001, max: 3500, tecnico: 6, engenheiro: 4, auxEnfermagem: 6, enfermeiro: 2, medico: 3 },
+    { min: 3501, max: 5000, tecnico: 8, engenheiro: 5, auxEnfermagem: 8, enfermeiro: 3, medico: 4 },
+    { min: 5001, max: null, tecnico: 8, engenheiro: 5, auxEnfermagem: 8, enfermeiro: 3, medico: 4, incrementoAcima: { cada: 1000, tecnico: 1, engenheiro: 1, auxEnfermagem: 1, enfermeiro: 1, medico: 1 } },
+  ],
+}
+
+function calcularSesmt(grau: '1' | '2' | '3' | '4', nEmpregados: number) {
+  const tabela = SESMT_QUADRO_II[grau === '1' || grau === '2' ? '1-2' : grau]
+  const faixa = tabela.find(f => nEmpregados >= f.min && (f.max === null || nEmpregados <= f.max))
+  if (!faixa) return null
+  let { tecnico, engenheiro, auxEnfermagem, enfermeiro, medico } = faixa
+  if (faixa.max === null && faixa.incrementoAcima) {
+    const multiplos = Math.floor((nEmpregados - faixa.min) / faixa.incrementoAcima.cada)
+    tecnico += multiplos * (faixa.incrementoAcima.tecnico || 0)
+    engenheiro += multiplos * (faixa.incrementoAcima.engenheiro || 0)
+    auxEnfermagem += multiplos * (faixa.incrementoAcima.auxEnfermagem || 0)
+    enfermeiro += multiplos * (faixa.incrementoAcima.enfermeiro || 0)
+    medico += multiplos * (faixa.incrementoAcima.medico || 0)
+  }
+  return { tecnico, engenheiro, auxEnfermagem, enfermeiro, medico }
+}
 
 function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
   const [count, setCount] = useState(0)
@@ -736,6 +866,141 @@ function LiveDemo() {
   )
 }
 
+// ─── PRÉVIA — PESQUISA DE RISCOS PSICOSSOCIAIS ────────────────────────────────
+function PsicossocialPreview() {
+  const [i, setI] = useState(0)
+  const [respostas, setRespostas] = useState<number[]>([])
+  const [analisando, setAnalisando] = useState(false)
+
+  function responder(valor: number) {
+    const novas = [...respostas, valor]
+    setRespostas(novas)
+    if (novas.length < PSICO_SAMPLE.length) {
+      setI(i + 1)
+      return
+    }
+    setAnalisando(true)
+    setTimeout(() => setAnalisando(false), 1400)
+  }
+
+  function reset() { setI(0); setRespostas([]); setAnalisando(false) }
+
+  const concluido = respostas.length === PSICO_SAMPLE.length
+
+  return (
+    <div className="psico-panel">
+      <div className="psico-panel-bar">🔒 link público · resposta anônima · pesquisa-riscos-psicossociais.esocialsst.com.br/xxxxx</div>
+      <div className="psico-panel-body">
+        {!concluido && (
+          <>
+            <div>
+              <div className="psico-q-label">{PSICO_SAMPLE[i].dimensao}</div>
+              <div className="psico-q-text" style={{ marginTop: 6 }}>{PSICO_SAMPLE[i].texto}</div>
+            </div>
+            <div className="psico-scale">
+              {PSICO_ESCALA.map(o => (
+                <button key={o.valor} onClick={() => responder(o.valor)}>{o.label}</button>
+              ))}
+            </div>
+            <div className="psico-progress-dots">
+              {PSICO_SAMPLE.map((_, j) => <span key={j} className={j < respostas.length ? 'done' : ''} />)}
+            </div>
+          </>
+        )}
+
+        {concluido && analisando && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 240 }}>
+            <span style={{ fontSize: 28, animation: 'spin-slow 1.5s linear infinite', display: 'inline-block' }}>🤖</span>
+            <div className="psico-ai-line">IA analisando respostas por dimensão...</div>
+          </div>
+        )}
+
+        {concluido && !analisando && (
+          <div style={{ animation: 'slide-up-fade .4s ease', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="demo-card-title" style={{ marginBottom: -2 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><polyline points="20,6 9,17 4,12" /></svg>
+              Resultado por dimensão (simulado)
+            </div>
+            {PSICO_SAMPLE.map((p, idx) => {
+              const nivel = classificarNivelPsico(respostas[idx])
+              return (
+                <div key={idx} className="psico-result-row">
+                  <div className="psico-result-head">
+                    <span style={{ color: '#64748b' }}>{p.dimensao}</span>
+                    <b style={{ color: nivel.cor }}>{nivel.label}</b>
+                  </div>
+                  <div className="psico-result-track">
+                    <div className="psico-result-fill" style={{ width: `${(respostas[idx] / 5) * 100}%`, background: nivel.cor }} />
+                  </div>
+                </div>
+              )
+            })}
+            <div className="psico-ai-line" style={{ marginTop: 4 }}>
+              ✍️ No PGR real, a IA escreve a análise técnica completa a partir de dezenas de respostas anônimas
+            </div>
+            <button className="psico-restart" onClick={reset}>↺ Responder de novo</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── CALCULADORA — DIMENSIONAMENTO SESMT (NR-4) ───────────────────────────────
+function SesmtCalculatorWidget() {
+  const [grau, setGrau] = useState<'1' | '2' | '3' | '4'>('3')
+  const [funcionarios, setFuncionarios] = useState(120)
+  const resultado = calcularSesmt(grau, funcionarios)
+
+  const cards = [
+    { label: 'Técnico de Segurança', valor: resultado?.tecnico ?? 0 },
+    { label: 'Engenheiro de Segurança', valor: resultado?.engenheiro ?? 0 },
+    { label: 'Auxiliar/Téc. Enfermagem', valor: resultado?.auxEnfermagem ?? 0 },
+    { label: 'Enfermeiro do Trabalho', valor: resultado?.enfermeiro ?? 0 },
+    { label: 'Médico do Trabalho', valor: resultado?.medico ?? 0 },
+  ]
+
+  return (
+    <div className="sesmt-panel">
+      <div className="sesmt-row">
+        <div className="sesmt-field">
+          <label>Grau de risco (NR-4)</label>
+          <div className="sesmt-grau-btns">
+            {(['1', '2', '3', '4'] as const).map(g => (
+              <button key={g} className={grau === g ? 'active' : ''} onClick={() => setGrau(g)}>Grau {g}</button>
+            ))}
+          </div>
+        </div>
+        <div className="sesmt-field">
+          <label>Nº de funcionários</label>
+          <div className="sesmt-slider-val">{funcionarios} funcionários</div>
+          <input
+            type="range" min={10} max={2000} step={10} value={funcionarios}
+            onChange={e => setFuncionarios(Number(e.target.value))}
+            className="sesmt-slider"
+          />
+        </div>
+      </div>
+      <div className="sesmt-results">
+        {cards.map((c, i) => (
+          <div key={i} className="sesmt-result-card">
+            <div className="sesmt-result-num">{resultado ? c.valor : '—'}</div>
+            <div className="sesmt-result-label">{c.label}</div>
+          </div>
+        ))}
+      </div>
+      {!resultado && (
+        <p style={{ marginTop: 14, fontSize: 12.5, color: '#d97706', fontWeight: 600 }}>
+          Abaixo do limite mínimo do Quadro II para este grau de risco — SESMT dedicado normalmente não exigido nessa faixa.
+        </p>
+      )}
+      <p className="sesmt-disclaimer">
+        Estimativa de referência conforme NR-4, Quadro II — mesma tabela usada na calculadora do produto. Não substitui o dimensionamento de um engenheiro ou técnico de segurança do trabalho habilitado.
+      </p>
+    </div>
+  )
+}
+
 // ─── DECK DE DOCUMENTOS (hero) ────────────────────────────────────────────────
 const DECK_ORDER = ['LTCAT', 'PCMSO', 'AET', 'PGR', 'APR', 'LIP', 'PPP']
 
@@ -933,10 +1198,10 @@ export default function Home() {
     <>
       <Head>
         <title>eSocial SST — Documentos de SST e Transmissão com IA</title>
-        <meta name="description" content="Emita os 7 documentos de SST exigidos por lei (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmita os eventos do eSocial (S-2210, S-2220, S-2221, S-2240) — com leitura de PDF por inteligência artificial." />
+        <meta name="description" content="Emita os 7 documentos de SST exigidos por lei (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), a análise de riscos psicossociais da NR-1 com IA e transmita os eventos do eSocial (S-2210, S-2220, S-2221, S-2240) — com leitura de PDF por inteligência artificial." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta property="og:title" content="eSocial SST — Documentos de SST e Transmissão com IA" />
-        <meta property="og:description" content="Emita os 7 documentos de SST exigidos pelas NRs e transmita os eventos ao eSocial, com leitura de PDF por IA." />
+        <meta property="og:description" content="Emita os 7 documentos de SST pelas NRs, a pesquisa de riscos psicossociais da NR-1 com análise por IA, e transmita os eventos ao eSocial." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://www.dsegconsultoria.com.br" />
         <meta property="og:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
@@ -945,10 +1210,10 @@ export default function Home() {
         <meta property="og:locale" content="pt_BR" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="eSocial SST — Documentos de SST e Transmissão com IA" />
-        <meta name="twitter:description" content="Emita os 7 documentos de SST exigidos pelas NRs e transmita os eventos ao eSocial, com leitura de PDF por IA." />
+        <meta name="twitter:description" content="Emita os 7 documentos de SST pelas NRs, a pesquisa de riscos psicossociais da NR-1 com análise por IA, e transmita os eventos ao eSocial." />
         <meta name="twitter:image" content="https://www.dsegconsultoria.com.br/logo-completa.png" />
         <link rel="canonical" href="https://www.dsegconsultoria.com.br" />
-        <meta name="keywords" content="pgr nr-1, ltcat nr-9, pcmso nr-7, aet nr-17, ppp previdenciario, documentos sst, esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, certificado digital esocial, automatizar esocial sst" />
+        <meta name="keywords" content="pgr nr-1, ltcat nr-9, pcmso nr-7, aet nr-17, ppp previdenciario, documentos sst, esocial sst, transmissão esocial sst, s-2220 esocial, s-2240 esocial, s-2210 esocial, software esocial sst, aso esocial, certificado digital esocial, automatizar esocial sst, risco psicossocial nr-1, pesquisa psicossocial anonima, portaria mte 1419, dimensionamento sesmt nr-4" />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'SoftwareApplication',
@@ -956,8 +1221,8 @@ export default function Home() {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
           url: 'https://www.dsegconsultoria.com.br',
-          description: 'Software SaaS brasileiro que emite os 7 documentos de Saúde e Segurança do Trabalho exigidos pelas Normas Regulamentadoras (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP) e transmite os eventos SST ao eSocial Gov.br, com leitura de PDF por inteligência artificial.',
-          featureList: ['Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Leitura de PDF com IA (ASO, LTCAT, PCMSO, CAT)', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Dashboard executivo e relatório de conformidade', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
+          description: 'Software SaaS brasileiro que emite os 7 documentos de Saúde e Segurança do Trabalho exigidos pelas Normas Regulamentadoras (PGR, LTCAT, PCMSO, AET, APR, LIP, PPP), aplica a pesquisa de riscos psicossociais da NR-1 com análise por IA, e transmite os eventos SST ao eSocial Gov.br, com leitura de PDF por inteligência artificial.',
+          featureList: ['Documentos SST: PGR, LTCAT, PCMSO, AET, APR, LIP, PPP', 'Leitura de PDF com IA (ASO, LTCAT, PCMSO, CAT)', 'Pesquisa de riscos psicossociais (NR-1) com link público anônimo e análise por IA', 'Geração de GHEs por IA a partir dos funcionários cadastrados', 'Transmissão S-2210, S-2220, S-2221, S-2240', 'Dashboard executivo e relatório de conformidade', 'Indicadores de Taxa de Frequência e Taxa de Gravidade', 'Dimensionamento de SESMT (NR-4)', 'Assinatura digital ICP-Brasil', 'Alertas de vencimento configuráveis', 'Multi-empresa e procuração eCAC', 'Trial 14 dias grátis'],
         }) }} />
         <style dangerouslySetInnerHTML={{ __html: globalCSS }} />
       </Head>
@@ -1155,6 +1420,34 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── PESQUISA DE RISCOS PSICOSSOCIAIS ── */}
+      <section id="psicossocial" className="psico-bg">
+        <div className="section-wrap">
+          <div className="psico-grid">
+            <div className="reveal">
+              <div className="section-label">Novo · NR-1</div>
+              <h2 className="section-h2" style={{ textAlign: 'left' }}>Risco psicossocial, <span className="grad">sem expor ninguém</span></h2>
+              <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.8 }}>
+                A exigência mais discutida da NR-1 (Portaria MTE nº 1.419/2024), resolvida sem planilha e sem constranger o colaborador.
+              </p>
+              <ul className="psico-copy-list">
+                <li><span className="psico-copy-ic">1</span><span><b>Link público, sem login.</b> Envie por WhatsApp ou e-mail — o colaborador responde em ~6-8 minutos, de forma anônima.</span></li>
+                <li><span className="psico-copy-ic">2</span><span><b>Anonimato protegido.</b> O resultado só é liberado após um número mínimo de respostas, escalado pelo tamanho da empresa.</span></li>
+                <li><span className="psico-copy-ic">3</span><span><b>IA escreve a análise técnica.</b> Um clique gera 3-5 parágrafos que substituem a seção "Riscos Psicossociais" do PGR — e entram na tabela de resultados do PDF exportado.</span></li>
+              </ul>
+              <Link href="/cadastro" className="btn-hero-main" style={{ background: 'linear-gradient(135deg,#185FA5,#3b82f6)' }}>
+                Testar no meu PGR
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9,18 15,12 9,6" /></svg>
+              </Link>
+            </div>
+            <div className="reveal">
+              <PsicossocialPreview />
+              <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 10, fontWeight: 600 }}>Prévia interativa — responda como um colaborador responderia</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FUNCIONALIDADES (bento) ── */}
       <section id="funcionalidades" className="features-bg">
         <div className="section-wrap section-center">
@@ -1200,6 +1493,18 @@ export default function Home() {
                 <p>{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CALCULADORA SESMT ── */}
+      <section id="sesmt" className="sesmt-bg">
+        <div className="section-wrap section-center">
+          <div className="section-label">Ferramenta gratuita</div>
+          <h2 className="section-h2">Calculadora de <span className="grad">dimensionamento do SESMT</span></h2>
+          <p className="section-desc">Grau de risco (NR-4) e número de funcionários — veja a equipe mínima estimada, com a mesma tabela usada dentro da plataforma.</p>
+          <div className="reveal">
+            <SesmtCalculatorWidget />
           </div>
         </div>
       </section>
@@ -1391,7 +1696,9 @@ export default function Home() {
               <ul>
                 <li><a href="#documentos">Documentos SST</a></li>
                 <li><a href="#jornada">Como funciona</a></li>
+                <li><a href="#psicossocial">Riscos psicossociais</a></li>
                 <li><a href="#funcionalidades">Funcionalidades</a></li>
+                <li><a href="#sesmt">Calculadora SESMT</a></li>
                 <li><a href="#precos">Preços</a></li>
               </ul>
             </div>
