@@ -22,7 +22,7 @@ const gheVazio = () => ({
 const riscoVazio = () => ({
   id: crypto.randomUUID(), tipo:'fis', nome:'', perigo:'', fontes_circunstancias:'',
   valor:'', limite:'', unidade:'', supera_lt:false, medicao_quantitativa:false, metodologia:'',
-  codigo_esocial:'', fonte_geradora:'', danos_saude:'',
+  codigo_esocial:'', fonte_geradora:'', danos_saude:'', analise_qualitativa:'',
   severidade:'' as number | '', probabilidade:'' as number | '', trajetoria:'', tipo_exposicao:'',
 })
 const epiVazio = () => ({ nome:'', ca:'', atenuacao:'', eficaz:true })
@@ -52,6 +52,7 @@ export default function Ghes() {
   const [candidatos, setCandidatos] = useState<any[]>([])
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [importando, setImportando] = useState(false)
+  const [gerandoIA, setGerandoIA] = useState(false)
 
   useEffect(() => { init() }, [])
 
@@ -96,6 +97,7 @@ export default function Ghes() {
       metodologia: r.metodologia || '', codigo_esocial: r.codigo_t24 || r.codigo_esocial || '',
       fonte_geradora: r.equipamento || r.fonte_geradora || '',
       danos_saude: r.danos_saude || r.possiveis_danos || '',
+      analise_qualitativa: r.analise_qualitativa || '',
       severidade: r.severidade || '', probabilidade: r.probabilidade || '',
       trajetoria: r.trajetoria || '', tipo_exposicao: r.tipo_exposicao || '',
     }
@@ -144,6 +146,40 @@ export default function Ghes() {
     setCandidatos(todos)
     setSelecionados(new Set(todos.map((_, i) => i)))
     setBuscandoImport(false)
+  }
+
+  async function gerarComIA() {
+    setErro(''); setSucesso('')
+    setGerandoIA(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const resp = await fetch('/api/gerar-ghe-ia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      })
+      const json = await resp.json()
+      if (!resp.ok) throw new Error(json.erro || 'Erro ao gerar GHEs com IA')
+
+      const doIA = (json.ghes || []).map((g: any) => ({
+        origem: 'IA',
+        nome: g.nome || 'GHE sem nome',
+        setor: g.setor || '',
+        qtd_trabalhadores: g.qtd_trabalhadores || 1,
+        aposentadoria_especial: !!g.aposentadoria_especial,
+        horario_funcionamento: '',
+        funcoes: (g.funcoes || []).map(normalizarFuncao).filter((f: any) => f.nome),
+        riscos: (g.riscos || []).map(normalizarRisco),
+        epc: [],
+        epi: [],
+      }))
+
+      setCandidatos(doIA)
+      setSelecionados(new Set(doIA.map((_: any, i: number) => i)))
+      setImportAberto(true)
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao gerar GHEs com IA')
+    }
+    setGerandoIA(false)
   }
 
   function alternarSelecionado(i: number) {
@@ -318,6 +354,11 @@ export default function Ghes() {
         {!modoEdicao && !importAberto && (
           <div style={{ display:'flex', gap:8 }}>
             <button style={s.btnOutline} onClick={abrirImportar}>⬇ Importar do PGR/LTCAT</button>
+            {todosFunc.length > 0 && (
+              <button style={s.btnOutline} onClick={gerarComIA} disabled={gerandoIA}>
+                {gerandoIA ? 'Gerando...' : '✨ Gerar GHE com IA'}
+              </button>
+            )}
             <button style={s.btnPrimary} onClick={criarNovoGhe}>+ Novo GHE</button>
           </div>
         )}
@@ -328,16 +369,25 @@ export default function Ghes() {
 
       {importAberto && (
         <div style={{ ...s.card, border:'1.5px solid #185FA5', marginBottom:'1.25rem' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-            <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>Importar GHEs do PGR/LTCAT</div>
-            <button onClick={fecharImportar} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
-          </div>
-          <div style={{ fontSize:12, color:'#6b7280', marginBottom:12 }}>
-            Traz os GHEs e riscos já preenchidos no PGR e no LTCAT mais recentes desta empresa para o cadastro central. Revise a seleção antes de importar.
-          </div>
+          {(() => {
+            const ehIA = candidatos.length > 0 && candidatos.every(c => c.origem === 'IA')
+            return (
+              <>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:'#111' }}>{ehIA ? 'GHEs gerados por IA — revise antes de importar' : 'Importar GHEs do PGR/LTCAT'}</div>
+                  <button onClick={fecharImportar} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+                </div>
+                <div style={{ fontSize:12, color:'#6b7280', marginBottom:12 }}>
+                  {ehIA
+                    ? 'A IA agrupou os funcionários cadastrados em GHEs e sugeriu descrição de cargo e riscos pré-estabelecidos com severidade, probabilidade e análise qualitativa. Isto é um rascunho — revise cada risco com um profissional habilitado antes de usar em documentos oficiais.'
+                    : 'Traz os GHEs e riscos já preenchidos no PGR e no LTCAT mais recentes desta empresa para o cadastro central. Revise a seleção antes de importar.'}
+                </div>
+              </>
+            )
+          })()}
 
-          {buscandoImport ? (
-            <div style={{ fontSize:13, color:'#6b7280' }}>Buscando dados no PGR e LTCAT...</div>
+          {buscandoImport || gerandoIA ? (
+            <div style={{ fontSize:13, color:'#6b7280' }}>{gerandoIA ? 'A IA está analisando os funcionários cadastrados...' : 'Buscando dados no PGR e LTCAT...'}</div>
           ) : candidatos.length === 0 ? (
             <div style={s.emptySmall}>Nenhum GHE encontrado no PGR ou LTCAT desta empresa.</div>
           ) : (
@@ -379,6 +429,11 @@ export default function Ghes() {
           <div style={{ fontSize:12, color:'#9ca3af', marginTop:4 }}>Cadastre os Grupos Homogêneos de Exposição da empresa uma única vez</div>
           <div style={{ display:'flex', gap:8, marginTop:16 }}>
             <button style={s.btnOutline} onClick={abrirImportar}>⬇ Importar do PGR/LTCAT</button>
+            {todosFunc.length > 0 && (
+              <button style={s.btnOutline} onClick={gerarComIA} disabled={gerandoIA}>
+                {gerandoIA ? 'Gerando...' : '✨ Gerar GHE com IA'}
+              </button>
+            )}
             <button style={s.btnPrimary} onClick={criarNovoGhe}>+ Novo GHE</button>
           </div>
         </div>
@@ -470,6 +525,7 @@ export default function Ghes() {
                             </div>
                           )}
                           {ag.danos_saude && <div style={{ fontSize:11, color:'#791F1F', marginTop:2 }}>Danos à saúde: {ag.danos_saude}</div>}
+                          {ag.analise_qualitativa && <div style={{ fontSize:11, color:'#374151', marginTop:4, fontStyle:'italic', borderTop:'0.5px solid #f3f4f6', paddingTop:4 }}>{ag.analise_qualitativa}</div>}
                           {ag.codigo_esocial && <div style={{ fontSize:10, color:'#9ca3af', marginTop:2, fontFamily:'monospace' }}>eSocial: {ag.codigo_esocial}</div>}
                         </div>
                         )
@@ -659,6 +715,7 @@ export default function Ghes() {
                         <input style={s.input} value={ag.fonte_geradora||''} onChange={e=>setRisco(ai,'fonte_geradora',e.target.value)} placeholder="Equipamento / fonte geradora"/>
                         <input style={s.input} value={ag.danos_saude||''} onChange={e=>setRisco(ai,'danos_saude',e.target.value)} placeholder="Possíveis danos à saúde (ex: PAIR, dermatose, LER/DORT...)"/>
                       </div>
+                      <textarea style={{ ...s.input, minHeight:44, marginBottom:6, resize:'vertical' }} value={ag.analise_qualitativa||''} onChange={e=>setRisco(ai,'analise_qualitativa',e.target.value)} placeholder="Análise qualitativa — por que o risco existe nesta função e qual o potencial de dano"/>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:6 }}>
                         <select style={s.input} value={ag.severidade} onChange={e=>setRisco(ai,'severidade', e.target.value?parseInt(e.target.value,10):'')}>
                           <option value="">Severidade</option>
