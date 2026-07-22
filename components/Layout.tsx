@@ -253,10 +253,10 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
                     display:'flex', alignItems:'center', justifyContent:'space-between', gap:6, cursor:'pointer',
                     padding:'10px 10px 4px', marginTop:4,
                   }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:'#c4c4c0', textTransform:'uppercase', letterSpacing:'.08em' }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:'#6b7280', textTransform:'uppercase', letterSpacing:'.08em' }}>
                       {item.label}
                     </span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#c4c4c0" strokeWidth="3" style={{ flexShrink:0, transform: aberto ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="3" style={{ flexShrink:0, transform: aberto ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>
                       <polyline points="9,18 15,12 9,6"/>
                     </svg>
                   </div>
@@ -272,11 +272,11 @@ export default function Layout({ children, pagina }: { children: ReactNode; pagi
                   padding:'7px 10px', borderRadius:8, marginBottom:1,
                   fontSize:12, textDecoration:'none',
                   background: ativo ? '#E6F1FB' : 'transparent',
-                  color: ativo ? '#185FA5' : '#374151',
+                  color: ativo ? '#185FA5' : '#1f2937',
                   fontWeight: ativo ? 500 : 400,
                 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                    stroke={ativo ? '#185FA5' : '#9ca3af'} strokeWidth="2" style={{ flexShrink:0 }}>
+                    stroke={ativo ? '#185FA5' : '#6b7280'} strokeWidth="2" style={{ flexShrink:0 }}>
                     <path d={item.icon}/>
                   </svg>
                   <span style={{ lineHeight:1.3 }}>{item.label}</span>
