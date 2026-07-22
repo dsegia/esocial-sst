@@ -156,26 +156,27 @@ export default async function handler(req, res) {
     // Também é necessário propagar os namespaces do elemento pai (<eSocial>).
     const xmlParaDigest = extrairElementoParaDigest(xmlLimpo, elemId, tagAssinatura)
 
-    const md = forge.md.sha1.create()
+    const md = forge.md.sha256.create()
     md.update(forge.util.encodeUtf8(xmlParaDigest))
     const digestB64 = forge.util.encode64(md.digest().getBytes())
 
     // 5. Construir o SignedInfo
     const signedInfo = `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">` +
       `<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>` +
-      `<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>` +
+      `<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>` +
       `<Reference URI="#${elemId}">` +
         `<Transforms>` +
           `<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>` +
           `<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>` +
         `</Transforms>` +
-        `<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>` +
+        `<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>` +
         `<DigestValue>${digestB64}</DigestValue>` +
       `</Reference>` +
     `</SignedInfo>`
 
-    // 6. Assinar o SignedInfo com RSA-SHA1
-    const mdSig = forge.md.sha1.create()
+    // 6. Assinar o SignedInfo com RSA-SHA256 (exigido pelo Manual de Orientação
+    // do Desenvolvedor eSocial v1.15/2025 — versões antigas usavam SHA-1)
+    const mdSig = forge.md.sha256.create()
     mdSig.update(forge.util.encodeUtf8(signedInfo))
     const signatureBytes = privateKey.sign(mdSig)
     const signatureB64 = forge.util.encode64(signatureBytes)

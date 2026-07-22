@@ -314,7 +314,7 @@ Produção:          https://webservices.esocial.gov.br/...
 1. Carregar .pfx + senha (nunca sai do browser)
 2. Verificar validade do certificado
 3. Gerar XML com códigos corretos (T27/T24)
-4. Assinar com XMLDSig (SHA-1 + RSA, ICP-Brasil)
+4. Assinar com XMLDSig (SHA-256 + RSA, ICP-Brasil)
 5. Envelope SOAP
 6. POST ao webservice
 7. Parsear resposta: recibo ou erro
